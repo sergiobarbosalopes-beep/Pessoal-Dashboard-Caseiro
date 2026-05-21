@@ -395,7 +395,9 @@ a {
 }
 
 .timeline-wrap {
+  display: flex;
   overflow-x: hidden;
+  min-height: 74px;
   padding-bottom: 8px;
 }
 
@@ -409,6 +411,8 @@ a {
 }
 
 .timeline-grid {
+  flex: 1;
+  align-items: stretch;
   margin-top: 12px;
 }
 
@@ -445,6 +449,10 @@ a {
   border: 1px solid rgba(176, 211, 227, 0.2);
   border-radius: var(--radius-pill);
   background: #173545;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 11px 3px;
   min-height: 42px;
   text-align: center;
