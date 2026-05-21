@@ -102,6 +102,7 @@ function renderExpenseRows(expenses, rubricName) {
       return `
       <div class='data-row expense' data-sortable>
         <div class='desc-cell expense-desc-cell'>
+          <span class='chev-spacer' aria-hidden='true'></span>
           <button class='desc-pill expense-menu-trigger' type='button' data-expense-menu-toggle aria-expanded='false' aria-label='Opcoes da despesa ${expense.name}'>${expense.name}</button>
           <div class='expense-sort-actions'>
             <div class='expense-menu' role='menu'>

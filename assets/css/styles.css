@@ -633,19 +633,19 @@ a {
   position: relative;
 }
 
+.expense-desc-cell .chev-spacer {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .expense-menu-trigger {
-  text-align: center;
+  text-align: left;
   cursor: pointer;
-}
-
-.panel.income .expense-menu-trigger {
-  border-color: rgba(143, 224, 181, 0.24);
-  background: linear-gradient(135deg, rgba(47, 142, 97, 0.34), rgba(62, 170, 118, 0.3));
-}
-
-.panel.outcome .expense-menu-trigger {
-  border-color: rgba(242, 206, 132, 0.24);
-  background: linear-gradient(135deg, rgba(182, 132, 58, 0.36), rgba(214, 159, 68, 0.31));
 }
 
 .expense-menu-trigger[aria-expanded="true"] {
@@ -757,7 +757,7 @@ a {
 }
 
 .data-row.expense {
-  background: transparent;
+  background: rgba(16, 36, 47, 0.65);
 }
 
 .desc-cell {
