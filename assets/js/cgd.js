@@ -124,28 +124,21 @@ function renderRubrics(rubrics, kind) {
 
       return `
       <article class='rubric' data-sortable>
-        <header class='rubric-head'>
-          <div class='panel-title'>
+        <header class='rubric-head data-row'>
+          <div class='desc-cell rubric-desc-cell'>
             <button class='chev' type='button' data-toggle-target='${expenseBodyId}' aria-expanded='true' aria-label='Expandir rubrica'>▼</button>
-            <strong>${rubric.name}</strong>
+            <span class='desc-pill rubric-title'>${rubric.name}</span>
+            <div class='sort-actions rubric-sort-actions'>
+              <button type='button' data-move-up aria-label='Subir rubrica'>↑</button>
+              <button type='button' data-move-down aria-label='Descer rubrica'>↓</button>
+            </div>
           </div>
-          <div class='sort-actions'>
-            <button type='button' data-move-up aria-label='Subir rubrica'>↑</button>
-            <button type='button' data-move-down aria-label='Descer rubrica'>↓</button>
-          </div>
+          ${monthPills(totals, true, `${rubric.name} total`)}
         </header>
         <div class='rubric-body' id='${expenseBodyId}'>
-          <div class='item-rows'>
-            <div class='data-row'>
-              <div class='desc-cell'>
-                <span class='desc-pill rubric-total-label' aria-label='Total da rubrica'></span>
-              </div>
-              ${monthPills(totals, true, `${rubric.name} total`)}
-            </div>
-            <div class='expense-body'>
-              <div class='item-rows'>
-                ${renderExpenseRows(rubric.expenses, rubric.name)}
-              </div>
+          <div class='expense-body'>
+            <div class='item-rows'>
+              ${renderExpenseRows(rubric.expenses, rubric.name)}
             </div>
           </div>
         </div>

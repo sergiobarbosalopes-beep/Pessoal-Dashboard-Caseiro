@@ -508,11 +508,24 @@ a {
 }
 
 .rubric-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px;
-  gap: 8px;
+  padding: 4px;
+  border-bottom: 1px solid rgba(17, 34, 43, 0.1);
+}
+
+.rubric-desc-cell {
+  position: relative;
+  padding-right: 74px;
+}
+
+.rubric-title {
+  width: 100%;
+}
+
+.rubric-sort-actions {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .sort-actions {
@@ -561,7 +574,7 @@ a {
   font-weight: 600;
   font-size: 0.8rem;
 }
-.rubric-total-label { background: transparent; border-color: transparent; color: transparent; pointer-events: none; }
+
 
 .money-pill {
   border: 1px solid rgba(17, 34, 43, 0.14);
