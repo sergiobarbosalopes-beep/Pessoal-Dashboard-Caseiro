@@ -460,17 +460,32 @@ a {
 }
 
 .panel-head {
-  padding: 10px;
+  padding: 6px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 
+.panel-head h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.05;
+}
+
+.panel-head .muted {
+  font-size: 0.74rem;
+}
+
 .panel-title {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.panel-title .chev {
+  width: 26px;
+  height: 26px;
 }
 
 .chev {
