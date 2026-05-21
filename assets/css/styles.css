@@ -506,7 +506,7 @@ a {
 
 .month-tile-number {
   font-weight: 700;
-  font-size: 0.98rem;
+  font-size: 1.14rem;
   line-height: 1;
 }
 
@@ -1108,7 +1108,7 @@ a {
   }
 
   .month-tile-number {
-    font-size: 0.82rem;
+    font-size: 0.94rem;
   }
 
   .year-btn {
