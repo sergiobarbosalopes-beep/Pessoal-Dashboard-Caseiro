@@ -466,13 +466,14 @@ a {
 
 .month-tile {
   border: 1px solid rgba(176, 211, 227, 0.2);
-  border-radius: var(--radius-pill);
+  border-radius: 10px;
   background: #173545;
-  height: 100%;
+  width: 100%;
+  aspect-ratio: 1 / 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 11px 3px;
+  padding: 0;
   min-height: 42px;
   text-align: center;
   font-weight: 700;
@@ -1058,7 +1059,8 @@ a {
 
   .month-tile {
     font-size: 0.66rem;
-    padding: 10px 2px;
+    border-radius: 9px;
+    padding: 0;
     min-height: 40px;
   }
 
