@@ -849,6 +849,10 @@ a {
   font-size: 0.8rem;
 }
 
+.data-row.expense .money-pill.readonly.is-past-current-year button {
+  color: #96a2aa;
+}
+
 .money-pill.active {
   border-color: rgba(213, 171, 70, 0.9);
   box-shadow: 0 0 0 2px rgba(213, 171, 70, 0.36), 0 0 16px rgba(213, 171, 70, 0.24);

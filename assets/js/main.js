@@ -82,6 +82,25 @@ function highlightMonth(monthIndex) {
   });
 }
 
+function syncExpensePastMonthsState() {
+  const yearLabel = document.querySelector("[data-year-label]");
+  if (!yearLabel) {
+    return;
+  }
+
+  const selectedYear = Number(yearLabel.textContent.trim());
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const shouldGrayPastMonths = selectedYear === currentYear && currentMonth > 0;
+
+  document.querySelectorAll(".data-row.expense [data-month-col]").forEach((pill) => {
+    const monthIndex = Number(pill.getAttribute("data-month-col"));
+    const isPastMonth = shouldGrayPastMonths && monthIndex < currentMonth;
+    pill.classList.toggle("is-past-current-year", isPastMonth);
+  });
+}
+
 function initDelegatedActions() {
   const closeAllMenus = () => {
     document.querySelectorAll(".rubric-sort-actions.open").forEach((openMenu) => {
@@ -219,6 +238,7 @@ function initYearNavigation() {
 
   const render = () => {
     yearLabel.textContent = String(year);
+    syncExpensePastMonthsState();
   };
 
   document.querySelector("[data-year-prev]")?.addEventListener("click", () => {
@@ -244,4 +264,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (activeMonthTile) {
     highlightMonth(Number(activeMonthTile.dataset.month));
   }
+
+  syncExpensePastMonthsState();
 });
