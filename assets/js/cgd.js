@@ -89,8 +89,12 @@ function renderTimeline() {
     .join("");
 
   timeline.innerHTML = `
-    <div class='desc-cell'>
-      <div class='desc-pill'>Mes de referencia</div>
+    <div class='desc-cell timeline-year-slot'>
+      <div class='year-nav year-nav-timeline' aria-label='Navegacao de anos'>
+        <button class='year-btn' type='button' data-year-prev aria-label='Ano anterior'>-</button>
+        <strong data-year-label>2026</strong>
+        <button class='year-btn' type='button' data-year-next aria-label='Ano seguinte'>+</button>
+      </div>
     </div>
     ${monthsHtml}
   `;

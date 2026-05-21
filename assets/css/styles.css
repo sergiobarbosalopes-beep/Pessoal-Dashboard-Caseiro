@@ -403,6 +403,15 @@ a {
   padding: 6px 10px;
 }
 
+.timeline-year-slot {
+  width: 100%;
+}
+
+.year-nav-timeline {
+  width: 100%;
+  justify-content: space-between;
+}
+
 .year-btn {
   border: 0;
   background: rgba(228, 244, 252, 0.12);
