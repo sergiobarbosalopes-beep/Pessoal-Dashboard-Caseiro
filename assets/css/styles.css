@@ -398,7 +398,7 @@ a {
   display: flex;
   position: relative;
   overflow-x: hidden;
-  min-height: 92px;
+  min-height: 74px;
   padding: 8px 0;
 }
 
@@ -417,28 +417,13 @@ a {
   margin-top: 0;
 }
 
-.timeline-overlay-title {
-  position: absolute;
-  top: 14px;
-  left: 10px;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.84rem;
-  font-weight: 700;
-  color: #d8eaf3;
-  pointer-events: none;
-}
-
 .year-nav {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  border-radius: var(--radius-pill);
-  background: #153142;
-  border: 1px solid var(--line);
-  padding: 6px 10px;
+  gap: 6px;
+  background: transparent;
+  border: 0;
+  padding: 0;
 }
 
 .timeline-year-slot {
@@ -450,18 +435,38 @@ a {
 .year-nav-timeline {
   width: 100%;
   min-height: 100%;
-  justify-content: space-between;
-  padding-top: 20px;
+  justify-content: flex-start;
 }
 
 .year-btn {
-  border: 0;
-  background: rgba(228, 244, 252, 0.12);
+  border: 1px solid rgba(176, 211, 227, 0.2);
+  background: #173545;
   color: #d8ebf5;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.year-nav [data-year-label] {
+  border: 1px solid rgba(176, 211, 227, 0.2);
+  border-radius: 10px;
+  background: #173545;
+  color: #cce0eb;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .month-tile {
@@ -1062,6 +1067,13 @@ a {
     border-radius: 9px;
     padding: 0;
     min-height: 40px;
+  }
+
+  .year-btn,
+  .year-nav [data-year-label] {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
   }
 
   .timeline-grid,
