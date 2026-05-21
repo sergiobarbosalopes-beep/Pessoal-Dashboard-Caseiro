@@ -494,7 +494,7 @@ a {
   max-height: 2200px;
   opacity: 1;
   overflow: hidden;
-  transition: max-height 300ms ease, opacity 200ms ease;
+  transition: max-height 180ms ease, opacity 140ms ease;
 }
 
 .panel-body {
@@ -827,7 +827,7 @@ a {
 }
 
 .rubric-head .money-pill input {
-  color: #a8b4bc;
+  color: #96a2aa;
 }
 
 .money-pill.readonly {
