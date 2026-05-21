@@ -322,10 +322,22 @@ async function loadYearData(year) {
   }
 
   try {
-    const [rubricRows, expenseRows] = await Promise.all([
+    const [rubricsResult, expensesResult] = await Promise.allSettled([
       fetchRubricsForYear(year),
       fetchExpensesForYear(year)
     ]);
+
+    const rubricRows = rubricsResult.status === "fulfilled" ? rubricsResult.value : [];
+    const expenseRows = expensesResult.status === "fulfilled" ? expensesResult.value : [];
+
+    if (rubricsResult.status === "rejected") {
+      console.error("Erro a carregar rubricas CGD:", rubricsResult.reason);
+    }
+
+    if (expensesResult.status === "rejected") {
+      console.error("Erro a carregar despesas CGD:", expensesResult.reason);
+    }
+
     cgdState.data = buildDataModel(rubricRows, expenseRows);
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
@@ -418,14 +430,10 @@ window.cgdHandleRubricReorder = async (row, action) => {
     parent.insertBefore(sibling, currentRow);
   }
 
-  try {
-    const rows = Array.from(parent.querySelectorAll("article.rubric[data-sortable]"));
-    await persistRubricOrder(rows);
-    await loadYearData(cgdState.selectedYear);
-  } catch (error) {
+  const rows = Array.from(parent.querySelectorAll("article.rubric[data-sortable]"));
+  persistRubricOrder(rows).catch((error) => {
     console.error("Erro ao guardar ordem de rubricas:", error);
-    await loadYearData(cgdState.selectedYear);
-  }
+  });
 
   return true;
 };
@@ -449,14 +457,10 @@ window.cgdHandleExpenseReorder = async (row, action) => {
   }
 
   const rubricId = Number(currentRow.getAttribute("data-rubrica-id"));
-  try {
-    const rows = Array.from(parent.querySelectorAll(".data-row.expense[data-sortable]"));
-    await persistExpenseOrder(rows, rubricId);
-    await loadYearData(cgdState.selectedYear);
-  } catch (error) {
+  const rows = Array.from(parent.querySelectorAll(".data-row.expense[data-sortable]"));
+  persistExpenseOrder(rows, rubricId).catch((error) => {
     console.error("Erro ao guardar ordem de despesas:", error);
-    await loadYearData(cgdState.selectedYear);
-  }
+  });
 
   return true;
 };

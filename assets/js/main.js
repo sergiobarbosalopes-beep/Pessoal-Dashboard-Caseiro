@@ -48,7 +48,7 @@ function initExpenseModal() {
   }
   const modalTitle = modal.querySelector("[data-modal-title]");
 
-  document.addEventListener("click", async (event) => {
+  document.addEventListener("click", (event) => {
     const fieldBtn = event.target.closest("button[data-expense-field]");
     if (!fieldBtn) {
       return;
@@ -158,11 +158,16 @@ function initDelegatedActions() {
     if (menuAction) {
       const row = menuAction.closest("[data-sortable]");
       const action = menuAction.getAttribute("data-rubric-menu-action");
-      const handled = await window.cgdHandleRubricReorder?.(row, action);
-      if (!handled && row && action === "up" && row.previousElementSibling) {
+      const hasRemoteHandler = typeof window.cgdHandleRubricReorder === "function";
+      if (hasRemoteHandler) {
+        window.cgdHandleRubricReorder(row, action).catch((error) => {
+          console.error("Erro no reorder de rubricas:", error);
+        });
+      }
+      if (!hasRemoteHandler && row && action === "up" && row.previousElementSibling) {
         row.parentElement.insertBefore(row, row.previousElementSibling);
       }
-      if (!handled && row && action === "down" && row.nextElementSibling) {
+      if (!hasRemoteHandler && row && action === "down" && row.nextElementSibling) {
         row.parentElement.insertBefore(row.nextElementSibling, row);
       }
 
@@ -174,11 +179,16 @@ function initDelegatedActions() {
     if (expenseMenuAction) {
       const row = expenseMenuAction.closest("[data-sortable]");
       const action = expenseMenuAction.getAttribute("data-expense-menu-action");
-      const handled = await window.cgdHandleExpenseReorder?.(row, action);
-      if (!handled && row && action === "up" && row.previousElementSibling) {
+      const hasRemoteHandler = typeof window.cgdHandleExpenseReorder === "function";
+      if (hasRemoteHandler) {
+        window.cgdHandleExpenseReorder(row, action).catch((error) => {
+          console.error("Erro no reorder de despesas:", error);
+        });
+      }
+      if (!hasRemoteHandler && row && action === "up" && row.previousElementSibling) {
         row.parentElement.insertBefore(row, row.previousElementSibling);
       }
-      if (!handled && row && action === "down" && row.nextElementSibling) {
+      if (!hasRemoteHandler && row && action === "down" && row.nextElementSibling) {
         row.parentElement.insertBefore(row.nextElementSibling, row);
       }
 
@@ -234,7 +244,7 @@ function initDelegatedActions() {
 }
 
 function initYearNavigation() {
-  document.addEventListener("click", async (event) => {
+  document.addEventListener("click", (event) => {
     const yearBtn = event.target.closest("[data-year-prev], [data-year-next]");
     if (!yearBtn) {
       return;
@@ -249,7 +259,9 @@ function initYearNavigation() {
     const nextYear = yearBtn.hasAttribute("data-year-prev") ? currentYear - 1 : currentYear + 1;
     yearLabel.textContent = String(nextYear);
     if (window.cgdLoadYearData) {
-      await window.cgdLoadYearData(nextYear);
+      window.cgdLoadYearData(nextYear).catch((error) => {
+        console.error("Erro ao carregar ano CGD:", error);
+      });
     }
     syncExpensePastMonthsState();
   });
