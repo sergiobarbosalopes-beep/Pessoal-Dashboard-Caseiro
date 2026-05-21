@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
       legend: {
         labels: {
           boxWidth: 14,
-          color: "#2f4652",
+          color: "#cfe2ed",
           font: {
             family: "Plus Jakarta Sans"
           }
@@ -37,23 +37,23 @@ document.addEventListener("DOMContentLoaded", () => {
     scales: {
       x: {
         ticks: {
-          color: "#5e7480",
+          color: "#9fbac8",
           font: { family: "Plus Jakarta Sans" }
         },
         grid: {
-          color: "rgba(17, 34, 43, 0.07)"
+          color: "rgba(177, 212, 227, 0.14)"
         }
       },
       y: {
         ticks: {
-          color: "#5e7480",
+          color: "#9fbac8",
           callback(value) {
             return euro(value);
           },
           font: { family: "Plus Jakarta Sans" }
         },
         grid: {
-          color: "rgba(17, 34, 43, 0.07)"
+          color: "rgba(177, 212, 227, 0.14)"
         }
       }
     }
@@ -116,7 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
           legend: {
             position: "bottom",
             labels: {
-              color: "#2f4652",
+              color: "#cfe2ed",
               font: { family: "Plus Jakarta Sans" }
             }
           },
