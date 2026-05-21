@@ -66,14 +66,12 @@ function monthPills(values, editable, labelPrefix) {
         return `
         <div class='money-pill' ${dataMonth}>
           <input data-money type='text' value='${money(value)}' aria-label='${labelPrefix} ${months[monthIndex]}' />
-          <span class='eur'>EUR</span>
         </div>`;
       }
       return `
       <div class='money-pill readonly' ${dataMonth}>
         <button type='button' data-expense-field='${labelPrefix} - ${months[monthIndex]}'>
           <span>${money(value)}</span>
-          <span class='eur'>EUR</span>
         </button>
       </div>`;
     })
