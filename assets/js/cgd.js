@@ -85,7 +85,14 @@ function renderTimeline() {
   }
 
   const monthsHtml = months
-    .map((month, index) => `<button class='month-tile' type='button' data-month='${index}'>${month}</button>`)
+    .map((month, index) => {
+      const monthLabel = month.toUpperCase();
+      const monthNumber = String(index + 1).padStart(2, "0");
+      return `<button class='month-tile' type='button' data-month='${index}' aria-label='${monthLabel} ${monthNumber}'>
+        <span class='month-tile-label'>${monthLabel}</span>
+        <span class='month-tile-number'>${monthNumber}</span>
+      </button>`;
+    })
     .join("");
 
   timeline.innerHTML = `
