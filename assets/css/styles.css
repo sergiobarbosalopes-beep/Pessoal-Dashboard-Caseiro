@@ -535,15 +535,15 @@ a {
 }
 
 .panel.income .rubric-title {
-  background: linear-gradient(135deg, rgba(47, 142, 97, 0.66), rgba(62, 170, 118, 0.62));
-  border-color: rgba(143, 224, 181, 0.34);
-  box-shadow: inset 0 0 0 1px rgba(195, 245, 218, 0.14);
+  background: linear-gradient(135deg, rgba(47, 142, 97, 0.52), rgba(62, 170, 118, 0.48));
+  border-color: rgba(143, 224, 181, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(195, 245, 218, 0.1);
 }
 
 .panel.outcome .rubric-title {
-  background: linear-gradient(135deg, rgba(182, 132, 58, 0.68), rgba(214, 159, 68, 0.64));
-  border-color: rgba(242, 206, 132, 0.38);
-  box-shadow: inset 0 0 0 1px rgba(255, 230, 181, 0.14);
+  background: linear-gradient(135deg, rgba(182, 132, 58, 0.54), rgba(214, 159, 68, 0.5));
+  border-color: rgba(242, 206, 132, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(255, 230, 181, 0.1);
 }
 
 .rubric-menu-trigger {
@@ -610,7 +610,13 @@ a {
   place-items: center;
   font-size: 0.82rem;
   color: #fff;
-  background: color-mix(in srgb, var(--rubric-accent) 72%, #203846 28%);
+  background: color-mix(in srgb, var(--rubric-accent) 60%, #203846 40%);
+}
+
+.rubric-menu .menu-icon svg {
+  width: 12px;
+  height: 12px;
+  display: block;
 }
 
 .rubric-head .chev {
