@@ -260,6 +260,7 @@ function renderRubrics(rubrics, kind) {
             <button class='desc-pill rubric-title rubric-menu-trigger' type='button' data-rubric-menu-toggle aria-expanded='false' aria-label='Opcoes da rubrica ${rubric.name}'>${rubric.name}</button>
             <div class='rubric-sort-actions'>
               <div class='rubric-menu' role='menu'>
+                <button type='button' role='menuitem' data-rubric-menu-action='create-expense'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 5V19M5 12H19' stroke='currentColor' stroke-width='2.2' stroke-linecap='round'/></svg></span><span>Criar despesa</span></button>
                 <button type='button' role='menuitem' data-rubric-menu-action='up'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 18V6M12 6L7 11M12 6L17 11' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para cima</span></button>
                 <button type='button' role='menuitem' data-rubric-menu-action='down'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 6V18M12 18L7 13M12 18L17 13' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para baixo</span></button>
               </div>
@@ -459,23 +460,74 @@ async function createRubricaForYear(kind, description) {
   }
 }
 
-function requestRubricDescription(kind) {
+async function getNextDespesaId() {
+  const { data, error } = await supabaseClient
+    .from("cgd_despesa")
+    .select("despesa_id")
+    .order("despesa_id", { ascending: false })
+    .limit(1);
+
+  if (error) {
+    throw error;
+  }
+
+  const maxId = Number(data?.[0]?.despesa_id || 0);
+  return Number.isFinite(maxId) ? maxId + 1 : 1;
+}
+
+async function createDespesaForRubrica(rubricaId, description) {
+  if (!supabaseClient || !Number.isFinite(rubricaId)) {
+    return;
+  }
+
+  const rubricType = cgdState.data.income.some((rubric) => Number(rubric.id) === rubricaId) ? "income" : "outcome";
+  const sourceRubrics = rubricType === "income" ? cgdState.data.income : cgdState.data.outcome;
+  const rubric = sourceRubrics.find((item) => Number(item.id) === rubricaId);
+  const existingExpenses = rubric?.expenses || [];
+  const nextSeq = existingExpenses.length ? Math.max(...existingExpenses.map((item) => parseSeq(item.seq, 0))) + 1 : 1;
+  const nextDespesaId = await getNextDespesaId();
+
+  const rows = Array.from({ length: 12 }, (_, index) => ({
+    ano: cgdState.selectedYear,
+    mes: index + 1,
+    rubrica_id: rubricaId,
+    despesa_id: nextDespesaId,
+    despesa_desc: description,
+    despesa_seq: nextSeq,
+    valor: 0,
+    totalizador: 0
+  }));
+
+  const { error } = await supabaseClient.from("cgd_despesa").insert(rows);
+  if (error) {
+    throw error;
+  }
+}
+
+function requestEntityDescription(options) {
   const modal = document.getElementById("rubric-modal");
   const input = modal?.querySelector("[data-rubric-desc]");
   const title = modal?.querySelector("[data-rubric-modal-title]");
+  const subtitle = modal?.querySelector("[data-rubric-modal-subtitle]");
+  const label = modal?.querySelector("[data-rubric-modal-label]");
   const confirmBtn = modal?.querySelector("[data-rubric-confirm]");
   const cancelBtn = modal?.querySelector("[data-rubric-cancel]");
 
   if (!modal || !input || !confirmBtn || !cancelBtn) {
-    const fallback = window.prompt("Descricao da nova rubrica", kind === "income" ? "Nova rubrica de receita" : "Nova rubrica de despesa");
+    const fallback = window.prompt(options?.promptText || "Descricao", "");
     return Promise.resolve(fallback ? fallback.trim() : null);
   }
 
   return new Promise((resolve) => {
-    const suggestion = kind === "income" ? "Nova rubrica de receita" : "Nova rubrica de despesa";
-    input.value = suggestion;
+    input.value = "";
     if (title) {
-      title.textContent = `Adicionar rubrica ${kind === "income" ? "Income" : "Outcome"}`;
+      title.textContent = options?.title || "Adicionar";
+    }
+    if (subtitle) {
+      subtitle.textContent = options?.subtitle || "Indica o descritivo.";
+    }
+    if (label) {
+      label.textContent = options?.label || "Descricao";
     }
 
     const close = (result) => {
@@ -526,7 +578,12 @@ function requestRubricDescription(kind) {
 window.cgdLoadYearData = loadYearData;
 
 window.cgdCreateRubric = async (kind) => {
-  const description = await requestRubricDescription(kind);
+  const description = await requestEntityDescription({
+    title: `Adicionar rubrica ${kind === "income" ? "Income" : "Outcome"}`,
+    subtitle: "Indica o descritivo da nova rubrica para o ano selecionado.",
+    label: "Descricao da rubrica",
+    promptText: "Descricao da nova rubrica"
+  });
   if (!description) {
     return false;
   }
@@ -537,6 +594,27 @@ window.cgdCreateRubric = async (kind) => {
     return true;
   } catch (error) {
     console.error("Erro ao criar rubrica:", error);
+    return false;
+  }
+};
+
+window.cgdCreateExpense = async (rubricaId) => {
+  const description = await requestEntityDescription({
+    title: "Adicionar despesa",
+    subtitle: "Indica o descritivo da nova despesa para a rubrica selecionada.",
+    label: "Descricao da despesa",
+    promptText: "Descricao da nova despesa"
+  });
+  if (!description) {
+    return false;
+  }
+
+  try {
+    await createDespesaForRubrica(Number(rubricaId), description.trim());
+    await loadYearData(cgdState.selectedYear);
+    return true;
+  } catch (error) {
+    console.error("Erro ao criar despesa:", error);
     return false;
   }
 };

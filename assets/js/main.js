@@ -194,6 +194,17 @@ function initDelegatedActions() {
     if (menuAction) {
       const row = menuAction.closest("[data-sortable]");
       const action = menuAction.getAttribute("data-rubric-menu-action");
+      if (action === "create-expense") {
+        const rubricId = Number(row?.getAttribute("data-rubrica-id"));
+        if (Number.isFinite(rubricId) && window.cgdCreateExpense) {
+          window.cgdCreateExpense(rubricId).catch((error) => {
+            console.error("Erro a criar despesa:", error);
+          });
+        }
+        closeAllMenus();
+        return;
+      }
+
       const hasRemoteHandler = typeof window.cgdHandleRubricReorder === "function";
       if (hasRemoteHandler) {
         window.cgdHandleRubricReorder(row, action).catch((error) => {
