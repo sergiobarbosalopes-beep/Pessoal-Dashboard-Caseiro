@@ -102,6 +102,8 @@ function syncExpensePastMonthsState() {
   });
 }
 
+window.syncExpensePastMonthsState = syncExpensePastMonthsState;
+
 function initDelegatedActions() {
   const closeAllMenus = () => {
     document.querySelectorAll(".rubric-sort-actions.open").forEach((openMenu) => {
@@ -266,5 +268,10 @@ document.addEventListener("DOMContentLoaded", () => {
     highlightMonth(Number(activeMonthTile.dataset.month));
   }
 
+  syncExpensePastMonthsState();
+  requestAnimationFrame(syncExpensePastMonthsState);
+});
+
+document.addEventListener("cgd:rendered", () => {
   syncExpensePastMonthsState();
 });

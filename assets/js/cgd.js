@@ -190,5 +190,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (activeMonthTile) {
     activeMonthTile.click();
   }
+
+  document.dispatchEvent(new Event("cgd:rendered"));
 });
 
