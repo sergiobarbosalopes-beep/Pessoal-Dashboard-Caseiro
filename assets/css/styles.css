@@ -534,6 +534,10 @@ a {
   z-index: 220;
 }
 
+.rubric:has(.expense-sort-actions.open) {
+  z-index: 230;
+}
+
 .rubric-head {
   padding: 4px;
   border-bottom: 1px solid rgba(17, 34, 43, 0.1);
@@ -679,7 +683,11 @@ a {
   right: 4px;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 80;
+  z-index: 12000;
+}
+
+.expense-sort-actions.open {
+  z-index: 20000;
 }
 
 .expense-menu {
@@ -694,7 +702,7 @@ a {
   border: 1px solid color-mix(in srgb, var(--rubric-accent) 62%, #b6d8e7 38%);
   box-shadow: 0 14px 30px rgba(2, 8, 13, 0.55);
   display: none;
-  z-index: 9999;
+  z-index: 20001;
 }
 
 .expense-sort-actions.open .expense-menu {
@@ -819,7 +827,7 @@ a {
 }
 
 .rubric-head .money-pill input {
-  color: #b9c8d1;
+  color: #a8b4bc;
 }
 
 .money-pill.readonly {
