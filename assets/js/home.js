@@ -19,14 +19,14 @@ document.addEventListener("DOMContentLoaded", () => {
           boxWidth: 14,
           color: "#cfe2ed",
           font: {
-            family: "Plus Jakarta Sans"
+            family: "Inter"
           }
         }
       },
       tooltip: {
         backgroundColor: "rgba(10, 35, 45, 0.95)",
-        titleFont: { family: "Space Grotesk" },
-        bodyFont: { family: "Plus Jakarta Sans" },
+        titleFont: { family: "Inter" },
+        bodyFont: { family: "Inter" },
         callbacks: {
           label(context) {
             return `${context.dataset.label}: ${euro(context.raw)}`;
@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
       x: {
         ticks: {
           color: "#9fbac8",
-          font: { family: "Plus Jakarta Sans" }
+          font: { family: "Inter" }
         },
         grid: {
           color: "rgba(177, 212, 227, 0.14)"
@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
           callback(value) {
             return euro(value);
           },
-          font: { family: "Plus Jakarta Sans" }
+          font: { family: "Inter" }
         },
         grid: {
           color: "rgba(177, 212, 227, 0.14)"
@@ -117,7 +117,7 @@ document.addEventListener("DOMContentLoaded", () => {
             position: "bottom",
             labels: {
               color: "#cfe2ed",
-              font: { family: "Plus Jakarta Sans" }
+              font: { family: "Inter" }
             }
           },
           tooltip: chartDefaults.plugins.tooltip
