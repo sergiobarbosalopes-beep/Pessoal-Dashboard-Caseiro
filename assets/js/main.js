@@ -232,26 +232,21 @@ function initDelegatedActions() {
 }
 
 function initYearNavigation() {
-  const yearLabel = document.querySelector("[data-year-label]");
-  if (!yearLabel) {
-    return;
-  }
+  document.addEventListener("click", (event) => {
+    const yearBtn = event.target.closest("[data-year-prev], [data-year-next]");
+    if (!yearBtn) {
+      return;
+    }
 
-  let year = Number(yearLabel.textContent.trim()) || new Date().getFullYear();
+    const yearLabel = document.querySelector("[data-year-label]");
+    if (!yearLabel) {
+      return;
+    }
 
-  const render = () => {
-    yearLabel.textContent = String(year);
+    const currentYear = Number(yearLabel.textContent.trim()) || new Date().getFullYear();
+    const nextYear = yearBtn.hasAttribute("data-year-prev") ? currentYear - 1 : currentYear + 1;
+    yearLabel.textContent = String(nextYear);
     syncExpensePastMonthsState();
-  };
-
-  document.querySelector("[data-year-prev]")?.addEventListener("click", () => {
-    year -= 1;
-    render();
-  });
-
-  document.querySelector("[data-year-next]")?.addEventListener("click", () => {
-    year += 1;
-    render();
   });
 }
 

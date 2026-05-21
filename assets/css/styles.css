@@ -339,6 +339,25 @@ a {
   margin: 0;
 }
 
+.section-title h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title-icon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  color: var(--ink-400);
+  flex-shrink: 0;
+}
+
+.section-title-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
 .muted {
   color: var(--ink-500);
 }
