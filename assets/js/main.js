@@ -84,6 +84,57 @@ function highlightMonth(monthIndex) {
 
 function initDelegatedActions() {
   document.addEventListener("click", (event) => {
+    const menuToggle = event.target.closest("[data-rubric-menu-toggle]");
+    if (menuToggle) {
+      const menuWrap = menuToggle.closest(".rubric-sort-actions");
+      const isOpen = menuWrap?.classList.contains("open");
+
+      document.querySelectorAll(".rubric-sort-actions.open").forEach((openMenu) => {
+        openMenu.classList.remove("open");
+        const btn = openMenu.querySelector("[data-rubric-menu-toggle]");
+        if (btn) {
+          btn.setAttribute("aria-expanded", "false");
+        }
+      });
+
+      if (menuWrap && !isOpen) {
+        menuWrap.classList.add("open");
+        menuToggle.setAttribute("aria-expanded", "true");
+      }
+      return;
+    }
+
+    const menuAction = event.target.closest("[data-rubric-menu-action]");
+    if (menuAction) {
+      const row = menuAction.closest("[data-sortable]");
+      const action = menuAction.getAttribute("data-rubric-menu-action");
+      if (row && action === "up" && row.previousElementSibling) {
+        row.parentElement.insertBefore(row, row.previousElementSibling);
+      }
+      if (row && action === "down" && row.nextElementSibling) {
+        row.parentElement.insertBefore(row.nextElementSibling, row);
+      }
+
+      document.querySelectorAll(".rubric-sort-actions.open").forEach((openMenu) => {
+        openMenu.classList.remove("open");
+        const btn = openMenu.querySelector("[data-rubric-menu-toggle]");
+        if (btn) {
+          btn.setAttribute("aria-expanded", "false");
+        }
+      });
+      return;
+    }
+
+    if (!event.target.closest(".rubric-sort-actions")) {
+      document.querySelectorAll(".rubric-sort-actions.open").forEach((openMenu) => {
+        openMenu.classList.remove("open");
+        const btn = openMenu.querySelector("[data-rubric-menu-toggle]");
+        if (btn) {
+          btn.setAttribute("aria-expanded", "false");
+        }
+      });
+    }
+
     const toggleBtn = event.target.closest("[data-toggle-target]");
     if (toggleBtn) {
       const targetId = toggleBtn.getAttribute("data-toggle-target");

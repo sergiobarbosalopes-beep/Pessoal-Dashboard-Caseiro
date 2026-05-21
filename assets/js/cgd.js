@@ -128,9 +128,12 @@ function renderRubrics(rubrics, kind) {
           <div class='desc-cell rubric-desc-cell'>
             <button class='chev' type='button' data-toggle-target='${expenseBodyId}' aria-expanded='true' aria-label='Expandir rubrica'>▼</button>
             <span class='desc-pill rubric-title'>${rubric.name}</span>
-            <div class='sort-actions rubric-sort-actions'>
-              <button type='button' data-move-up aria-label='Subir rubrica'>↑</button>
-              <button type='button' data-move-down aria-label='Descer rubrica'>↓</button>
+            <div class='rubric-sort-actions'>
+              <button class='kebab-btn' type='button' data-rubric-menu-toggle aria-expanded='false' aria-label='Opcoes da rubrica'>⋯</button>
+              <div class='rubric-menu' role='menu'>
+                <button type='button' role='menuitem' data-rubric-menu-action='up'>Mover para cima</button>
+                <button type='button' role='menuitem' data-rubric-menu-action='down'>Mover para baixo</button>
+              </div>
             </div>
           </div>
           ${monthPills(totals, true, `${rubric.name} total`)}
