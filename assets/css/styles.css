@@ -497,6 +497,14 @@ a {
   transition: max-height 300ms ease, opacity 200ms ease;
 }
 
+.panel-body {
+  overflow: visible;
+}
+
+.panel-body.is-collapsed {
+  overflow: hidden;
+}
+
 .is-collapsed {
   max-height: 0 !important;
   opacity: 0;
@@ -527,19 +535,19 @@ a {
 }
 
 .panel.income .rubric-title {
-  background: linear-gradient(135deg, rgba(47, 142, 97, 0.88), rgba(62, 170, 118, 0.86));
-  border-color: rgba(143, 224, 181, 0.45);
-  box-shadow: inset 0 0 0 1px rgba(195, 245, 218, 0.2);
+  background: linear-gradient(135deg, rgba(47, 142, 97, 0.66), rgba(62, 170, 118, 0.62));
+  border-color: rgba(143, 224, 181, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(195, 245, 218, 0.14);
 }
 
 .panel.outcome .rubric-title {
-  background: linear-gradient(135deg, rgba(182, 132, 58, 0.9), rgba(214, 159, 68, 0.88));
-  border-color: rgba(242, 206, 132, 0.5);
-  box-shadow: inset 0 0 0 1px rgba(255, 230, 181, 0.2);
+  background: linear-gradient(135deg, rgba(182, 132, 58, 0.68), rgba(214, 159, 68, 0.64));
+  border-color: rgba(242, 206, 132, 0.38);
+  box-shadow: inset 0 0 0 1px rgba(255, 230, 181, 0.14);
 }
 
 .rubric-menu-trigger {
-  text-align: left;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -558,8 +566,9 @@ a {
 
 .rubric-menu {
   position: absolute;
-  right: 4px;
-  top: calc(100% + 6px);
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
   min-width: 190px;
   padding: 6px;
   border-radius: 10px;
@@ -567,7 +576,7 @@ a {
   border: 1px solid color-mix(in srgb, var(--rubric-accent) 62%, #b6d8e7 38%);
   box-shadow: 0 14px 30px rgba(2, 8, 13, 0.55);
   display: none;
-  z-index: 999;
+  z-index: 9999;
 }
 
 .rubric-sort-actions.open .rubric-menu {
@@ -599,7 +608,7 @@ a {
   border-radius: 50%;
   display: inline-grid;
   place-items: center;
-  font-size: 0.74rem;
+  font-size: 0.82rem;
   color: #fff;
   background: color-mix(in srgb, var(--rubric-accent) 72%, #203846 28%);
 }
@@ -706,6 +715,16 @@ a {
 }
 
 .money-pill.active {
+  border-color: rgba(213, 171, 70, 0.9);
+  box-shadow: 0 0 0 2px rgba(213, 171, 70, 0.36), 0 0 16px rgba(213, 171, 70, 0.24);
+}
+
+.panel.income .money-pill.active {
+  border-color: rgba(47, 142, 97, 0.92);
+  box-shadow: 0 0 0 2px rgba(47, 142, 97, 0.32), 0 0 16px rgba(47, 142, 97, 0.24);
+}
+
+.panel.outcome .money-pill.active {
   border-color: rgba(213, 171, 70, 0.9);
   box-shadow: 0 0 0 2px rgba(213, 171, 70, 0.36), 0 0 16px rgba(213, 171, 70, 0.24);
 }

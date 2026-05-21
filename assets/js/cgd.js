@@ -130,8 +130,8 @@ function renderRubrics(rubrics, kind) {
             <button class='desc-pill rubric-title rubric-menu-trigger' type='button' data-rubric-menu-toggle aria-expanded='false' aria-label='Opcoes da rubrica ${rubric.name}'>${rubric.name}</button>
             <div class='rubric-sort-actions'>
               <div class='rubric-menu' role='menu'>
-                <button type='button' role='menuitem' data-rubric-menu-action='up'><span class='menu-icon'>↑</span><span>Mover para cima</span></button>
-                <button type='button' role='menuitem' data-rubric-menu-action='down'><span class='menu-icon'>↓</span><span>Mover para baixo</span></button>
+                <button type='button' role='menuitem' data-rubric-menu-action='up'><span class='menu-icon'>⤒</span><span>Mover para cima</span></button>
+                <button type='button' role='menuitem' data-rubric-menu-action='down'><span class='menu-icon'>⤓</span><span>Mover para baixo</span></button>
               </div>
             </div>
           </div>
