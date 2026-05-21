@@ -818,6 +818,10 @@ a {
   text-align: right;
 }
 
+.rubric-head .money-pill input {
+  color: #b9c8d1;
+}
+
 .money-pill.readonly {
   padding: 0;
 }
