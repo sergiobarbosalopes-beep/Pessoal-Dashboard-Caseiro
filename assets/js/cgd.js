@@ -1,54 +1,171 @@
-const cgdMock = {
-  income: [
-    {
-      name: "Salarios e bonus",
-      expenses: [
-        { name: "Salario base", values: [2450, 2450, 2450, 2450, 2450, 2450, 2450, 2450, 2450, 2450, 2450, 2450] },
-        { name: "Bonus desempenho", values: [0, 0, 420, 0, 0, 510, 0, 0, 0, 620, 0, 800] }
-      ]
-    },
-    {
-      name: "Rendimentos extra",
-      expenses: [
-        { name: "Freelance", values: [250, 310, 280, 450, 300, 380, 420, 330, 410, 470, 390, 520] },
-        { name: "Juros e cashback", values: [40, 32, 35, 31, 44, 39, 41, 43, 35, 48, 42, 50] }
-      ]
-    },
-    {
-      name: "Arrendamentos",
-      expenses: [
-        { name: "Renda anexo", values: [520, 520, 520, 520, 520, 520, 520, 520, 520, 520, 520, 520] }
-      ]
-    }
-  ],
-  outcome: [
-    {
-      name: "Habitacao",
-      expenses: [
-        { name: "Prestacao casa", values: [960, 960, 960, 960, 960, 960, 960, 960, 960, 960, 960, 960] },
-        { name: "Condominio", values: [65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65] },
-        { name: "Seguros", values: [72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72] }
-      ]
-    },
-    {
-      name: "Familia e consumo",
-      expenses: [
-        { name: "Supermercado", values: [420, 445, 438, 452, 470, 489, 512, 498, 476, 490, 508, 530] },
-        { name: "Escola e atividades", values: [130, 130, 130, 180, 145, 140, 90, 90, 180, 150, 140, 160] },
-        { name: "Saude", values: [85, 90, 92, 88, 94, 92, 97, 95, 103, 99, 94, 108] }
-      ]
-    },
-    {
-      name: "Mobilidade e energia",
-      expenses: [
-        { name: "Combustivel", values: [140, 135, 142, 138, 150, 156, 160, 165, 158, 152, 146, 149] },
-        { name: "Eletricidade e gas", values: [112, 118, 95, 88, 80, 74, 69, 71, 86, 102, 118, 130] }
-      ]
-    }
-  ]
+const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const emptyValues = () => Array.from({ length: 12 }, () => 0);
+
+const fallbackMock = {
+  income: [],
+  outcome: []
 };
 
-const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const cgdState = {
+  selectedYear: new Date().getFullYear(),
+  data: fallbackMock
+};
+
+const SUPABASE_URL = window.CGD_SUPABASE_URL || "https://uooovgxrexpstrtfktst.supabase.co";
+const SUPABASE_ANON_KEY = window.CGD_SUPABASE_ANON_KEY || "";
+const supabaseClient = window.supabase?.createClient && SUPABASE_ANON_KEY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+function normalizeMonth(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return -1;
+  }
+  if (numeric >= 1 && numeric <= 12) {
+    return numeric - 1;
+  }
+  if (numeric >= 0 && numeric <= 11) {
+    return numeric;
+  }
+  return -1;
+}
+
+function parseMoneyField(record, fallback = 0) {
+  const candidates = [
+    record.despesa_valor,
+    record.rubrica_valor,
+    record.valor,
+    record.amount,
+    record.montante,
+    record.total,
+    fallback
+  ];
+  const value = candidates.find((candidate) => candidate !== undefined && candidate !== null);
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function parseSeq(value, fallback = 999999) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function normalizeRubricType(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return raw === "receita" ? "income" : "outcome";
+}
+
+async function fetchRubricsForYear(year) {
+  if (!supabaseClient) {
+    return [];
+  }
+
+  const { data, error } = await supabaseClient
+    .from("cgd_rubrica")
+    .select("rubrica_id, ano, mes, rubrica_desc, rubrica_seq, rubrica_tipo, rubrica_valor, valor")
+    .eq("ano", year)
+    .order("rubrica_seq", { ascending: true })
+    .order("mes", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+async function fetchExpensesForYear(year) {
+  if (!supabaseClient) {
+    return [];
+  }
+
+  const { data, error } = await supabaseClient
+    .from("cgd_despesa")
+    .select("despesa_id, rubrica_id, ano, mes, despesa_desc, despesa_seq, despesa_valor, valor")
+    .eq("ano", year)
+    .order("despesa_seq", { ascending: true })
+    .order("mes", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+function buildDataModel(rubricRows, expenseRows) {
+  const rubricsByKey = new Map();
+
+  rubricRows.forEach((row, index) => {
+    const rubricKey = row.rubrica_id ?? `rubrica-fallback-${index}-${row.rubrica_desc}`;
+    const monthIndex = normalizeMonth(row.mes);
+    if (!rubricsByKey.has(rubricKey)) {
+      rubricsByKey.set(rubricKey, {
+        id: row.rubrica_id,
+        name: row.rubrica_desc || "Rubrica",
+        type: normalizeRubricType(row.rubrica_tipo),
+        seq: parseSeq(row.rubrica_seq, index + 1),
+        values: emptyValues(),
+        expenses: []
+      });
+    }
+
+    const rubric = rubricsByKey.get(rubricKey);
+    rubric.seq = Math.min(rubric.seq, parseSeq(row.rubrica_seq, rubric.seq));
+    if (monthIndex >= 0) {
+      rubric.values[monthIndex] = parseMoneyField(row, rubric.values[monthIndex]);
+    }
+  });
+
+  const expensesByRubric = new Map();
+  expenseRows.forEach((row, index) => {
+    const rubricKey = row.rubrica_id;
+    if (!expensesByRubric.has(rubricKey)) {
+      expensesByRubric.set(rubricKey, new Map());
+    }
+    const expenseMap = expensesByRubric.get(rubricKey);
+    const expenseKey = row.despesa_id ?? `despesa-fallback-${index}-${row.despesa_desc}`;
+    const monthIndex = normalizeMonth(row.mes);
+
+    if (!expenseMap.has(expenseKey)) {
+      expenseMap.set(expenseKey, {
+        id: row.despesa_id,
+        rubricId: row.rubrica_id,
+        name: row.despesa_desc || "Despesa",
+        seq: parseSeq(row.despesa_seq, index + 1),
+        values: emptyValues()
+      });
+    }
+
+    const expense = expenseMap.get(expenseKey);
+    expense.seq = Math.min(expense.seq, parseSeq(row.despesa_seq, expense.seq));
+    if (monthIndex >= 0) {
+      expense.values[monthIndex] = parseMoneyField(row, expense.values[monthIndex]);
+    }
+  });
+
+  rubricsByKey.forEach((rubric) => {
+    const expenseMap = expensesByRubric.get(rubric.id);
+    if (!expenseMap) {
+      rubric.expenses = [];
+      return;
+    }
+    rubric.expenses = Array.from(expenseMap.values()).sort((a, b) => a.seq - b.seq || a.name.localeCompare(b.name));
+  });
+
+  const allRubrics = Array.from(rubricsByKey.values()).sort((a, b) => a.seq - b.seq || a.name.localeCompare(b.name));
+  return {
+    income: allRubrics.filter((rubric) => rubric.type === "income"),
+    outcome: allRubrics.filter((rubric) => rubric.type === "outcome")
+  };
+}
+
+function showLoadError(message) {
+  const panels = document.getElementById("cgd-panels");
+  if (!panels) {
+    return;
+  }
+  panels.innerHTML = `<section class='card' style='grid-column: span 12;'><p class='muted'>${message}</p></section>`;
+}
 
 function sumByMonth(expenses) {
   return months.map((_, index) => expenses.reduce((acc, expense) => acc + (expense.values[index] || 0), 0));
@@ -78,7 +195,7 @@ function monthPills(values, editable, labelPrefix) {
     .join("");
 }
 
-function renderTimeline() {
+function renderTimeline(year) {
   const timeline = document.getElementById("month-timeline");
   if (!timeline) {
     return;
@@ -99,7 +216,7 @@ function renderTimeline() {
     <div class='desc-cell timeline-year-slot'>
       <div class='year-nav year-nav-timeline' aria-label='Navegacao de anos'>
         <button class='year-btn' type='button' data-year-prev aria-label='Ano anterior'>-</button>
-        <strong data-year-label>2026</strong>
+        <strong data-year-label>${year}</strong>
         <button class='year-btn' type='button' data-year-next aria-label='Ano seguinte'>+</button>
       </div>
     </div>
@@ -111,7 +228,7 @@ function renderExpenseRows(expenses, rubricName) {
   return expenses
     .map((expense) => {
       return `
-      <div class='data-row expense' data-sortable>
+      <div class='data-row expense' data-sortable data-expense-id='${expense.id ?? ""}' data-rubrica-id='${expense.rubricId ?? ""}' data-despesa-seq='${expense.seq ?? ""}'>
         <div class='desc-cell expense-desc-cell'>
           <span class='chev-spacer' aria-hidden='true'></span>
           <button class='desc-pill expense-menu-trigger' type='button' data-expense-menu-toggle aria-expanded='false' aria-label='Opcoes da despesa ${expense.name}'>${expense.name}</button>
@@ -134,10 +251,10 @@ function renderRubrics(rubrics, kind) {
     .map((rubric, rubricIndex) => {
       const rubricId = `${kind}-rubric-${rubricIndex}`;
       const expenseBodyId = `${rubricId}-expenses`;
-      const totals = sumByMonth(rubric.expenses);
+      const totals = rubric.values || sumByMonth(rubric.expenses);
 
       return `
-      <article class='rubric' data-sortable>
+      <article class='rubric' data-sortable data-rubrica-id='${rubric.id ?? ""}' data-rubrica-seq='${rubric.seq ?? ""}' data-rubrica-tipo='${kind}'>
         <header class='rubric-head data-row'>
           <div class='desc-cell rubric-desc-cell'>
             <button class='chev' type='button' data-toggle-target='${expenseBodyId}' aria-expanded='true' aria-label='Expandir rubrica'>▼</button>
@@ -182,25 +299,182 @@ function buildPanel(title, kind, rubrics) {
   `;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  renderTimeline();
-
+function renderPanels() {
   const panels = document.getElementById("cgd-panels");
   if (!panels) {
     return;
   }
 
   panels.innerHTML = `
-    ${buildPanel("Income", "income", cgdMock.income)}
-    ${buildPanel("Outcome", "outcome", cgdMock.outcome)}
+    ${buildPanel("Income", "income", cgdState.data.income)}
+    ${buildPanel("Outcome", "outcome", cgdState.data.outcome)}
   `;
+}
+
+async function loadYearData(year) {
+  cgdState.selectedYear = year;
+  const yearLabel = document.querySelector("[data-year-label]");
+  if (yearLabel) {
+    yearLabel.textContent = String(year);
+  }
+
+  if (!supabaseClient) {
+    cgdState.data = fallbackMock;
+    renderPanels();
+    showLoadError("Configure a chave anon do Supabase em window.CGD_SUPABASE_ANON_KEY para carregar rubricas e despesas da BD.");
+    document.dispatchEvent(new Event("cgd:rendered"));
+    return;
+  }
+
+  try {
+    const [rubricRows, expenseRows] = await Promise.all([
+      fetchRubricsForYear(year),
+      fetchExpensesForYear(year)
+    ]);
+    cgdState.data = buildDataModel(rubricRows, expenseRows);
+    renderPanels();
+    document.dispatchEvent(new Event("cgd:rendered"));
+  } catch (error) {
+    console.error("Erro a carregar dados CGD:", error);
+    cgdState.data = fallbackMock;
+    renderPanels();
+    showLoadError("Nao foi possivel carregar dados da BD CGD para o ano selecionado.");
+    document.dispatchEvent(new Event("cgd:rendered"));
+  }
+}
+
+async function persistRubricOrder(rubricRows) {
+  if (!supabaseClient) {
+    return false;
+  }
+
+  const updates = rubricRows
+    .map((row, index) => ({
+      id: Number(row.getAttribute("data-rubrica-id")),
+      seq: index + 1,
+      tipo: row.getAttribute("data-rubrica-tipo") === "income" ? "receita" : "despesa"
+    }))
+    .filter((item) => Number.isFinite(item.id));
+
+  if (!updates.length) {
+    return false;
+  }
+
+  await Promise.all(
+    updates.map((item) =>
+      supabaseClient
+        .from("cgd_rubrica")
+        .update({ rubrica_seq: item.seq })
+        .eq("rubrica_id", item.id)
+        .eq("ano", cgdState.selectedYear)
+        .eq("rubrica_tipo", item.tipo)
+    )
+  );
+
+  return true;
+}
+
+async function persistExpenseOrder(expenseRows, rubricId) {
+  if (!supabaseClient || !Number.isFinite(rubricId)) {
+    return false;
+  }
+
+  const updates = expenseRows
+    .map((row, index) => ({
+      id: Number(row.getAttribute("data-expense-id")),
+      seq: index + 1
+    }))
+    .filter((item) => Number.isFinite(item.id));
+
+  if (!updates.length) {
+    return false;
+  }
+
+  await Promise.all(
+    updates.map((item) =>
+      supabaseClient
+        .from("cgd_despesa")
+        .update({ despesa_seq: item.seq })
+        .eq("despesa_id", item.id)
+        .eq("rubrica_id", rubricId)
+        .eq("ano", cgdState.selectedYear)
+    )
+  );
+
+  return true;
+}
+
+window.cgdLoadYearData = loadYearData;
+
+window.cgdHandleRubricReorder = async (row, action) => {
+  const currentRow = row?.closest("article.rubric[data-sortable]");
+  if (!currentRow) {
+    return false;
+  }
+
+  const parent = currentRow.parentElement;
+  const sibling = action === "up" ? currentRow.previousElementSibling : currentRow.nextElementSibling;
+  if (!sibling) {
+    return true;
+  }
+
+  if (action === "up") {
+    parent.insertBefore(currentRow, sibling);
+  } else {
+    parent.insertBefore(sibling, currentRow);
+  }
+
+  try {
+    const rows = Array.from(parent.querySelectorAll("article.rubric[data-sortable]"));
+    await persistRubricOrder(rows);
+    await loadYearData(cgdState.selectedYear);
+  } catch (error) {
+    console.error("Erro ao guardar ordem de rubricas:", error);
+    await loadYearData(cgdState.selectedYear);
+  }
+
+  return true;
+};
+
+window.cgdHandleExpenseReorder = async (row, action) => {
+  const currentRow = row?.closest(".data-row.expense[data-sortable]");
+  if (!currentRow) {
+    return false;
+  }
+
+  const parent = currentRow.parentElement;
+  const sibling = action === "up" ? currentRow.previousElementSibling : currentRow.nextElementSibling;
+  if (!sibling) {
+    return true;
+  }
+
+  if (action === "up") {
+    parent.insertBefore(currentRow, sibling);
+  } else {
+    parent.insertBefore(sibling, currentRow);
+  }
+
+  const rubricId = Number(currentRow.getAttribute("data-rubrica-id"));
+  try {
+    const rows = Array.from(parent.querySelectorAll(".data-row.expense[data-sortable]"));
+    await persistExpenseOrder(rows, rubricId);
+    await loadYearData(cgdState.selectedYear);
+  } catch (error) {
+    console.error("Erro ao guardar ordem de despesas:", error);
+    await loadYearData(cgdState.selectedYear);
+  }
+
+  return true;
+};
+
+document.addEventListener("DOMContentLoaded", async () => {
+  renderTimeline(cgdState.selectedYear);
+  await loadYearData(cgdState.selectedYear);
 
   const currentMonth = new Date().getMonth();
   const activeMonthTile = document.querySelector(`.month-tile[data-month='${currentMonth}']`) || document.querySelector(".month-tile");
   if (activeMonthTile) {
     activeMonthTile.click();
   }
-
-  document.dispatchEvent(new Event("cgd:rendered"));
 });
 

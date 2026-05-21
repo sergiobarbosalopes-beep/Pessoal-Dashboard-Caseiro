@@ -48,7 +48,7 @@ function initExpenseModal() {
   }
   const modalTitle = modal.querySelector("[data-modal-title]");
 
-  document.addEventListener("click", (event) => {
+  document.addEventListener("click", async (event) => {
     const fieldBtn = event.target.closest("button[data-expense-field]");
     if (!fieldBtn) {
       return;
@@ -158,10 +158,11 @@ function initDelegatedActions() {
     if (menuAction) {
       const row = menuAction.closest("[data-sortable]");
       const action = menuAction.getAttribute("data-rubric-menu-action");
-      if (row && action === "up" && row.previousElementSibling) {
+      const handled = await window.cgdHandleRubricReorder?.(row, action);
+      if (!handled && row && action === "up" && row.previousElementSibling) {
         row.parentElement.insertBefore(row, row.previousElementSibling);
       }
-      if (row && action === "down" && row.nextElementSibling) {
+      if (!handled && row && action === "down" && row.nextElementSibling) {
         row.parentElement.insertBefore(row.nextElementSibling, row);
       }
 
@@ -173,10 +174,11 @@ function initDelegatedActions() {
     if (expenseMenuAction) {
       const row = expenseMenuAction.closest("[data-sortable]");
       const action = expenseMenuAction.getAttribute("data-expense-menu-action");
-      if (row && action === "up" && row.previousElementSibling) {
+      const handled = await window.cgdHandleExpenseReorder?.(row, action);
+      if (!handled && row && action === "up" && row.previousElementSibling) {
         row.parentElement.insertBefore(row, row.previousElementSibling);
       }
-      if (row && action === "down" && row.nextElementSibling) {
+      if (!handled && row && action === "down" && row.nextElementSibling) {
         row.parentElement.insertBefore(row.nextElementSibling, row);
       }
 
@@ -232,7 +234,7 @@ function initDelegatedActions() {
 }
 
 function initYearNavigation() {
-  document.addEventListener("click", (event) => {
+  document.addEventListener("click", async (event) => {
     const yearBtn = event.target.closest("[data-year-prev], [data-year-next]");
     if (!yearBtn) {
       return;
@@ -246,6 +248,9 @@ function initYearNavigation() {
     const currentYear = Number(yearLabel.textContent.trim()) || new Date().getFullYear();
     const nextYear = yearBtn.hasAttribute("data-year-prev") ? currentYear - 1 : currentYear + 1;
     yearLabel.textContent = String(nextYear);
+    if (window.cgdLoadYearData) {
+      await window.cgdLoadYearData(nextYear);
+    }
     syncExpensePastMonthsState();
   });
 }
