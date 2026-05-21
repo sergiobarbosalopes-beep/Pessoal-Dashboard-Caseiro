@@ -92,11 +92,12 @@ function syncExpensePastMonthsState() {
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
-  const shouldGrayPastMonths = selectedYear === currentYear && currentMonth > 0;
 
   document.querySelectorAll(".data-row.expense [data-month-col]").forEach((pill) => {
     const monthIndex = Number(pill.getAttribute("data-month-col"));
-    const isPastMonth = shouldGrayPastMonths && monthIndex < currentMonth;
+    const isPastYear = selectedYear < currentYear;
+    const isCurrentYearPastMonth = selectedYear === currentYear && currentMonth > 0 && monthIndex < currentMonth;
+    const isPastMonth = isPastYear || isCurrentYearPastMonth;
     pill.classList.toggle("is-past-current-year", isPastMonth);
   });
 }
