@@ -44,6 +44,19 @@ function parseMoneyField(record, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
+function parseExpenseValue(record, fallback = 0) {
+  return parseMoneyField(
+    {
+      valor: record.valor,
+      despesa_valor: record.despesa_valor,
+      amount: record.amount,
+      montante: record.montante,
+      total: record.total
+    },
+    fallback
+  );
+}
+
 function parseSeq(value, fallback = 999999) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
@@ -111,9 +124,6 @@ function buildDataModel(rubricRows, expenseRows) {
 
     const rubric = rubricsByKey.get(rubricKey);
     rubric.seq = Math.min(rubric.seq, parseSeq(row.rubrica_seq, rubric.seq));
-    if (monthIndex >= 0) {
-      rubric.values[monthIndex] = parseMoneyField(row, rubric.values[monthIndex]);
-    }
   });
 
   const expensesByRubric = new Map();
@@ -139,7 +149,7 @@ function buildDataModel(rubricRows, expenseRows) {
     const expense = expenseMap.get(expenseKey);
     expense.seq = Math.min(expense.seq, parseSeq(row.despesa_seq, expense.seq));
     if (monthIndex >= 0) {
-      expense.values[monthIndex] = parseMoneyField(row, expense.values[monthIndex]);
+      expense.values[monthIndex] = parseExpenseValue(row, expense.values[monthIndex]);
     }
   });
 
@@ -147,9 +157,11 @@ function buildDataModel(rubricRows, expenseRows) {
     const expenseMap = expensesByRubric.get(rubric.id);
     if (!expenseMap) {
       rubric.expenses = [];
+      rubric.values = emptyValues();
       return;
     }
     rubric.expenses = Array.from(expenseMap.values()).sort((a, b) => a.seq - b.seq || a.name.localeCompare(b.name));
+    rubric.values = sumByMonth(rubric.expenses);
   });
 
   const allRubrics = Array.from(rubricsByKey.values()).sort((a, b) => a.seq - b.seq || a.name.localeCompare(b.name));
