@@ -86,12 +86,13 @@ function initDelegatedActions() {
   document.addEventListener("click", (event) => {
     const menuToggle = event.target.closest("[data-rubric-menu-toggle]");
     if (menuToggle) {
-      const menuWrap = menuToggle.closest(".rubric-sort-actions");
+      const descCell = menuToggle.closest(".rubric-desc-cell");
+      const menuWrap = descCell?.querySelector(".rubric-sort-actions");
       const isOpen = menuWrap?.classList.contains("open");
 
       document.querySelectorAll(".rubric-sort-actions.open").forEach((openMenu) => {
         openMenu.classList.remove("open");
-        const btn = openMenu.querySelector("[data-rubric-menu-toggle]");
+        const btn = openMenu.closest(".rubric-desc-cell")?.querySelector("[data-rubric-menu-toggle]");
         if (btn) {
           btn.setAttribute("aria-expanded", "false");
         }
@@ -117,7 +118,7 @@ function initDelegatedActions() {
 
       document.querySelectorAll(".rubric-sort-actions.open").forEach((openMenu) => {
         openMenu.classList.remove("open");
-        const btn = openMenu.querySelector("[data-rubric-menu-toggle]");
+        const btn = openMenu.closest(".rubric-desc-cell")?.querySelector("[data-rubric-menu-toggle]");
         if (btn) {
           btn.setAttribute("aria-expanded", "false");
         }
@@ -128,7 +129,7 @@ function initDelegatedActions() {
     if (!event.target.closest(".rubric-sort-actions")) {
       document.querySelectorAll(".rubric-sort-actions.open").forEach((openMenu) => {
         openMenu.classList.remove("open");
-        const btn = openMenu.querySelector("[data-rubric-menu-toggle]");
+        const btn = openMenu.closest(".rubric-desc-cell")?.querySelector("[data-rubric-menu-toggle]");
         if (btn) {
           btn.setAttribute("aria-expanded", "false");
         }

@@ -127,12 +127,11 @@ function renderRubrics(rubrics, kind) {
         <header class='rubric-head data-row'>
           <div class='desc-cell rubric-desc-cell'>
             <button class='chev' type='button' data-toggle-target='${expenseBodyId}' aria-expanded='true' aria-label='Expandir rubrica'>▼</button>
-            <span class='desc-pill rubric-title'>${rubric.name}</span>
+            <button class='desc-pill rubric-title rubric-menu-trigger' type='button' data-rubric-menu-toggle aria-expanded='false' aria-label='Opcoes da rubrica ${rubric.name}'>${rubric.name}</button>
             <div class='rubric-sort-actions'>
-              <button class='kebab-btn' type='button' data-rubric-menu-toggle aria-expanded='false' aria-label='Opcoes da rubrica'>⋯</button>
               <div class='rubric-menu' role='menu'>
-                <button type='button' role='menuitem' data-rubric-menu-action='up'>Mover para cima</button>
-                <button type='button' role='menuitem' data-rubric-menu-action='down'>Mover para baixo</button>
+                <button type='button' role='menuitem' data-rubric-menu-action='up'><span class='menu-icon'>↑</span><span>Mover para cima</span></button>
+                <button type='button' role='menuitem' data-rubric-menu-action='down'><span class='menu-icon'>↓</span><span>Mover para baixo</span></button>
               </div>
             </div>
           </div>
