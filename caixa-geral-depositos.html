@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-PT">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Caseiro | Caixa Geral de Depositos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/css/styles.css" />
+    <script defer src="assets/js/main.js"></script>
+    <script defer src="assets/js/cgd.js"></script>
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="topbar fade-up">
+        <a class="brand" href="index.html">
+          <span class="brand-mark"></span>
+          <span>Dashboard Caseiro</span>
+        </a>
+        <nav class="menu" aria-label="Navegacao principal">
+          <a class="menu-link" href="index.html">Home</a>
+          <a class="menu-link" href="caixa-geral-depositos.html">Caixa Geral de Depositos</a>
+          <a class="menu-link" href="novobanco.html">Novo Banco</a>
+          <a class="menu-link" href="coverflex.html">Coverflex</a>
+          <a class="menu-link" href="credito-habitacao.html">Credito Habitacao</a>
+          <a class="menu-link" href="paineis-solares.html">Paineis Solares</a>
+        </nav>
+      </header>
+
+      <section class="hero page-only-hero fade-up delay-1">
+        <h1>Caixa Geral de Depositos</h1>
+        <p>Area mock com hierarquia Income > Rubricas > Despesas e Outcome > Rubricas > Despesas, com colapsar, expandir, reorder e alinhamento mensal.</p>
+      </section>
+
+      <main class="page-grid fade-up delay-2">
+        <section class="card" style="grid-column: span 12;">
+          <div class="cgd-top-tiles">
+            <article class="stat-tile">
+              <h4>Saldo ordem</h4>
+              <p>12 490.22 EUR</p>
+            </article>
+            <article class="stat-tile">
+              <h4>Poupanca associada</h4>
+              <p>9 180.40 EUR</p>
+            </article>
+            <article class="stat-tile">
+              <h4>Credito utilizado</h4>
+              <p>1 240.00 EUR</p>
+            </article>
+            <article class="stat-tile">
+              <h4>Cashflow medio</h4>
+              <p>+1 182.00 EUR</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="card" style="grid-column: span 12;">
+          <div class="section-title">
+            <h2>Navegacao temporal</h2>
+            <div class="year-nav" aria-label="Navegacao de anos">
+              <button class="year-btn" type="button" data-year-prev aria-label="Ano anterior">-</button>
+              <strong data-year-label>2026</strong>
+              <button class="year-btn" type="button" data-year-next aria-label="Ano seguinte">+</button>
+            </div>
+          </div>
+
+          <div class="timeline-wrap">
+            <div class="timeline-grid" id="month-timeline"></div>
+          </div>
+        </section>
+
+        <section class="card" style="grid-column: span 12;">
+          <div class="section-title">
+            <h2>Movimentos mensais detalhados</h2>
+            <p class="muted">Mockdata com comportamento colapsavel e reorder</p>
+          </div>
+          <div class="panel-stack" id="cgd-panels"></div>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal" id="expense-modal" aria-hidden="true">
+      <div class="modal-card">
+        <h3 data-modal-title>Registo detalhado</h3>
+        <p>Popup reservada para detalhar movimentos e comprovativos no proximo passo.</p>
+        <button class="ghost-btn" type="button" data-close-modal>Fechar</button>
+      </div>
+    </div>
+  </body>
+</html>

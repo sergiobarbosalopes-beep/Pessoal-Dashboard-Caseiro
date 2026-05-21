@@ -1,0 +1,164 @@
+function setActiveMenu() {
+  const current = window.location.pathname.split("/").pop() || "index.html";
+  document.querySelectorAll(".menu-link").forEach((link) => {
+    const href = link.getAttribute("href");
+    if (href === current) {
+      link.classList.add("active");
+    }
+  });
+}
+
+function collapseWithinPanel(parent, shouldCollapse) {
+  const nestedBodies = parent.querySelectorAll(".rubric-body, .expense-body");
+  nestedBodies.forEach((body) => body.classList.toggle("is-collapsed", shouldCollapse));
+  parent.querySelectorAll("[data-toggle-target]").forEach((nestedBtn) => {
+    nestedBtn.setAttribute("aria-expanded", String(!shouldCollapse));
+  });
+}
+
+function initNumberMask() {
+  const formatValue = (value) => {
+    const clean = value.replace(/\s+/g, "");
+    if (!clean) {
+      return "";
+    }
+    const numeric = Number(clean.replace(/,/g, ""));
+    if (Number.isNaN(numeric)) {
+      return value;
+    }
+    return numeric.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  document.addEventListener("focusout", (event) => {
+    const input = event.target.closest("input[data-money]");
+    if (!input) {
+      return;
+    }
+    input.value = formatValue(input.value);
+  });
+}
+
+function initExpenseModal() {
+  const modal = document.getElementById("expense-modal");
+  if (!modal) {
+    return;
+  }
+  const modalTitle = modal.querySelector("[data-modal-title]");
+
+  document.addEventListener("click", (event) => {
+    const fieldBtn = event.target.closest("button[data-expense-field]");
+    if (!fieldBtn) {
+      return;
+    }
+    const label = fieldBtn.getAttribute("data-expense-field");
+    if (modalTitle) {
+      modalTitle.textContent = `Registo detalhado: ${label}`;
+    }
+    modal.classList.add("show");
+  });
+
+  modal.querySelectorAll("[data-close-modal]").forEach((closeBtn) => {
+    closeBtn.addEventListener("click", () => modal.classList.remove("show"));
+  });
+
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      modal.classList.remove("show");
+    }
+  });
+}
+
+function highlightMonth(monthIndex) {
+  document.querySelectorAll(".month-tile").forEach((tile) => {
+    tile.classList.toggle("active", Number(tile.dataset.month) === monthIndex);
+  });
+
+  document.querySelectorAll(".money-pill").forEach((pill) => pill.classList.remove("active"));
+  document.querySelectorAll(`[data-month-col='${monthIndex}']`).forEach((pill) => {
+    pill.classList.add("active");
+  });
+}
+
+function initDelegatedActions() {
+  document.addEventListener("click", (event) => {
+    const toggleBtn = event.target.closest("[data-toggle-target]");
+    if (toggleBtn) {
+      const targetId = toggleBtn.getAttribute("data-toggle-target");
+      const target = document.getElementById(targetId);
+      if (!target) {
+        return;
+      }
+      const expanded = toggleBtn.getAttribute("aria-expanded") === "true";
+      toggleBtn.setAttribute("aria-expanded", String(!expanded));
+      target.classList.toggle("is-collapsed", expanded);
+
+      const parent = toggleBtn.closest("[data-panel-block]");
+      if (parent && toggleBtn.closest(".panel-head")) {
+        collapseWithinPanel(parent, expanded);
+      }
+      return;
+    }
+
+    const upBtn = event.target.closest("[data-move-up]");
+    if (upBtn) {
+      const row = upBtn.closest("[data-sortable]");
+      if (row && row.previousElementSibling) {
+        row.parentElement.insertBefore(row, row.previousElementSibling);
+      }
+      return;
+    }
+
+    const downBtn = event.target.closest("[data-move-down]");
+    if (downBtn) {
+      const row = downBtn.closest("[data-sortable]");
+      if (row && row.nextElementSibling) {
+        row.parentElement.insertBefore(row.nextElementSibling, row);
+      }
+      return;
+    }
+
+    const monthTile = event.target.closest(".month-tile");
+    if (monthTile) {
+      highlightMonth(Number(monthTile.dataset.month));
+    }
+  });
+}
+
+function initYearNavigation() {
+  const yearLabel = document.querySelector("[data-year-label]");
+  if (!yearLabel) {
+    return;
+  }
+
+  let year = Number(yearLabel.textContent.trim()) || new Date().getFullYear();
+
+  const render = () => {
+    yearLabel.textContent = String(year);
+  };
+
+  document.querySelector("[data-year-prev]")?.addEventListener("click", () => {
+    year -= 1;
+    render();
+  });
+
+  document.querySelector("[data-year-next]")?.addEventListener("click", () => {
+    year += 1;
+    render();
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setActiveMenu();
+  initDelegatedActions();
+  initNumberMask();
+  initExpenseModal();
+  initYearNavigation();
+
+  const firstMonth = document.querySelector(".month-tile");
+  if (firstMonth) {
+    highlightMonth(Number(firstMonth.dataset.month));
+  }
+});
