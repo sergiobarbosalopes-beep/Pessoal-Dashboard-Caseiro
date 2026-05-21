@@ -396,9 +396,10 @@ a {
 
 .timeline-wrap {
   display: flex;
+  position: relative;
   overflow-x: hidden;
-  min-height: 74px;
-  padding-bottom: 8px;
+  min-height: 92px;
+  padding: 8px 0;
 }
 
 .timeline-grid,
@@ -413,7 +414,21 @@ a {
 .timeline-grid {
   flex: 1;
   align-items: stretch;
-  margin-top: 12px;
+  margin-top: 0;
+}
+
+.timeline-overlay-title {
+  position: absolute;
+  top: 14px;
+  left: 10px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #d8eaf3;
+  pointer-events: none;
 }
 
 .year-nav {
@@ -428,11 +443,15 @@ a {
 
 .timeline-year-slot {
   width: 100%;
+  display: flex;
+  align-items: stretch;
 }
 
 .year-nav-timeline {
   width: 100%;
+  min-height: 100%;
   justify-content: space-between;
+  padding-top: 20px;
 }
 
 .year-btn {
