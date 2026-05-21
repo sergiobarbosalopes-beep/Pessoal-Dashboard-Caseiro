@@ -541,7 +541,8 @@ a {
 }
 
 .rubric-title {
-  width: 100%;
+  flex: 1 1 auto;
+  width: auto;
 }
 
 .panel.income .rubric-title {
@@ -644,6 +645,10 @@ a {
 }
 
 .expense-menu-trigger {
+  flex: 1 1 auto;
+  width: auto;
+  margin-left: -14px;
+  padding-left: 24px;
   text-align: left;
   cursor: pointer;
 }
