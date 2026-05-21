@@ -56,7 +56,10 @@ function parseSeq(value, fallback = 999999) {
 
 function normalizeRubricType(value) {
   const raw = String(value || "").trim().toLowerCase();
-  return raw === "receita" ? "income" : "outcome";
+  if (raw === "recebimento" || raw === "receita") {
+    return "income";
+  }
+  return "outcome";
 }
 
 async function fetchRubricsForYear(year) {
@@ -281,11 +284,16 @@ function buildPanel(title, kind, rubrics) {
   const panelId = `panel-${kind}`;
   const bodyId = `${panelId}-body`;
   return `
-  <section class='panel ${kind}' data-panel-block>
+  <section class='panel ${kind}' data-panel-block data-panel-kind='${kind}'>
     <header class='panel-head'>
       <div class='panel-title'>
         <button class='chev' type='button' data-toggle-target='${bodyId}' aria-expanded='true' aria-label='Expandir ${title}'>▼</button>
-        <h3>${title}</h3>
+        <button class='desc-pill panel-menu-trigger' type='button' data-panel-menu-toggle aria-expanded='false' aria-label='Opcoes do painel ${title}'>${title}</button>
+        <div class='panel-sort-actions'>
+          <div class='panel-menu' role='menu'>
+            <button type='button' role='menuitem' data-panel-menu-action='add-rubric'>Adicionar rubrica</button>
+          </div>
+        </div>
       </div>
     </header>
     <div class='panel-body' id='${bodyId}'>
@@ -410,7 +418,65 @@ async function persistExpenseOrder(expenseRows, rubricId) {
   return true;
 }
 
+async function getNextRubricaId() {
+  const { data, error } = await supabaseClient
+    .from("cgd_rubrica")
+    .select("rubrica_id")
+    .order("rubrica_id", { ascending: false })
+    .limit(1);
+
+  if (error) {
+    throw error;
+  }
+
+  const maxId = Number(data?.[0]?.rubrica_id || 0);
+  return Number.isFinite(maxId) ? maxId + 1 : 1;
+}
+
+async function createRubricaForYear(kind, description) {
+  if (!supabaseClient) {
+    return;
+  }
+
+  const normalizedKind = kind === "income" ? "income" : "outcome";
+  const rubricaTipo = normalizedKind === "income" ? "Receita" : "Despesa";
+  const existing = cgdState.data[normalizedKind] || [];
+  const nextSeq = existing.length ? Math.max(...existing.map((item) => parseSeq(item.seq, 0))) + 1 : 1;
+  const nextRubricaId = await getNextRubricaId();
+
+  const rows = Array.from({ length: 12 }, (_, index) => ({
+    ano: cgdState.selectedYear,
+    mes: index + 1,
+    rubrica_id: nextRubricaId,
+    rubrica_desc: description,
+    rubrica_seq: nextSeq,
+    rubrica_tipo: rubricaTipo
+  }));
+
+  const { error } = await supabaseClient.from("cgd_rubrica").insert(rows);
+  if (error) {
+    throw error;
+  }
+}
+
 window.cgdLoadYearData = loadYearData;
+
+window.cgdCreateRubric = async (kind) => {
+  const suggestion = kind === "income" ? "Nova rubrica de receita" : "Nova rubrica de despesa";
+  const description = window.prompt("Descricao da nova rubrica", suggestion);
+  if (!description || !description.trim()) {
+    return false;
+  }
+
+  try {
+    await createRubricaForYear(kind, description.trim());
+    await loadYearData(cgdState.selectedYear);
+    return true;
+  } catch (error) {
+    console.error("Erro ao criar rubrica:", error);
+    return false;
+  }
+};
 
 window.cgdHandleRubricReorder = async (row, action) => {
   const currentRow = row?.closest("article.rubric[data-sortable]");

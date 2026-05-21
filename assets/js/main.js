@@ -106,6 +106,14 @@ window.syncExpensePastMonthsState = syncExpensePastMonthsState;
 
 function initDelegatedActions() {
   const closeAllMenus = () => {
+    document.querySelectorAll(".panel-sort-actions.open").forEach((openMenu) => {
+      openMenu.classList.remove("open");
+      const btn = openMenu.closest(".panel-title")?.querySelector("[data-panel-menu-toggle]");
+      if (btn) {
+        btn.setAttribute("aria-expanded", "false");
+      }
+    });
+
     document.querySelectorAll(".rubric-sort-actions.open").forEach((openMenu) => {
       openMenu.classList.remove("open");
       const btn = openMenu.closest(".rubric-desc-cell")?.querySelector("[data-rubric-menu-toggle]");
@@ -124,6 +132,34 @@ function initDelegatedActions() {
   };
 
   document.addEventListener("click", (event) => {
+    const panelMenuToggle = event.target.closest("[data-panel-menu-toggle]");
+    if (panelMenuToggle) {
+      const panelTitle = panelMenuToggle.closest(".panel-title");
+      const menuWrap = panelTitle?.querySelector(".panel-sort-actions");
+      const isOpen = menuWrap?.classList.contains("open");
+
+      closeAllMenus();
+
+      if (menuWrap && !isOpen) {
+        menuWrap.classList.add("open");
+        panelMenuToggle.setAttribute("aria-expanded", "true");
+      }
+      return;
+    }
+
+    const panelMenuAction = event.target.closest("[data-panel-menu-action='add-rubric']");
+    if (panelMenuAction) {
+      const panel = panelMenuAction.closest(".panel[data-panel-kind]");
+      const kind = panel?.getAttribute("data-panel-kind");
+      if (kind && window.cgdCreateRubric) {
+        window.cgdCreateRubric(kind).catch((error) => {
+          console.error("Erro ao adicionar rubrica:", error);
+        });
+      }
+      closeAllMenus();
+      return;
+    }
+
     const menuToggle = event.target.closest("[data-rubric-menu-toggle]");
     if (menuToggle) {
       const descCell = menuToggle.closest(".rubric-desc-cell");
@@ -196,7 +232,7 @@ function initDelegatedActions() {
       return;
     }
 
-    if (!event.target.closest(".rubric-sort-actions") && !event.target.closest(".expense-sort-actions")) {
+    if (!event.target.closest(".panel-sort-actions") && !event.target.closest(".rubric-sort-actions") && !event.target.closest(".expense-sort-actions")) {
       closeAllMenus();
     }
 
