@@ -187,8 +187,9 @@ document.addEventListener("DOMContentLoaded", () => {
     ${buildPanel("Outcome", "outcome", cgdMock.outcome)}
   `;
 
-  const firstMonth = document.querySelector(".month-tile");
-  if (firstMonth) {
-    firstMonth.click();
+  const currentMonth = new Date().getMonth();
+  const activeMonthTile = document.querySelector(`.month-tile[data-month='${currentMonth}']`) || document.querySelector(".month-tile");
+  if (activeMonthTile) {
+    activeMonthTile.click();
   }
 });

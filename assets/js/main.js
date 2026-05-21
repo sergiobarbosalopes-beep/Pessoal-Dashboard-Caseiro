@@ -157,8 +157,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initExpenseModal();
   initYearNavigation();
 
-  const firstMonth = document.querySelector(".month-tile");
-  if (firstMonth) {
-    highlightMonth(Number(firstMonth.dataset.month));
+  const currentMonth = new Date().getMonth();
+  const activeMonthTile = document.querySelector(`.month-tile[data-month='${currentMonth}']`) || document.querySelector(".month-tile");
+  if (activeMonthTile) {
+    highlightMonth(Number(activeMonthTile.dataset.month));
   }
 });
