@@ -495,7 +495,7 @@ async function createDespesaForRubrica(rubricaId, description) {
     despesa_desc: description,
     despesa_seq: nextSeq,
     valor: 0,
-    totalizador: 0
+    totalizador: true
   }));
 
   const { error } = await supabaseClient.from("cgd_despesa").insert(rows);
