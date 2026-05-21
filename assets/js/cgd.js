@@ -56,7 +56,7 @@ function parseSeq(value, fallback = 999999) {
 
 function normalizeRubricType(value) {
   const raw = String(value || "").trim().toLowerCase();
-  if (raw === "recebimento" || raw === "receita") {
+  if (raw === "receita") {
     return "income";
   }
   return "outcome";
