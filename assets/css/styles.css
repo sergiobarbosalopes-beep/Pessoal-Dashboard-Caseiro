@@ -367,9 +367,7 @@ a {
 }
 
 .cgd-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(220px, 0.75fr);
-  gap: 16px;
+  display: block;
   border: 1px solid rgba(248, 206, 70, 0.34);
   background:
     radial-gradient(560px 260px at 96% -6%, rgba(248, 206, 70, 0.3), transparent 70%),
@@ -390,25 +388,27 @@ a {
   z-index: 1;
 }
 
-.cgd-logo-lockup {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.cgd-logo-image {
-  width: min(240px, 62vw);
-  max-width: 100%;
-  height: auto;
-  display: block;
-  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35));
-}
-
 .cgd-hero .hero h1,
 .cgd-hero h1 {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   max-width: 24ch;
   color: #f6fbff;
+}
+
+.cgd-title-mark {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  color: #f8ce46;
+  flex-shrink: 0;
+}
+
+.cgd-title-mark svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .cgd-hero p {
@@ -437,48 +437,6 @@ a {
   border-color: rgba(248, 206, 70, 0.65);
   background: linear-gradient(135deg, #d3a32f, #f8ce46);
   color: #10273b;
-}
-
-.cgd-hero-side {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  gap: 10px;
-  align-content: center;
-}
-
-.cgd-side-card {
-  border-radius: 14px;
-  padding: 12px;
-  border: 1px solid rgba(172, 211, 233, 0.32);
-  background: rgba(8, 34, 51, 0.64);
-  box-shadow: 0 12px 22px rgba(2, 13, 22, 0.38);
-}
-
-.cgd-side-card span {
-  display: block;
-  color: #d4e7f3;
-  font-size: 0.74rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.cgd-side-card strong {
-  display: block;
-  margin-top: 6px;
-  color: #ffffff;
-  font-size: 1.02rem;
-  font-weight: 800;
-}
-
-.cgd-side-card-gold {
-  border-color: rgba(248, 206, 70, 0.48);
-  background: linear-gradient(145deg, rgba(61, 44, 14, 0.88), rgba(96, 67, 18, 0.68));
-}
-
-.cgd-side-card-blue {
-  border-color: rgba(116, 189, 233, 0.44);
-  background: linear-gradient(145deg, rgba(6, 56, 91, 0.86), rgba(4, 44, 74, 0.66));
 }
 
 .cgd-top-tiles {
@@ -1182,12 +1140,7 @@ a {
   }
 
   .cgd-hero {
-    grid-template-columns: 1fr;
-  }
-
-  .cgd-hero-side {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-content: stretch;
+    display: block;
   }
 }
 
@@ -1220,8 +1173,9 @@ a {
     height: 280px;
   }
 
-  .cgd-hero-side {
-    grid-template-columns: 1fr;
+  .cgd-title-mark {
+    width: 24px;
+    height: 24px;
   }
 
   .month-tile {
