@@ -80,6 +80,15 @@ function highlightMonth(monthIndex) {
   document.querySelectorAll(`[data-month-col='${monthIndex}']`).forEach((pill) => {
     pill.classList.add("active");
   });
+
+  document.querySelectorAll(".data-row.expense .money-pill input[data-money]").forEach((input) => {
+    const monthCol = input.closest("[data-month-col]");
+    const inputMonthIndex = monthCol ? Number(monthCol.getAttribute("data-month-col")) : -1;
+    const isActiveMonth = inputMonthIndex === monthIndex;
+    input.disabled = !isActiveMonth;
+    input.tabIndex = isActiveMonth ? 0 : -1;
+    input.setAttribute("aria-disabled", String(!isActiveMonth));
+  });
 }
 
 function syncExpensePastMonthsState() {
@@ -285,5 +294,9 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 document.addEventListener("cgd:rendered", () => {
+  const activeMonthTile = document.querySelector(".month-tile.active") || document.querySelector(".month-tile");
+  if (activeMonthTile) {
+    highlightMonth(Number(activeMonthTile.dataset.month));
+  }
   syncExpensePastMonthsState();
 });

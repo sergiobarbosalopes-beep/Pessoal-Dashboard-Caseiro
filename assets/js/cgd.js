@@ -171,21 +171,25 @@ function money(value) {
   return Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function monthPills(values, editable, labelPrefix) {
+function rubricTotalPills(values) {
   return values
     .map((value, monthIndex) => {
       const dataMonth = `data-month-col='${monthIndex}'`;
-      if (editable) {
-        return `
-        <div class='money-pill' ${dataMonth}>
-          <input data-money type='text' value='${money(value)}' aria-label='${labelPrefix} ${months[monthIndex]}' />
-        </div>`;
-      }
       return `
       <div class='money-pill readonly' ${dataMonth}>
-        <button type='button' data-expense-field='${labelPrefix} - ${months[monthIndex]}'>
-          <span>${money(value)}</span>
-        </button>
+        <span>${money(value)}</span>
+      </div>`;
+    })
+    .join("");
+}
+
+function expenseInputPills(values, labelPrefix) {
+  return values
+    .map((value, monthIndex) => {
+      const dataMonth = `data-month-col='${monthIndex}'`;
+      return `
+      <div class='money-pill' ${dataMonth}>
+        <input data-money type='text' value='${money(value)}' aria-label='${labelPrefix} ${months[monthIndex]}' />
       </div>`;
     })
     .join("");
@@ -235,7 +239,7 @@ function renderExpenseRows(expenses, rubricName) {
             </div>
           </div>
         </div>
-        ${monthPills(expense.values, false, `${rubricName} / ${expense.name}`)}
+        ${expenseInputPills(expense.values, `${rubricName} / ${expense.name}`)}
       </div>
       `;
     })
@@ -262,7 +266,7 @@ function renderRubrics(rubrics, kind) {
               </div>
             </div>
           </div>
-          ${monthPills(totals, true, `${rubric.name} total`)}
+          ${rubricTotalPills(totals)}
         </header>
         <div class='rubric-body' id='${expenseBodyId}'>
           <div class='expense-body'>
