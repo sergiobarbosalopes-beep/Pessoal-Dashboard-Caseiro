@@ -163,7 +163,6 @@ function buildPanel(title, kind, rubrics) {
         <button class='chev' type='button' data-toggle-target='${bodyId}' aria-expanded='true' aria-label='Expandir ${title}'>▼</button>
         <h3>${title}</h3>
       </div>
-      <span class='muted'>${rubrics.length} rubricas</span>
     </header>
     <div class='panel-body' id='${bodyId}'>
       ${renderRubrics(rubrics, kind)}

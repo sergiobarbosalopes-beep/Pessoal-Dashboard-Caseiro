@@ -460,7 +460,7 @@ a {
 }
 
 .panel-head {
-  padding: 6px 10px;
+  padding: 5px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -469,7 +469,7 @@ a {
 
 .panel-head h3 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.93rem;
   line-height: 1.05;
 }
 
