@@ -1178,6 +1178,39 @@ a {
   font-size: 0.82rem;
 }
 
+.modal-form {
+  margin-top: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.modal-form label {
+  font-size: 0.78rem;
+  color: #cde2ee;
+}
+
+.modal-form input {
+  border: 1px solid rgba(176, 210, 226, 0.28);
+  border-radius: 10px;
+  background: #102d3a;
+  color: #d8ecf5;
+  padding: 9px 10px;
+  font-size: 0.84rem;
+  outline: none;
+}
+
+.modal-form input:focus {
+  border-color: rgba(213, 171, 70, 0.84);
+  box-shadow: 0 0 0 2px rgba(213, 171, 70, 0.24);
+}
+
+.modal-actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .fade-up {
   opacity: 0;
   transform: translateY(16px);

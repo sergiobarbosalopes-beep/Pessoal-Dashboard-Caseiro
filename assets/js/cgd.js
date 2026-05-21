@@ -459,12 +459,75 @@ async function createRubricaForYear(kind, description) {
   }
 }
 
+function requestRubricDescription(kind) {
+  const modal = document.getElementById("rubric-modal");
+  const input = modal?.querySelector("[data-rubric-desc]");
+  const title = modal?.querySelector("[data-rubric-modal-title]");
+  const confirmBtn = modal?.querySelector("[data-rubric-confirm]");
+  const cancelBtn = modal?.querySelector("[data-rubric-cancel]");
+
+  if (!modal || !input || !confirmBtn || !cancelBtn) {
+    const fallback = window.prompt("Descricao da nova rubrica", kind === "income" ? "Nova rubrica de receita" : "Nova rubrica de despesa");
+    return Promise.resolve(fallback ? fallback.trim() : null);
+  }
+
+  return new Promise((resolve) => {
+    const suggestion = kind === "income" ? "Nova rubrica de receita" : "Nova rubrica de despesa";
+    input.value = suggestion;
+    if (title) {
+      title.textContent = `Adicionar rubrica ${kind === "income" ? "Income" : "Outcome"}`;
+    }
+
+    const close = (result) => {
+      modal.classList.remove("show");
+      modal.setAttribute("aria-hidden", "true");
+      confirmBtn.removeEventListener("click", onConfirm);
+      cancelBtn.removeEventListener("click", onCancel);
+      modal.removeEventListener("click", onBackdrop);
+      input.removeEventListener("keydown", onKeydown);
+      resolve(result);
+    };
+
+    const onConfirm = () => {
+      const value = input.value.trim();
+      close(value || null);
+    };
+
+    const onCancel = () => close(null);
+
+    const onBackdrop = (event) => {
+      if (event.target === modal) {
+        close(null);
+      }
+    };
+
+    const onKeydown = (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        onConfirm();
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCancel();
+      }
+    };
+
+    confirmBtn.addEventListener("click", onConfirm);
+    cancelBtn.addEventListener("click", onCancel);
+    modal.addEventListener("click", onBackdrop);
+    input.addEventListener("keydown", onKeydown);
+
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    requestAnimationFrame(() => input.focus());
+  });
+}
+
 window.cgdLoadYearData = loadYearData;
 
 window.cgdCreateRubric = async (kind) => {
-  const suggestion = kind === "income" ? "Nova rubrica de receita" : "Nova rubrica de despesa";
-  const description = window.prompt("Descricao da nova rubrica", suggestion);
-  if (!description || !description.trim()) {
+  const description = await requestRubricDescription(kind);
+  if (!description) {
     return false;
   }
 
