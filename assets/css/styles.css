@@ -370,11 +370,11 @@ a {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(220px, 0.75fr);
   gap: 16px;
-  border: 1px solid rgba(255, 214, 79, 0.28);
+  border: 1px solid rgba(248, 206, 70, 0.34);
   background:
-    radial-gradient(560px 260px at 96% -6%, rgba(255, 203, 54, 0.24), transparent 70%),
-    radial-gradient(640px 300px at -10% 112%, rgba(10, 109, 168, 0.34), transparent 70%),
-    linear-gradient(125deg, #082338, #0c2c45 42%, #0e3552 72%, #0a2740);
+    radial-gradient(560px 260px at 96% -6%, rgba(248, 206, 70, 0.3), transparent 70%),
+    radial-gradient(640px 300px at -10% 112%, rgba(0, 102, 163, 0.34), transparent 70%),
+    linear-gradient(124deg, #041d34, #052743 44%, #063255 72%, #041f37);
 }
 
 .cgd-hero::after {
@@ -382,7 +382,7 @@ a {
   top: -56px;
   width: 220px;
   height: 220px;
-  background: radial-gradient(circle at 35% 30%, rgba(255, 206, 66, 0.35), rgba(31, 139, 200, 0.22), transparent 70%);
+  background: radial-gradient(circle at 35% 30%, rgba(248, 206, 70, 0.4), rgba(0, 118, 186, 0.24), transparent 70%);
 }
 
 .cgd-hero-main {
@@ -393,27 +393,16 @@ a {
 .cgd-logo-lockup {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 12px;
 }
 
-.cgd-logo-mark {
-  width: 34px;
-  height: 34px;
-  display: inline-flex;
-  color: #ffd35f;
-}
-
-.cgd-logo-mark svg {
-  width: 100%;
-  height: 100%;
-}
-
-.cgd-logo-text {
-  font-size: 0.9rem;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  color: #ffd35f;
+.cgd-logo-image {
+  width: min(240px, 62vw);
+  max-width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35));
 }
 
 .cgd-hero .hero h1,
@@ -445,8 +434,8 @@ a {
 }
 
 .cgd-chip-solid {
-  border-color: rgba(255, 210, 88, 0.56);
-  background: linear-gradient(135deg, #d6a533, #f2c252);
+  border-color: rgba(248, 206, 70, 0.65);
+  background: linear-gradient(135deg, #d3a32f, #f8ce46);
   color: #10273b;
 }
 
@@ -483,13 +472,13 @@ a {
 }
 
 .cgd-side-card-gold {
-  border-color: rgba(255, 215, 110, 0.42);
-  background: linear-gradient(145deg, rgba(54, 42, 18, 0.86), rgba(82, 58, 18, 0.64));
+  border-color: rgba(248, 206, 70, 0.48);
+  background: linear-gradient(145deg, rgba(61, 44, 14, 0.88), rgba(96, 67, 18, 0.68));
 }
 
 .cgd-side-card-blue {
-  border-color: rgba(122, 193, 233, 0.42);
-  background: linear-gradient(145deg, rgba(10, 52, 78, 0.84), rgba(8, 40, 66, 0.64));
+  border-color: rgba(116, 189, 233, 0.44);
+  background: linear-gradient(145deg, rgba(6, 56, 91, 0.86), rgba(4, 44, 74, 0.66));
 }
 
 .cgd-top-tiles {
