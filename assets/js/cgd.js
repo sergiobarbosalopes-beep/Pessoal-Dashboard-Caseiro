@@ -101,11 +101,13 @@ function renderExpenseRows(expenses, rubricName) {
     .map((expense) => {
       return `
       <div class='data-row expense' data-sortable>
-        <div class='desc-cell'>
-          <span class='desc-pill'>${expense.name}</span>
-          <div class='sort-actions'>
-            <button type='button' aria-label='Subir despesa' data-move-up>↑</button>
-            <button type='button' aria-label='Descer despesa' data-move-down>↓</button>
+        <div class='desc-cell expense-desc-cell'>
+          <button class='desc-pill expense-menu-trigger' type='button' data-expense-menu-toggle aria-expanded='false' aria-label='Opcoes da despesa ${expense.name}'>${expense.name}</button>
+          <div class='expense-sort-actions'>
+            <div class='expense-menu' role='menu'>
+              <button type='button' role='menuitem' data-expense-menu-action='up'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 18V6M12 6L7 11M12 6L17 11' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para cima</span></button>
+              <button type='button' role='menuitem' data-expense-menu-action='down'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 6V18M12 18L7 13M12 18L17 13' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para baixo</span></button>
+            </div>
           </div>
         </div>
         ${monthPills(expense.values, false, `${rubricName} / ${expense.name}`)}

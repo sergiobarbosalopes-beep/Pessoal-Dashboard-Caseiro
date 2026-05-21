@@ -505,6 +505,16 @@ a {
   overflow: hidden;
 }
 
+.rubric-body,
+.expense-body {
+  overflow: visible;
+}
+
+.rubric-body.is-collapsed,
+.expense-body.is-collapsed {
+  overflow: hidden;
+}
+
 .is-collapsed {
   max-height: 0 !important;
   opacity: 0;
@@ -614,6 +624,97 @@ a {
 }
 
 .rubric-menu .menu-icon svg {
+  width: 12px;
+  height: 12px;
+  display: block;
+}
+
+.expense-desc-cell {
+  position: relative;
+}
+
+.expense-menu-trigger {
+  text-align: left;
+  cursor: pointer;
+}
+
+.panel.income .expense-menu-trigger {
+  border-color: rgba(143, 224, 181, 0.24);
+  background: linear-gradient(135deg, rgba(47, 142, 97, 0.34), rgba(62, 170, 118, 0.3));
+}
+
+.panel.outcome .expense-menu-trigger {
+  border-color: rgba(242, 206, 132, 0.24);
+  background: linear-gradient(135deg, rgba(182, 132, 58, 0.36), rgba(214, 159, 68, 0.31));
+}
+
+.expense-menu-trigger[aria-expanded="true"] {
+  border-color: rgba(213, 171, 70, 0.82);
+  box-shadow: 0 0 0 2px rgba(213, 171, 70, 0.24), 0 0 14px rgba(213, 171, 70, 0.18);
+}
+
+.panel.income .expense-menu-trigger[aria-expanded="true"] {
+  border-color: rgba(47, 142, 97, 0.86);
+  box-shadow: 0 0 0 2px rgba(47, 142, 97, 0.26), 0 0 14px rgba(47, 142, 97, 0.18);
+}
+
+.expense-sort-actions {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 80;
+}
+
+.expense-menu {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 190px;
+  padding: 6px;
+  border-radius: 10px;
+  background: rgba(10, 28, 37, 0.98);
+  border: 1px solid color-mix(in srgb, var(--rubric-accent) 62%, #b6d8e7 38%);
+  box-shadow: 0 14px 30px rgba(2, 8, 13, 0.55);
+  display: none;
+  z-index: 9999;
+}
+
+.expense-sort-actions.open .expense-menu {
+  display: grid;
+  gap: 4px;
+}
+
+.expense-menu button {
+  border: 0;
+  text-align: left;
+  border-radius: 8px;
+  padding: 7px 9px;
+  background: transparent;
+  color: #d5e8f2;
+  cursor: pointer;
+  font-size: 0.76rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.expense-menu button:hover {
+  background: color-mix(in srgb, var(--rubric-accent) 26%, transparent);
+}
+
+.expense-menu .menu-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  color: #fff;
+  background: color-mix(in srgb, var(--rubric-accent) 60%, #203846 40%);
+}
+
+.expense-menu .menu-icon svg {
   width: 12px;
   height: 12px;
   display: block;

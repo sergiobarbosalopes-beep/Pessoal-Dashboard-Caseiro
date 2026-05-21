@@ -83,6 +83,24 @@ function highlightMonth(monthIndex) {
 }
 
 function initDelegatedActions() {
+  const closeAllMenus = () => {
+    document.querySelectorAll(".rubric-sort-actions.open").forEach((openMenu) => {
+      openMenu.classList.remove("open");
+      const btn = openMenu.closest(".rubric-desc-cell")?.querySelector("[data-rubric-menu-toggle]");
+      if (btn) {
+        btn.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    document.querySelectorAll(".expense-sort-actions.open").forEach((openMenu) => {
+      openMenu.classList.remove("open");
+      const btn = openMenu.closest(".expense-desc-cell")?.querySelector("[data-expense-menu-toggle]");
+      if (btn) {
+        btn.setAttribute("aria-expanded", "false");
+      }
+    });
+  };
+
   document.addEventListener("click", (event) => {
     const menuToggle = event.target.closest("[data-rubric-menu-toggle]");
     if (menuToggle) {
@@ -90,17 +108,26 @@ function initDelegatedActions() {
       const menuWrap = descCell?.querySelector(".rubric-sort-actions");
       const isOpen = menuWrap?.classList.contains("open");
 
-      document.querySelectorAll(".rubric-sort-actions.open").forEach((openMenu) => {
-        openMenu.classList.remove("open");
-        const btn = openMenu.closest(".rubric-desc-cell")?.querySelector("[data-rubric-menu-toggle]");
-        if (btn) {
-          btn.setAttribute("aria-expanded", "false");
-        }
-      });
+      closeAllMenus();
 
       if (menuWrap && !isOpen) {
         menuWrap.classList.add("open");
         menuToggle.setAttribute("aria-expanded", "true");
+      }
+      return;
+    }
+
+    const expenseMenuToggle = event.target.closest("[data-expense-menu-toggle]");
+    if (expenseMenuToggle) {
+      const descCell = expenseMenuToggle.closest(".expense-desc-cell");
+      const menuWrap = descCell?.querySelector(".expense-sort-actions");
+      const isOpen = menuWrap?.classList.contains("open");
+
+      closeAllMenus();
+
+      if (menuWrap && !isOpen) {
+        menuWrap.classList.add("open");
+        expenseMenuToggle.setAttribute("aria-expanded", "true");
       }
       return;
     }
@@ -116,24 +143,27 @@ function initDelegatedActions() {
         row.parentElement.insertBefore(row.nextElementSibling, row);
       }
 
-      document.querySelectorAll(".rubric-sort-actions.open").forEach((openMenu) => {
-        openMenu.classList.remove("open");
-        const btn = openMenu.closest(".rubric-desc-cell")?.querySelector("[data-rubric-menu-toggle]");
-        if (btn) {
-          btn.setAttribute("aria-expanded", "false");
-        }
-      });
+      closeAllMenus();
       return;
     }
 
-    if (!event.target.closest(".rubric-sort-actions")) {
-      document.querySelectorAll(".rubric-sort-actions.open").forEach((openMenu) => {
-        openMenu.classList.remove("open");
-        const btn = openMenu.closest(".rubric-desc-cell")?.querySelector("[data-rubric-menu-toggle]");
-        if (btn) {
-          btn.setAttribute("aria-expanded", "false");
-        }
-      });
+    const expenseMenuAction = event.target.closest("[data-expense-menu-action]");
+    if (expenseMenuAction) {
+      const row = expenseMenuAction.closest("[data-sortable]");
+      const action = expenseMenuAction.getAttribute("data-expense-menu-action");
+      if (row && action === "up" && row.previousElementSibling) {
+        row.parentElement.insertBefore(row, row.previousElementSibling);
+      }
+      if (row && action === "down" && row.nextElementSibling) {
+        row.parentElement.insertBefore(row.nextElementSibling, row);
+      }
+
+      closeAllMenus();
+      return;
+    }
+
+    if (!event.target.closest(".rubric-sort-actions") && !event.target.closest(".expense-sort-actions")) {
+      closeAllMenus();
     }
 
     const toggleBtn = event.target.closest("[data-toggle-target]");
