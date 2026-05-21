@@ -45,16 +45,8 @@ function parseMoneyField(record, fallback = 0) {
 }
 
 function parseExpenseValue(record, fallback = 0) {
-  return parseMoneyField(
-    {
-      valor: record.valor,
-      despesa_valor: record.despesa_valor,
-      amount: record.amount,
-      montante: record.montante,
-      total: record.total
-    },
-    fallback
-  );
+  const numeric = Number(record.valor);
+  return Number.isFinite(numeric) ? numeric : fallback;
 }
 
 function parseSeq(value, fallback = 999999) {
@@ -74,7 +66,7 @@ async function fetchRubricsForYear(year) {
 
   const { data, error } = await supabaseClient
     .from("cgd_rubrica")
-    .select("rubrica_id, ano, mes, rubrica_desc, rubrica_seq, rubrica_tipo, rubrica_valor, valor")
+    .select("ano,mes,rubrica_id,rubrica_desc,rubrica_seq,rubrica_tipo")
     .eq("ano", year)
     .order("rubrica_seq", { ascending: true })
     .order("mes", { ascending: true });
@@ -93,7 +85,7 @@ async function fetchExpensesForYear(year) {
 
   const { data, error } = await supabaseClient
     .from("cgd_despesa")
-    .select("despesa_id, rubrica_id, ano, mes, despesa_desc, despesa_seq, despesa_valor, valor")
+    .select("ano,mes,rubrica_id,despesa_id,despesa_desc,despesa_seq,totalizador,valor")
     .eq("ano", year)
     .order("despesa_seq", { ascending: true })
     .order("mes", { ascending: true });
@@ -169,14 +161,6 @@ function buildDataModel(rubricRows, expenseRows) {
     income: allRubrics.filter((rubric) => rubric.type === "income"),
     outcome: allRubrics.filter((rubric) => rubric.type === "outcome")
   };
-}
-
-function showLoadError(message) {
-  const panels = document.getElementById("cgd-panels");
-  if (!panels) {
-    return;
-  }
-  panels.innerHTML = `<section class='card' style='grid-column: span 12;'><p class='muted'>${message}</p></section>`;
 }
 
 function sumByMonth(expenses) {
@@ -333,7 +317,6 @@ async function loadYearData(year) {
   if (!supabaseClient) {
     cgdState.data = fallbackMock;
     renderPanels();
-    showLoadError("Configure a chave anon do Supabase em window.CGD_SUPABASE_ANON_KEY para carregar rubricas e despesas da BD.");
     document.dispatchEvent(new Event("cgd:rendered"));
     return;
   }
@@ -350,7 +333,6 @@ async function loadYearData(year) {
     console.error("Erro a carregar dados CGD:", error);
     cgdState.data = fallbackMock;
     renderPanels();
-    showLoadError("Nao foi possivel carregar dados da BD CGD para o ano selecionado.");
     document.dispatchEvent(new Event("cgd:rendered"));
   }
 }
