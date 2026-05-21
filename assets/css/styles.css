@@ -450,11 +450,11 @@ a {
 }
 
 .panel.income {
-  background: linear-gradient(180deg, #173a2b, var(--green-100));
+  background: linear-gradient(180deg, #2a6f52, #3a8d66 42%, #5db684 78%, #79cf9d);
 }
 
 .panel.outcome {
-  background: linear-gradient(180deg, #4b381f, var(--orange-200));
+  background: linear-gradient(180deg, #8e6730, #b6843a 38%, #d8a149 70%, #efbe63);
 }
 
 .panel-head {
