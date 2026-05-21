@@ -453,6 +453,14 @@ a {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.year-btn:hover {
+  background: #1e4256;
+  border-color: rgba(176, 211, 227, 0.46);
+  color: #ffffff;
+  transform: translateY(-1px);
 }
 
 .year-nav [data-year-label] {
@@ -465,7 +473,7 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.84rem;
+  font-size: 0.92rem;
   font-weight: 700;
   line-height: 1;
 }
@@ -491,14 +499,14 @@ a {
 
 .month-tile-label {
   font-weight: 800;
-  font-size: 0.84rem;
+  font-size: 0.98rem;
   letter-spacing: 0.08em;
   line-height: 1;
 }
 
 .month-tile-number {
   font-weight: 700;
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   line-height: 1;
 }
 
@@ -1096,11 +1104,11 @@ a {
   }
 
   .month-tile-label {
-    font-size: 0.72rem;
+    font-size: 0.82rem;
   }
 
   .month-tile-number {
-    font-size: 0.68rem;
+    font-size: 0.76rem;
   }
 
   .year-btn {
