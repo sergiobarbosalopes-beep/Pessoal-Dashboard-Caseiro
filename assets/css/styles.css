@@ -635,61 +635,30 @@ a {
   min-width: 0;
 }
 
-.expense-desc-cell::before {
-  content: "";
-  position: absolute;
-  top: 3px;
-  right: 0;
-  bottom: 3px;
-  left: -28px;
-  border-radius: var(--radius-pill);
-  border: 1px solid rgba(176, 210, 226, 0.5);
-  background: #173545;
-  box-shadow: inset 0 0 0 1px rgba(216, 236, 245, 0.22), 0 5px 14px rgba(2, 8, 13, 0.34);
-  pointer-events: none;
-  z-index: 0;
-}
-
 .expense-desc-cell .chev-spacer {
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
-  min-height: 30px;
-  border-radius: 50%;
-  opacity: 0;
-  pointer-events: none;
+  display: none;
 }
 
 .expense-menu-trigger {
-  flex: 1 1 0;
-  width: auto;
+  flex: 1 1 auto;
+  width: 100%;
   min-width: 0;
   position: relative;
   z-index: 1;
   padding-left: 12px;
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
+  border-color: rgba(176, 210, 226, 0.42);
+  background: #173545;
+  box-shadow: inset 0 0 0 1px rgba(216, 236, 245, 0.18), 0 4px 12px rgba(2, 8, 13, 0.3);
   text-align: left;
   cursor: pointer;
 }
 
 .expense-menu-trigger[aria-expanded="true"] {
-  border-color: transparent;
-  box-shadow: none;
-}
-
-.expense-desc-cell:has(.expense-menu-trigger[aria-expanded="true"])::before {
   border-color: rgba(213, 171, 70, 0.86);
   box-shadow: inset 0 0 0 1px rgba(255, 231, 184, 0.22), 0 0 0 2px rgba(213, 171, 70, 0.28), 0 0 16px rgba(213, 171, 70, 0.24);
 }
 
 .panel.income .expense-menu-trigger[aria-expanded="true"] {
-  border-color: transparent;
-  box-shadow: none;
-}
-
-.panel.income .expense-desc-cell:has(.expense-menu-trigger[aria-expanded="true"])::before {
   border-color: rgba(47, 142, 97, 0.9);
   box-shadow: inset 0 0 0 1px rgba(200, 245, 221, 0.22), 0 0 0 2px rgba(47, 142, 97, 0.28), 0 0 16px rgba(47, 142, 97, 0.22);
 }
