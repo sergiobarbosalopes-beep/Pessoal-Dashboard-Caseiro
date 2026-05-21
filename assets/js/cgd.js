@@ -138,7 +138,7 @@ function renderRubrics(rubrics, kind) {
           <div class='item-rows'>
             <div class='data-row'>
               <div class='desc-cell'>
-                <span class='desc-pill'>Total rubrica</span>
+                <span class='desc-pill rubric-total-label' aria-label='Total da rubrica'></span>
               </div>
               ${monthPills(totals, true, `${rubric.name} total`)}
             </div>
@@ -193,3 +193,4 @@ document.addEventListener("DOMContentLoaded", () => {
     activeMonthTile.click();
   }
 });
+

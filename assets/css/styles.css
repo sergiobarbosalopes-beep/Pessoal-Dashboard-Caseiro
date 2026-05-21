@@ -561,6 +561,7 @@ a {
   font-weight: 600;
   font-size: 0.8rem;
 }
+.rubric-total-label { background: transparent; border-color: transparent; color: transparent; pointer-events: none; }
 
 .money-pill {
   border: 1px solid rgba(17, 34, 43, 0.14);
@@ -744,3 +745,4 @@ a {
     width: fit-content;
   }
 }
+
