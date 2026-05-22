@@ -648,15 +648,22 @@ a {
 .panel-menu-trigger {
   text-align: center;
   cursor: pointer;
+  font-size: 1.02rem;
+  font-weight: 800;
+  border-radius: 10px;
+  line-height: 1.1;
 }
 
-.panel.income .panel-menu-trigger,
-.panel.outcome .panel-menu-trigger {
-  background: #173545;
-  border-color: rgba(17, 34, 43, 0.12);
+.panel.income .panel-menu-trigger {
+  background: linear-gradient(135deg, rgba(47, 142, 97, 0.52), rgba(62, 170, 118, 0.48));
+  border-color: transparent;
   box-shadow: none;
-  font-size: 0.92rem;
-  font-weight: 700;
+}
+
+.panel.outcome .panel-menu-trigger {
+  background: linear-gradient(135deg, rgba(182, 132, 58, 0.54), rgba(214, 159, 68, 0.5));
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .panel-menu-trigger[aria-expanded="true"] {
