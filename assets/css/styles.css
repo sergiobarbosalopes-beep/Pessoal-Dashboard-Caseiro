@@ -1275,7 +1275,7 @@ a {
   gap: 8px;
   grid-template-columns: max-content max-content;
   justify-content: flex-start;
-  align-items: start;
+  align-items: stretch;
 }
 
 .expense-modal-left-stack {
@@ -1283,6 +1283,7 @@ a {
   gap: 8px;
   width: max-content;
   max-width: 100%;
+  align-content: start;
 }
 
 .expense-values-section,
@@ -1468,7 +1469,7 @@ a {
 }
 
 .expense-history-section {
-  margin-top: 10px;
+  margin-top: 0;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -1488,7 +1489,8 @@ a {
 }
 
 .expense-notes-section {
-  width: 100%;
+  width: max-content;
+  max-width: 100%;
 }
 
 .expense-history-table {
