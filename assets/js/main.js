@@ -110,6 +110,23 @@ function initExpenseModal() {
     notesSection.hidden = !showNotes;
   };
 
+  const applyFieldDisabledState = (element, disabled) => {
+    if (!element) {
+      return;
+    }
+    element.disabled = disabled;
+    const wrapper = element.closest(".expense-field, .toggle-control");
+    if (wrapper) {
+      wrapper.classList.toggle("is-locked", disabled);
+    }
+  };
+
+  const clearLockedFieldIndicators = () => {
+    modal.querySelectorAll(".expense-field.is-locked, .toggle-control.is-locked").forEach((node) => {
+      node.classList.remove("is-locked");
+    });
+  };
+
   const syncFieldLocks = () => {
     if (isModalReadonly) {
       return;
@@ -123,29 +140,15 @@ function initExpenseModal() {
     const hasSubtractValue = hasAdjustmentValue(inputSubtract?.value);
     const editedValueFields = valorChanged || valorEstimadoChanged;
 
-    if (inputAdd) {
-      inputAdd.disabled = editedValueFields || hasSubtractValue;
-    }
-    if (inputSubtract) {
-      inputSubtract.disabled = editedValueFields || hasAddValue;
-    }
+    applyFieldDisabledState(inputAdd, editedValueFields || hasSubtractValue);
+    applyFieldDisabledState(inputSubtract, editedValueFields || hasAddValue);
 
     const lockOtherFields = hasAddValue || hasSubtractValue;
-    if (inputValor) {
-      inputValor.disabled = lockOtherFields;
-    }
-    if (inputValorEstimado) {
-      inputValorEstimado.disabled = lockOtherFields;
-    }
-    if (inputNotes) {
-      inputNotes.disabled = lockOtherFields;
-    }
-    if (checkTotalizador) {
-      checkTotalizador.disabled = lockOtherFields;
-    }
-    if (checkApplyEndYear) {
-      checkApplyEndYear.disabled = lockOtherFields;
-    }
+    applyFieldDisabledState(inputValor, lockOtherFields);
+    applyFieldDisabledState(inputValorEstimado, lockOtherFields);
+    applyFieldDisabledState(inputNotes, false);
+    applyFieldDisabledState(checkTotalizador, lockOtherFields);
+    applyFieldDisabledState(checkApplyEndYear, lockOtherFields);
   };
 
   const renderHistoryRows = (entries) => {
@@ -221,6 +224,7 @@ function initExpenseModal() {
 
   const applyReadonlyState = (readonly) => {
     isModalReadonly = readonly;
+    clearLockedFieldIndicators();
     [inputValor, inputValorEstimado, inputAdd, inputSubtract, inputNotes, checkTotalizador, checkApplyEndYear].forEach((element) => {
       if (element) {
         element.disabled = readonly;
