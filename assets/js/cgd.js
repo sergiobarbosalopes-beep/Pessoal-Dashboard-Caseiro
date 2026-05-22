@@ -247,6 +247,38 @@ async function createExpenseNoteEntry({ ano, rubricaId, despesaId, mes, valor, n
   }
 }
 
+async function deleteExpenseNoteEntry({ ano, rubricaId, despesaId, mes, contadorId }) {
+  if (!supabaseClient) {
+    return false;
+  }
+
+  const filterDelete = (tableName) =>
+    supabaseClient
+      .from(tableName)
+      .delete()
+      .eq("ano", Number(ano))
+      .eq("mes", Number(mes))
+      .eq("rubrica_id", Number(rubricaId))
+      .eq("despesa_id", Number(despesaId))
+      .eq("contador_id", Number(contadorId));
+
+  const preferredTable = cgdState.notesTableName || "cgd_despesa_notas";
+  const { error: primaryError } = await filterDelete(preferredTable);
+  if (!primaryError) {
+    cgdState.notesTableName = preferredTable;
+    return true;
+  }
+
+  const fallbackTable = preferredTable === "cgd_despesa_notas" ? "cgd_despesas_notas" : "cgd_despesa_notas";
+  const { error: fallbackError } = await filterDelete(fallbackTable);
+  if (fallbackError) {
+    throw primaryError;
+  }
+
+  cgdState.notesTableName = fallbackTable;
+  return true;
+}
+
 function buildDataModel(rubricRows, expenseRows) {
   const rubricsByKey = new Map();
 
@@ -1022,6 +1054,28 @@ window.cgdGetExpenseNotes = async ({ rubricaId, despesaId, monthIndex }) => {
       nota: row.nota ?? row.notas ?? ""
     }))
     .sort((a, b) => a.contadorId - b.contadorId);
+};
+
+window.cgdDeleteExpenseNote = async ({ rubricaId, despesaId, monthIndex, contadorId }) => {
+  const selectedKey = resolveSelectedExpenseKey({ rubricaId, despesaId, monthIndex });
+  if (!selectedKey) {
+    return false;
+  }
+
+  const normalizedCounter = Number(contadorId);
+  if (!Number.isFinite(normalizedCounter)) {
+    return false;
+  }
+
+  await deleteExpenseNoteEntry({
+    ano: selectedKey.ano,
+    rubricaId: selectedKey.rubricaId,
+    despesaId: selectedKey.despesaId,
+    mes: selectedKey.mes,
+    contadorId: normalizedCounter
+  });
+
+  return true;
 };
 
 window.cgdSaveExpenseDetail = async ({ rubricaId, despesaId, monthIndex, valor, valorEstimado, totalizador, nota, applyToEndYear, adjustmentValue, registerAdjustment }) => {

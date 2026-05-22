@@ -131,7 +131,8 @@ function initExpenseModal() {
         const counter = Number(entry?.contadorId) || 0;
         const value = Number(entry?.valor) || 0;
         const note = entry?.nota == null ? "" : String(entry.nota);
-        return `<tr><td>${counter}</td><td>${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${note}</td></tr>`;
+        const formattedValue = value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return `<tr data-history-counter-id='${counter}'><td class='history-value-cell'>${formattedValue}</td><td class='history-note-cell'><span>${note}</span><button type='button' class='history-delete-btn' data-expense-history-delete data-counter-id='${counter}' aria-label='Eliminar nota'>Eliminar</button></td></tr>`;
       })
       .join("");
 
@@ -285,6 +286,47 @@ function initExpenseModal() {
 
   modal.querySelectorAll("[data-close-modal]").forEach((closeBtn) => {
     closeBtn.addEventListener("click", closeModal);
+  });
+
+  modal.addEventListener("click", (event) => {
+    const deleteBtn = event.target.closest("[data-expense-history-delete]");
+    if (!deleteBtn || !activeContext || !window.cgdDeleteExpenseNote || !window.cgdGetExpenseNotes) {
+      return;
+    }
+
+    const counterId = Number(deleteBtn.getAttribute("data-counter-id"));
+    if (!Number.isFinite(counterId)) {
+      return;
+    }
+
+    const originalLabel = deleteBtn.textContent;
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = "A remover...";
+
+    window.cgdDeleteExpenseNote({
+      rubricaId: activeContext.rubricaId,
+      despesaId: activeContext.despesaId,
+      monthIndex: activeContext.monthIndex,
+      contadorId: counterId
+    })
+      .then((success) => {
+        if (!success) {
+          throw new Error("Falha ao eliminar nota");
+        }
+        return window.cgdGetExpenseNotes({
+          rubricaId: activeContext.rubricaId,
+          despesaId: activeContext.despesaId,
+          monthIndex: activeContext.monthIndex
+        });
+      })
+      .then((entries) => {
+        renderHistoryRows(entries);
+      })
+      .catch((error) => {
+        console.error("Erro ao eliminar nota do historico:", error);
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = originalLabel;
+      });
   });
 
   modal.addEventListener("click", (event) => {
