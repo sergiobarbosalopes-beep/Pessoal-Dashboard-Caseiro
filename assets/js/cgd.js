@@ -45,8 +45,14 @@ function parseMoneyField(record, fallback = 0) {
 }
 
 function parseExpenseValue(record, fallback = 0) {
-  const numeric = Number(record.valor);
-  return Number.isFinite(numeric) ? numeric : fallback;
+  const valor = Number(record.valor);
+  const valorEstimado = Number(record.valor_estimado ?? record.valor_Estimado);
+
+  if (Number.isFinite(valor) && valor === 0 && Number.isFinite(valorEstimado) && valorEstimado !== 0) {
+    return valorEstimado;
+  }
+
+  return Number.isFinite(valor) ? valor : fallback;
 }
 
 function parseSeq(value, fallback = 999999) {
@@ -88,7 +94,7 @@ async function fetchExpensesForYear(year) {
 
   const { data, error } = await supabaseClient
     .from("cgd_despesa")
-    .select("ano,mes,rubrica_id,despesa_id,despesa_desc,despesa_seq,totalizador,valor")
+    .select("*")
     .eq("ano", year)
     .order("despesa_seq", { ascending: true })
     .order("mes", { ascending: true });
