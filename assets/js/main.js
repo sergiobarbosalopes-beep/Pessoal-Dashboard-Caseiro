@@ -62,6 +62,11 @@ function initExpenseModal() {
   const checkApplyEndYear = modal.querySelector("[data-expense-apply-end-year]");
   const saveBtn = modal.querySelector("[data-expense-save]");
   const closeModal = () => modal.classList.remove("show");
+  let isModalReadonly = false;
+  let initialModalValues = {
+    valor: 0,
+    valorEstimado: 0
+  };
 
   const toNumber = (value) => {
     const normalized = String(value || "").replace(/\s+/g, "").replace(/,/g, "");
@@ -103,6 +108,44 @@ function initExpenseModal() {
     }
     const showNotes = hasAdjustmentValue(inputAdd?.value) || hasAdjustmentValue(inputSubtract?.value);
     notesSection.hidden = !showNotes;
+  };
+
+  const syncFieldLocks = () => {
+    if (isModalReadonly) {
+      return;
+    }
+
+    const currentValor = toNumber(inputValor?.value);
+    const currentValorEstimado = toNumber(inputValorEstimado?.value);
+    const valorChanged = currentValor !== initialModalValues.valor;
+    const valorEstimadoChanged = currentValorEstimado !== initialModalValues.valorEstimado;
+    const hasAddValue = hasAdjustmentValue(inputAdd?.value);
+    const hasSubtractValue = hasAdjustmentValue(inputSubtract?.value);
+    const editedValueFields = valorChanged || valorEstimadoChanged;
+
+    if (inputAdd) {
+      inputAdd.disabled = editedValueFields || hasSubtractValue;
+    }
+    if (inputSubtract) {
+      inputSubtract.disabled = editedValueFields || hasAddValue;
+    }
+
+    const lockOtherFields = hasAddValue || hasSubtractValue;
+    if (inputValor) {
+      inputValor.disabled = lockOtherFields;
+    }
+    if (inputValorEstimado) {
+      inputValorEstimado.disabled = lockOtherFields;
+    }
+    if (inputNotes) {
+      inputNotes.disabled = lockOtherFields;
+    }
+    if (checkTotalizador) {
+      checkTotalizador.disabled = lockOtherFields;
+    }
+    if (checkApplyEndYear) {
+      checkApplyEndYear.disabled = lockOtherFields;
+    }
   };
 
   const renderHistoryRows = (entries) => {
@@ -152,6 +195,7 @@ function initExpenseModal() {
         input.setSelectionRange(safePosition, safePosition);
       }
       updateNotesVisibility();
+      syncFieldLocks();
     });
 
     input.addEventListener("blur", () => {
@@ -169,12 +213,14 @@ function initExpenseModal() {
         input.value = "";
       }
       updateNotesVisibility();
+      syncFieldLocks();
     });
   };
 
   [inputValor, inputValorEstimado, inputAdd, inputSubtract].forEach(enforceExpenseNumericInput);
 
   const applyReadonlyState = (readonly) => {
+    isModalReadonly = readonly;
     [inputValor, inputValorEstimado, inputAdd, inputSubtract, inputNotes, checkTotalizador, checkApplyEndYear].forEach((element) => {
       if (element) {
         element.disabled = readonly;
@@ -186,6 +232,9 @@ function initExpenseModal() {
     }
     if (modalCard) {
       modalCard.setAttribute("data-expense-modal-readonly", String(readonly));
+    }
+    if (!readonly) {
+      syncFieldLocks();
     }
   };
 
@@ -260,7 +309,13 @@ function initExpenseModal() {
       inputSubtract.value = "";
     }
 
+    initialModalValues = {
+      valor: toNumber(inputValor?.value),
+      valorEstimado: toNumber(inputValorEstimado?.value)
+    };
+
     updateNotesVisibility();
+    syncFieldLocks();
 
     activeContext = { rubricaId, despesaId, monthIndex };
     applyReadonlyState(readonly);
@@ -354,13 +409,6 @@ function initExpenseModal() {
 
     const plusValue = toNumber(inputAdd?.value);
     const minusValue = toNumber(inputSubtract?.value);
-    if (plusValue !== 0 && minusValue !== 0) {
-      window.alert("Nao e possivel somar e subtrair ao mesmo tempo.");
-      if (inputAdd) {
-        inputAdd.focus();
-      }
-      return;
-    }
     const adjustmentValue = plusValue - minusValue;
     const registerAdjustment = plusValue !== 0 || minusValue !== 0;
 
