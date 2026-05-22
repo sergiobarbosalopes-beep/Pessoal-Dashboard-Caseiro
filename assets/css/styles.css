@@ -1258,6 +1258,13 @@ a {
   background: rgba(213, 171, 70, 0.16);
 }
 
+.expense-modal-top-layout {
+  margin-top: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1.5fr 1fr;
+}
+
 .expense-detail-modal[data-expense-modal-kind="income"] {
   border: 1px solid rgba(47, 142, 97, 0.45);
 }
@@ -1325,12 +1332,32 @@ a {
 
 .expense-detail-modal[data-expense-modal-kind="income"] .add-field input,
 .expense-detail-modal[data-expense-modal-kind="income"] .subtract-field input {
-  border-color: rgba(47, 142, 97, 0.55);
+  border-color: rgba(176, 210, 226, 0.28);
 }
 
 .expense-detail-modal[data-expense-modal-kind="outcome"] .add-field input,
 .expense-detail-modal[data-expense-modal-kind="outcome"] .subtract-field input {
-  border-color: rgba(213, 171, 70, 0.55);
+  border-color: rgba(176, 210, 226, 0.28);
+}
+
+.add-field input {
+  border-color: rgba(47, 142, 97, 0.72);
+  background: rgba(21, 71, 44, 0.42);
+}
+
+.subtract-field input {
+  border-color: rgba(210, 78, 78, 0.72);
+  background: rgba(86, 30, 30, 0.38);
+}
+
+.add-field input:focus {
+  border-color: rgba(47, 142, 97, 0.9);
+  box-shadow: 0 0 0 2px rgba(47, 142, 97, 0.25);
+}
+
+.subtract-field input:focus {
+  border-color: rgba(210, 78, 78, 0.9);
+  box-shadow: 0 0 0 2px rgba(210, 78, 78, 0.25);
 }
 
 .expense-modal-checks {
@@ -1401,6 +1428,11 @@ a {
   .expense-modal-grid.two-cols {
     grid-template-columns: 1fr;
     gap: 6px;
+  }
+
+  .expense-modal-top-layout {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .expense-modal-section {

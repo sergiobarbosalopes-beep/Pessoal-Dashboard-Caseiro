@@ -87,36 +87,41 @@
     <div class="modal" id="expense-modal" aria-hidden="true">
       <div class="modal-card expense-detail-modal" data-expense-modal-kind="outcome" data-expense-modal-readonly="false">
         <h3 data-modal-title>Detalhe da despesa</h3>
-        <p class="expense-month-indicator" data-expense-month-indicator>Mes: --</p>
+        <p class="expense-month-indicator" data-expense-month-indicator>Mês: --</p>
+
+        <div class="expense-modal-top-layout">
+          <section class="expense-modal-section">
+            <div class="expense-modal-grid two-cols">
+              <label class="expense-field">
+                <span>Valor</span>
+                <input type="text" data-expense-valor inputmode="decimal" maxlength="10" placeholder="Valor" />
+              </label>
+              <label class="expense-field">
+                <span>Valor estimado</span>
+                <input type="text" data-expense-valor-estimado inputmode="decimal" maxlength="10" placeholder="Valor estimado" />
+              </label>
+            </div>
+            <div class="expense-modal-checks">
+              <label><input type="checkbox" data-expense-totalizador /> Incluir no totalizador</label>
+              <label><input type="checkbox" data-expense-apply-end-year /> Aplicar a todos os meses ate final do ano</label>
+            </div>
+          </section>
+
+          <section class="expense-modal-section">
+            <div class="expense-modal-grid two-cols">
+              <label class="expense-field add-field">
+                <span>Somar</span>
+                <input type="text" data-expense-add inputmode="decimal" maxlength="10" />
+              </label>
+              <label class="expense-field subtract-field">
+                <span>Subtrair</span>
+                <input type="text" data-expense-subtract inputmode="decimal" maxlength="10" />
+              </label>
+            </div>
+          </section>
+        </div>
 
         <section class="expense-modal-section">
-          <div class="expense-modal-grid two-cols">
-            <label class="expense-field">
-              <span>Valor</span>
-              <input type="text" data-expense-valor inputmode="decimal" maxlength="10" placeholder="Valor" />
-            </label>
-            <label class="expense-field">
-              <span>Valor estimado</span>
-              <input type="text" data-expense-valor-estimado inputmode="decimal" maxlength="10" placeholder="Valor estimado" />
-            </label>
-          </div>
-          <div class="expense-modal-checks">
-            <label><input type="checkbox" data-expense-totalizador /> Incluir no totalizador</label>
-            <label><input type="checkbox" data-expense-apply-end-year /> Aplicar a todos os meses ate final do ano</label>
-          </div>
-        </section>
-
-        <section class="expense-modal-section">
-          <div class="expense-modal-grid two-cols">
-            <label class="expense-field add-field">
-              <span>Adicionar</span>
-              <input type="text" data-expense-add inputmode="decimal" maxlength="10" />
-            </label>
-            <label class="expense-field subtract-field">
-              <span>Subtrair</span>
-              <input type="text" data-expense-subtract inputmode="decimal" maxlength="10" />
-            </label>
-          </div>
           <label class="expense-field">
             <span>Notas</span>
             <input type="text" data-expense-notes maxlength="300" />
