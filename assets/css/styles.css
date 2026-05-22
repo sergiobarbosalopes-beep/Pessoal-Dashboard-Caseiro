@@ -1448,6 +1448,11 @@ a {
   text-align: left;
 }
 
+.expense-history-table th:first-child,
+.expense-history-table td:first-child {
+  display: none;
+}
+
 .expense-history-table th {
   color: #bfd8e6;
   font-weight: 700;
