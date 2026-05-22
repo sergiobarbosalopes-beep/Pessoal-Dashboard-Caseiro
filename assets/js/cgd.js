@@ -55,6 +55,12 @@ function parseExpenseValue(record, fallback = 0) {
   return Number.isFinite(valor) ? valor : fallback;
 }
 
+function isEstimatedExpenseValue(record) {
+  const valor = Number(record.valor);
+  const valorEstimado = Number(record.valor_estimado ?? record.valor_Estimado);
+  return Number.isFinite(valor) && valor === 0 && Number.isFinite(valorEstimado) && valorEstimado !== 0;
+}
+
 function parseSeq(value, fallback = 999999) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
@@ -143,7 +149,8 @@ function buildDataModel(rubricRows, expenseRows) {
         rubricId: row.rubrica_id,
         name: row.despesa_desc || "Despesa",
         seq: parseSeq(row.despesa_seq, index + 1),
-        values: emptyValues()
+        values: emptyValues(),
+        estimatedFlags: Array.from({ length: 12 }, () => false)
       });
     }
 
@@ -151,6 +158,7 @@ function buildDataModel(rubricRows, expenseRows) {
     expense.seq = Math.min(expense.seq, parseSeq(row.despesa_seq, expense.seq));
     if (monthIndex >= 0) {
       expense.values[monthIndex] = parseExpenseValue(row, expense.values[monthIndex]);
+      expense.estimatedFlags[monthIndex] = isEstimatedExpenseValue(row);
     }
   });
 
@@ -180,7 +188,7 @@ function money(value) {
   return Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function monthPills(values, editable, labelPrefix) {
+function monthPills(values, editable, labelPrefix, estimatedFlags = []) {
   return values
     .map((value, monthIndex) => {
       const dataMonth = `data-month-col='${monthIndex}'`;
@@ -193,7 +201,7 @@ function monthPills(values, editable, labelPrefix) {
       return `
       <div class='money-pill readonly' ${dataMonth}>
         <button type='button' data-expense-field='${labelPrefix} - ${months[monthIndex]}'>
-          <span>${money(value)}</span>
+          <span class='${estimatedFlags[monthIndex] ? "estimated-value" : ""}'>${money(value)}</span>
         </button>
       </div>`;
     })
@@ -246,7 +254,7 @@ function renderExpenseRows(expenses, rubricName) {
             </div>
           </div>
         </div>
-        ${monthPills(expense.values, false, `${rubricName} / ${expense.name}`)}
+        ${monthPills(expense.values, false, `${rubricName} / ${expense.name}`, expense.estimatedFlags)}
       </div>
       `;
     })
