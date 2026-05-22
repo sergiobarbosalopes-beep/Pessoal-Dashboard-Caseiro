@@ -247,16 +247,7 @@ function initExpenseModal() {
     }
   });
 
-  [inputAdd, inputSubtract].forEach((input) => {
-    input?.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        applyAdjustments();
-      }
-    });
-  });
-
-  saveBtn?.addEventListener("click", async () => {
+  const handleSave = async () => {
     if (!activeContext || !window.cgdSaveExpenseDetail) {
       closeModal();
       return;
@@ -278,7 +269,23 @@ function initExpenseModal() {
     if (success) {
       closeModal();
     }
+  };
+
+  const submitOnEnterInputs = [inputValor, inputValorEstimado, inputAdd, inputSubtract, inputNotes];
+  submitOnEnterInputs.forEach((input) => {
+    input?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") {
+        return;
+      }
+      event.preventDefault();
+      if (!saveBtn || saveBtn.disabled) {
+        return;
+      }
+      handleSave();
+    });
   });
+
+  saveBtn?.addEventListener("click", handleSave);
 }
 
 function highlightMonth(monthIndex) {
