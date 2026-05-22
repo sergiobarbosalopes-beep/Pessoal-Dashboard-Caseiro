@@ -1353,7 +1353,7 @@ a {
 }
 
 [data-expense-notes] {
-  width: min(100%, 224px);
+  width: 100%;
 }
 
 .expense-field input:focus {
@@ -1489,8 +1489,8 @@ a {
 }
 
 .expense-notes-section {
-  width: max-content;
-  max-width: 100%;
+  grid-column: 1 / -1;
+  width: 100%;
 }
 
 .expense-history-table {
