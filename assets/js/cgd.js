@@ -132,20 +132,38 @@ async function fetchExpenseNotesForKey({ ano, rubricaId, despesaId, mes }) {
     return [];
   }
 
-  const { data, error } = await supabaseClient
-    .from("cgd_despesas_notas")
-    .select("*")
-    .eq("ano", Number(ano))
-    .eq("rubrica_id", Number(rubricaId))
-    .eq("despesa_id", Number(despesaId))
-    .eq("mes", Number(mes))
-    .order("contador_id", { ascending: true });
+  const buildQuery = (includeMonth) => {
+    let query = supabaseClient
+      .from("cgd_despesas_notas")
+      .select("*")
+      .eq("ano", Number(ano))
+      .eq("rubrica_id", Number(rubricaId))
+      .eq("despesa_id", Number(despesaId))
+      .order("contador_id", { ascending: true });
 
-  if (error) {
-    throw error;
+    if (includeMonth) {
+      query = query.eq("mes", Number(mes));
+    }
+
+    return query;
+  };
+
+  const { data: monthScopedRows, error: monthScopedError } = await buildQuery(true);
+  if (monthScopedError) {
+    throw monthScopedError;
   }
 
-  return Array.isArray(data) ? data : [];
+  const monthScoped = Array.isArray(monthScopedRows) ? monthScopedRows : [];
+  if (monthScoped.length) {
+    return monthScoped;
+  }
+
+  const { data: expenseScopedRows, error: expenseScopedError } = await buildQuery(false);
+  if (expenseScopedError) {
+    throw expenseScopedError;
+  }
+
+  return Array.isArray(expenseScopedRows) ? expenseScopedRows : [];
 }
 
 async function createExpenseNoteEntry({ ano, rubricaId, despesaId, mes, valor, nota }) {
