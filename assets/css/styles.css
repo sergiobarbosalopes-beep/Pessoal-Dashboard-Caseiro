@@ -1133,6 +1133,7 @@ a {
 
 .money-pill button .estimated-value {
   font-style: italic;
+  text-decoration: underline;
 }
 
 .data-row.expense .money-pill.readonly.is-past-current-year button {
