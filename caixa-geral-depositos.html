@@ -85,10 +85,55 @@
     </div>
 
     <div class="modal" id="expense-modal" aria-hidden="true">
-      <div class="modal-card">
-        <h3 data-modal-title>Registo detalhado</h3>
-        <p>Popup reservada para detalhar movimentos e comprovativos no proximo passo.</p>
-        <button class="ghost-btn" type="button" data-close-modal>Fechar</button>
+      <div class="modal-card expense-detail-modal" data-expense-modal-kind="outcome" data-expense-modal-readonly="false">
+        <h3 data-modal-title>Detalhe da despesa</h3>
+        <p class="expense-modal-mode" data-expense-modal-mode></p>
+
+        <section class="expense-modal-section">
+          <h4>Valores</h4>
+          <div class="expense-modal-grid two-cols">
+            <label class="expense-field">
+              <span>Valor</span>
+              <input type="text" data-expense-valor inputmode="decimal" />
+            </label>
+            <label class="expense-field">
+              <span>Valor estimado</span>
+              <input type="text" data-expense-valor-estimado inputmode="decimal" />
+            </label>
+          </div>
+          <div class="expense-modal-checks">
+            <label><input type="checkbox" data-expense-totalizador /> Incluir no totalizador</label>
+            <label><input type="checkbox" data-expense-apply-end-year /> Aplicar a todos os meses ate final do ano</label>
+          </div>
+        </section>
+
+        <section class="expense-modal-section">
+          <h4>Ajustes rapidos</h4>
+          <div class="expense-modal-grid two-cols">
+            <label class="expense-field add-field">
+              <span>Adicionar</span>
+              <input type="text" data-expense-add inputmode="decimal" />
+            </label>
+            <label class="expense-field subtract-field">
+              <span>Subtrair</span>
+              <input type="text" data-expense-subtract inputmode="decimal" />
+            </label>
+          </div>
+          <label class="expense-field">
+            <span>Notas (texto)</span>
+            <input type="text" data-expense-notes maxlength="300" />
+          </label>
+        </section>
+
+        <section class="expense-modal-section disabled-future-section">
+          <h4>Area 3</h4>
+          <p>Reservado para notas adicionais no futuro.</p>
+        </section>
+
+        <div class="modal-actions">
+          <button class="ghost-btn" type="button" data-close-modal>Fechar</button>
+          <button class="ghost-btn" type="button" data-expense-save>Guardar</button>
+        </div>
       </div>
     </div>
 

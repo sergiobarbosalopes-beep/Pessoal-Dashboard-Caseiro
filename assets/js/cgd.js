@@ -8,7 +8,8 @@ const fallbackMock = {
 
 const cgdState = {
   selectedYear: new Date().getFullYear(),
-  data: fallbackMock
+  data: fallbackMock,
+  expenseColumns: new Set()
 };
 
 const SUPABASE_URL = window.CGD_SUPABASE_URL || "https://uooovgxrexpstrtfktst.supabase.co";
@@ -64,6 +65,20 @@ function isEstimatedExpenseValue(record) {
 function parseSeq(value, fallback = 999999) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function parseBoolean(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "true" || normalized === "t" || normalized === "1" || normalized === "yes";
+  }
+  return false;
 }
 
 function normalizeRubricType(value) {
@@ -150,15 +165,30 @@ function buildDataModel(rubricRows, expenseRows) {
         name: row.despesa_desc || "Despesa",
         seq: parseSeq(row.despesa_seq, index + 1),
         values: emptyValues(),
-        estimatedFlags: Array.from({ length: 12 }, () => false)
+        estimatedFlags: Array.from({ length: 12 }, () => false),
+        monthData: Array.from({ length: 12 }, () => ({
+          valor: 0,
+          valorEstimado: 0,
+          totalizador: false,
+          nota: ""
+        }))
       });
     }
 
     const expense = expenseMap.get(expenseKey);
     expense.seq = Math.min(expense.seq, parseSeq(row.despesa_seq, expense.seq));
     if (monthIndex >= 0) {
+      const rawValor = Number(row.valor);
+      const rawValorEstimado = Number(row.valor_estimado ?? row.valor_Estimado);
+      const rawNota = row.nota ?? row.notas ?? "";
       expense.values[monthIndex] = parseExpenseValue(row, expense.values[monthIndex]);
       expense.estimatedFlags[monthIndex] = isEstimatedExpenseValue(row);
+      expense.monthData[monthIndex] = {
+        valor: Number.isFinite(rawValor) ? rawValor : 0,
+        valorEstimado: Number.isFinite(rawValorEstimado) ? rawValorEstimado : 0,
+        totalizador: parseBoolean(row.totalizador),
+        nota: rawNota == null ? "" : String(rawNota)
+      };
     }
   });
 
@@ -188,7 +218,7 @@ function money(value) {
   return Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function monthPills(values, editable, labelPrefix, estimatedFlags = []) {
+function monthPills(values, editable, labelPrefix, estimatedFlags = [], detailMeta = null) {
   return values
     .map((value, monthIndex) => {
       const dataMonth = `data-month-col='${monthIndex}'`;
@@ -198,9 +228,12 @@ function monthPills(values, editable, labelPrefix, estimatedFlags = []) {
           <input data-money type='text' value='${money(value)}' aria-label='${labelPrefix} ${months[monthIndex]}' />
         </div>`;
       }
+      const detailAttrs = detailMeta
+        ? `data-rubrica-id='${detailMeta.rubricaId ?? ""}' data-expense-id='${detailMeta.expenseId ?? ""}' data-month-index='${monthIndex}' data-expense-kind='${detailMeta.kind || "outcome"}'`
+        : "";
       return `
       <div class='money-pill readonly' ${dataMonth}>
-        <button type='button' data-expense-field='${labelPrefix} - ${months[monthIndex]}'>
+        <button type='button' data-expense-field='${labelPrefix} - ${months[monthIndex]}' ${detailAttrs}>
           <span class='${estimatedFlags[monthIndex] ? "estimated-value" : ""}'>${money(value)}</span>
         </button>
       </div>`;
@@ -237,7 +270,7 @@ function renderTimeline(year) {
   `;
 }
 
-function renderExpenseRows(expenses, rubricName) {
+function renderExpenseRows(expenses, rubricName, kind) {
   return expenses
     .map((expense) => {
       return `
@@ -254,7 +287,7 @@ function renderExpenseRows(expenses, rubricName) {
             </div>
           </div>
         </div>
-        ${monthPills(expense.values, false, `${rubricName} / ${expense.name}`, expense.estimatedFlags)}
+        ${monthPills(expense.values, false, `${rubricName} / ${expense.name}`, expense.estimatedFlags, { rubricId: expense.rubricId, expenseId: expense.id, kind })}
       </div>
       `;
     })
@@ -290,7 +323,7 @@ function renderRubrics(rubrics, kind) {
         <div class='rubric-body' id='${expenseBodyId}'>
           <div class='expense-body'>
             <div class='item-rows'>
-              ${renderExpenseRows(rubric.expenses, rubric.name)}
+              ${renderExpenseRows(rubric.expenses, rubric.name, kind)}
             </div>
           </div>
         </div>
@@ -357,6 +390,7 @@ async function loadYearData(year) {
 
     const rubricRows = rubricsResult.status === "fulfilled" ? rubricsResult.value : [];
     const expenseRows = expensesResult.status === "fulfilled" ? expensesResult.value : [];
+    cgdState.expenseColumns = new Set(expenseRows.flatMap((row) => Object.keys(row || {})));
 
     if (rubricsResult.status === "rejected") {
       console.error("Erro a carregar rubricas CGD:", rubricsResult.reason);
@@ -682,6 +716,41 @@ async function deleteRubricaForYear(rubricaId) {
   }
 }
 
+function findExpenseRecord(rubricaId, despesaId) {
+  const allRubrics = [...(cgdState.data.income || []), ...(cgdState.data.outcome || [])];
+  for (const rubric of allRubrics) {
+    if (Number(rubric.id) !== Number(rubricaId)) {
+      continue;
+    }
+    const expense = (rubric.expenses || []).find((item) => Number(item.id) === Number(despesaId));
+    if (expense) {
+      return { rubric, expense };
+    }
+  }
+  return null;
+}
+
+function resolveExpenseUpdatePayload(detail) {
+  const payload = {
+    valor: detail.valor,
+    totalizador: detail.totalizador
+  };
+
+  if (cgdState.expenseColumns.has("valor_estimado")) {
+    payload.valor_estimado = detail.valorEstimado;
+  } else if (cgdState.expenseColumns.has("valor_Estimado")) {
+    payload.valor_Estimado = detail.valorEstimado;
+  }
+
+  if (cgdState.expenseColumns.has("nota")) {
+    payload.nota = detail.nota;
+  } else if (cgdState.expenseColumns.has("notas")) {
+    payload.notas = detail.nota;
+  }
+
+  return payload;
+}
+
 window.cgdLoadYearData = loadYearData;
 
 window.cgdCreateRubric = async (kind) => {
@@ -764,6 +833,68 @@ window.cgdDeleteRubric = async (rubricaId) => {
     console.error("Erro ao eliminar rubrica:", error);
     return false;
   }
+};
+
+window.cgdGetExpenseDetail = ({ rubricaId, despesaId, monthIndex }) => {
+  const index = Number(monthIndex);
+  const found = findExpenseRecord(rubricaId, despesaId);
+  if (!found || !Number.isInteger(index) || index < 0 || index > 11) {
+    return null;
+  }
+
+  const monthDetail = found.expense.monthData?.[index] || {
+    valor: 0,
+    valorEstimado: 0,
+    totalizador: false,
+    nota: ""
+  };
+
+  return {
+    valor: Number(monthDetail.valor) || 0,
+    valorEstimado: Number(monthDetail.valorEstimado) || 0,
+    totalizador: Boolean(monthDetail.totalizador),
+    nota: monthDetail.nota || ""
+  };
+};
+
+window.cgdSaveExpenseDetail = async ({ rubricaId, despesaId, monthIndex, valor, valorEstimado, totalizador, nota, applyToEndYear }) => {
+  if (!supabaseClient) {
+    return false;
+  }
+
+  const startMonth = Number(monthIndex) + 1;
+  if (!Number.isInteger(startMonth) || startMonth < 1 || startMonth > 12) {
+    return false;
+  }
+
+  const normalizedValor = Number(valor);
+  const normalizedValorEstimado = Number(valorEstimado);
+  const detail = {
+    valor: Number.isFinite(normalizedValor) ? normalizedValor : 0,
+    valorEstimado: Number.isFinite(normalizedValorEstimado) ? normalizedValorEstimado : 0,
+    totalizador: Boolean(totalizador),
+    nota: nota == null ? "" : String(nota)
+  };
+
+  const payload = resolveExpenseUpdatePayload(detail);
+  const targetMonths = applyToEndYear
+    ? Array.from({ length: 13 - startMonth }, (_, index) => startMonth + index)
+    : [startMonth];
+
+  await Promise.all(
+    targetMonths.map((mes) =>
+      supabaseClient
+        .from("cgd_despesa")
+        .update(payload)
+        .eq("ano", cgdState.selectedYear)
+        .eq("rubrica_id", Number(rubricaId))
+        .eq("despesa_id", Number(despesaId))
+        .eq("mes", mes)
+    )
+  );
+
+  await loadYearData(cgdState.selectedYear);
+  return true;
 };
 
 window.cgdHandleRubricReorder = async (row, action) => {

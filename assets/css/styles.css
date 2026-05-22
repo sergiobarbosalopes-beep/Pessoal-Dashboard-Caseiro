@@ -1228,6 +1228,96 @@ a {
   gap: 8px;
 }
 
+.expense-detail-modal {
+  width: min(760px, calc(100% - 24px));
+}
+
+.expense-detail-modal[data-expense-modal-kind="income"] {
+  border: 1px solid rgba(47, 142, 97, 0.45);
+}
+
+.expense-detail-modal[data-expense-modal-kind="outcome"] {
+  border: 1px solid rgba(213, 171, 70, 0.45);
+}
+
+.expense-modal-mode {
+  margin: 4px 0 10px;
+  color: #c5dce8;
+  font-size: 0.8rem;
+}
+
+.expense-modal-section {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(176, 210, 226, 0.2);
+  background: rgba(9, 28, 38, 0.5);
+}
+
+.expense-modal-section h4 {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+}
+
+.expense-modal-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.expense-modal-grid.two-cols {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.expense-field {
+  display: grid;
+  gap: 5px;
+  font-size: 0.78rem;
+  color: #d3e6f0;
+}
+
+.expense-field input {
+  border: 1px solid rgba(176, 210, 226, 0.28);
+  border-radius: 10px;
+  background: #102d3a;
+  color: #d8ecf5;
+  padding: 9px 10px;
+  font-size: 0.84rem;
+  outline: none;
+}
+
+.expense-field input:focus {
+  border-color: rgba(213, 171, 70, 0.84);
+  box-shadow: 0 0 0 2px rgba(213, 171, 70, 0.24);
+}
+
+.expense-detail-modal[data-expense-modal-kind="income"] .add-field input,
+.expense-detail-modal[data-expense-modal-kind="income"] .subtract-field input {
+  border-color: rgba(47, 142, 97, 0.55);
+}
+
+.expense-detail-modal[data-expense-modal-kind="outcome"] .add-field input,
+.expense-detail-modal[data-expense-modal-kind="outcome"] .subtract-field input {
+  border-color: rgba(213, 171, 70, 0.55);
+}
+
+.expense-modal-checks {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #cfe2ed;
+}
+
+.disabled-future-section p {
+  margin: 0;
+  color: #9cb6c4;
+  font-size: 0.78rem;
+}
+
+.expense-detail-modal[data-expense-modal-readonly="true"] .expense-modal-section {
+  opacity: 0.86;
+}
+
 .fade-up {
   opacity: 0;
   transform: translateY(16px);

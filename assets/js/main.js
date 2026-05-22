@@ -47,26 +47,152 @@ function initExpenseModal() {
     return;
   }
   const modalTitle = modal.querySelector("[data-modal-title]");
+  const modalCard = modal.querySelector(".expense-detail-modal");
+  const modalMode = modal.querySelector("[data-expense-modal-mode]");
+  const inputValor = modal.querySelector("[data-expense-valor]");
+  const inputValorEstimado = modal.querySelector("[data-expense-valor-estimado]");
+  const inputAdd = modal.querySelector("[data-expense-add]");
+  const inputSubtract = modal.querySelector("[data-expense-subtract]");
+  const inputNotes = modal.querySelector("[data-expense-notes]");
+  const checkTotalizador = modal.querySelector("[data-expense-totalizador]");
+  const checkApplyEndYear = modal.querySelector("[data-expense-apply-end-year]");
+  const saveBtn = modal.querySelector("[data-expense-save]");
+  const closeModal = () => modal.classList.remove("show");
+
+  const toNumber = (value) => {
+    const normalized = String(value || "").replace(/\s+/g, "").replace(/,/g, "");
+    const numeric = Number(normalized);
+    return Number.isFinite(numeric) ? numeric : 0;
+  };
+
+  let activeContext = null;
+
+  const applyReadonlyState = (readonly) => {
+    [inputValor, inputValorEstimado, inputAdd, inputSubtract, inputNotes, checkTotalizador, checkApplyEndYear].forEach((element) => {
+      if (element) {
+        element.disabled = readonly;
+      }
+    });
+    if (saveBtn) {
+      saveBtn.disabled = readonly;
+      saveBtn.style.display = readonly ? "none" : "inline-flex";
+    }
+    if (modalCard) {
+      modalCard.setAttribute("data-expense-modal-readonly", String(readonly));
+    }
+    if (modalMode) {
+      modalMode.textContent = readonly
+        ? "Modo de exibicao: este registo nao pertence ao mes selecionado."
+        : "Modo de edicao: este registo pertence ao mes selecionado.";
+    }
+  };
+
+  const applyAdjustments = () => {
+    if (!inputValor || !inputAdd || !inputSubtract) {
+      return;
+    }
+    const baseValue = toNumber(inputValor.value);
+    const plusValue = toNumber(inputAdd.value);
+    const minusValue = toNumber(inputSubtract.value);
+    const result = baseValue + plusValue - minusValue;
+    inputValor.value = result.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    inputAdd.value = "";
+    inputSubtract.value = "";
+  };
 
   document.addEventListener("click", (event) => {
     const fieldBtn = event.target.closest("button[data-expense-field]");
     if (!fieldBtn) {
       return;
     }
+
     const label = fieldBtn.getAttribute("data-expense-field");
+    const rubricaId = Number(fieldBtn.getAttribute("data-rubrica-id"));
+    const despesaId = Number(fieldBtn.getAttribute("data-expense-id"));
+    const monthIndex = Number(fieldBtn.getAttribute("data-month-index"));
+    const kind = fieldBtn.getAttribute("data-expense-kind") === "income" ? "income" : "outcome";
+    const selectedMonth = Number(document.querySelector(".month-tile.active")?.getAttribute("data-month"));
+    const readonly = monthIndex !== selectedMonth;
+
     if (modalTitle) {
       modalTitle.textContent = `Registo detalhado: ${label}`;
     }
+
+    if (modalCard) {
+      modalCard.setAttribute("data-expense-modal-kind", kind);
+    }
+
+    const detail = window.cgdGetExpenseDetail
+      ? window.cgdGetExpenseDetail({ rubricaId, despesaId, monthIndex })
+      : null;
+
+    if (inputValor) {
+      inputValor.value = Number(detail?.valor || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    if (inputValorEstimado) {
+      inputValorEstimado.value = Number(detail?.valorEstimado || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    if (inputNotes) {
+      inputNotes.value = detail?.nota || "";
+    }
+    if (checkTotalizador) {
+      checkTotalizador.checked = Boolean(detail?.totalizador);
+    }
+    if (checkApplyEndYear) {
+      checkApplyEndYear.checked = false;
+    }
+    if (inputAdd) {
+      inputAdd.value = "";
+    }
+    if (inputSubtract) {
+      inputSubtract.value = "";
+    }
+
+    activeContext = { rubricaId, despesaId, monthIndex };
+    applyReadonlyState(readonly);
     modal.classList.add("show");
   });
 
   modal.querySelectorAll("[data-close-modal]").forEach((closeBtn) => {
-    closeBtn.addEventListener("click", () => modal.classList.remove("show"));
+    closeBtn.addEventListener("click", closeModal);
   });
 
   modal.addEventListener("click", (event) => {
     if (event.target === modal) {
-      modal.classList.remove("show");
+      closeModal();
+    }
+  });
+
+  [inputAdd, inputSubtract].forEach((input) => {
+    input?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        applyAdjustments();
+      }
+    });
+  });
+
+  saveBtn?.addEventListener("click", async () => {
+    if (!activeContext || !window.cgdSaveExpenseDetail) {
+      closeModal();
+      return;
+    }
+
+    applyAdjustments();
+
+    const success = await window.cgdSaveExpenseDetail({
+      rubricaId: activeContext.rubricaId,
+      despesaId: activeContext.despesaId,
+      monthIndex: activeContext.monthIndex,
+      valor: toNumber(inputValor?.value),
+      valorEstimado: toNumber(inputValorEstimado?.value),
+      totalizador: Boolean(checkTotalizador?.checked),
+      applyToEndYear: Boolean(checkApplyEndYear?.checked),
+      nota: inputNotes?.value || ""
+    });
+
+    if (success) {
+      closeModal();
     }
   });
 }
