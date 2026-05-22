@@ -91,10 +91,12 @@
         <section class="expense-modal-section">
           <div class="expense-modal-grid two-cols">
             <label class="expense-field">
-              <input type="text" data-expense-valor inputmode="decimal" placeholder="Valor" />
+              <span>Valor</span>
+              <input type="text" data-expense-valor inputmode="decimal" maxlength="10" placeholder="Valor" />
             </label>
             <label class="expense-field">
-              <input type="text" data-expense-valor-estimado inputmode="decimal" placeholder="Valor estimado" />
+              <span>Valor estimado</span>
+              <input type="text" data-expense-valor-estimado inputmode="decimal" maxlength="10" placeholder="Valor estimado" />
             </label>
           </div>
           <div class="expense-modal-checks">
@@ -107,11 +109,11 @@
           <div class="expense-modal-grid two-cols">
             <label class="expense-field add-field">
               <span>Adicionar</span>
-              <input type="text" data-expense-add inputmode="decimal" />
+              <input type="text" data-expense-add inputmode="decimal" maxlength="10" />
             </label>
             <label class="expense-field subtract-field">
               <span>Subtrair</span>
-              <input type="text" data-expense-subtract inputmode="decimal" />
+              <input type="text" data-expense-subtract inputmode="decimal" maxlength="10" />
             </label>
           </div>
           <label class="expense-field">

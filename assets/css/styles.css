@@ -1276,9 +1276,22 @@ a {
   border-radius: 10px;
   background: #102d3a;
   color: #d8ecf5;
-  padding: 8px 9px;
-  font-size: 0.82rem;
+  padding: 7px 8px;
+  font-size: 0.8rem;
   outline: none;
+}
+
+[data-expense-valor],
+[data-expense-valor-estimado],
+[data-expense-add],
+[data-expense-subtract] {
+  width: min(100%, 122px);
+  justify-self: start;
+  text-align: right;
+}
+
+[data-expense-notes] {
+  width: 100%;
 }
 
 .expense-field input:focus {
@@ -1372,8 +1385,15 @@ a {
   }
 
   .expense-field input {
-    padding: 7px 8px;
-    font-size: 0.8rem;
+    padding: 6px 7px;
+    font-size: 0.78rem;
+  }
+
+  [data-expense-valor],
+  [data-expense-valor-estimado],
+  [data-expense-add],
+  [data-expense-subtract] {
+    width: min(100%, 112px);
   }
 
   .expense-modal-checks {
