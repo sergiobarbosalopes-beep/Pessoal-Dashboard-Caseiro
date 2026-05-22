@@ -779,7 +779,7 @@ a {
 }
 
 .panel-body > .rubric:first-child {
-  margin-top: 8px;
+  margin-top: 12px;
 }
 
 .rubric:focus-within {
