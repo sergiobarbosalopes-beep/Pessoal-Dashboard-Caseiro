@@ -1229,13 +1229,24 @@ a {
 }
 
 .expense-detail-modal {
-  width: min(760px, calc(100% - 24px));
+  width: min(660px, calc(100% - 24px));
   max-height: min(88vh, 760px);
   overflow-y: auto;
 }
 
+.expense-modal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.expense-modal-title-row h3 {
+  margin: 0;
+}
+
 .expense-month-indicator {
-  margin: 6px 0 0;
+  margin: 0;
   display: inline-flex;
   align-items: center;
   padding: 3px 9px;
@@ -1262,9 +1273,9 @@ a {
   margin-top: 8px;
   display: grid;
   gap: 8px;
-  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-columns: max-content max-content;
   justify-content: flex-start;
-  align-items: stretch;
+  align-items: start;
 }
 
 .expense-modal-left-stack {
@@ -1293,6 +1304,11 @@ a {
   border-radius: 12px;
   border: 1px solid rgba(176, 210, 226, 0.2);
   background: rgba(9, 28, 38, 0.5);
+}
+
+.expense-modal-left-stack .expense-modal-section,
+.expense-history-section {
+  margin-top: 0;
 }
 
 .expense-modal-section h4 {
@@ -1336,7 +1352,7 @@ a {
 }
 
 [data-expense-notes] {
-  width: 100%;
+  width: min(100%, 224px);
 }
 
 .expense-field input:focus {
@@ -1448,7 +1464,7 @@ a {
 }
 
 .disabled-future-section {
-  width: min(100%, 380px);
+  width: min(100%, 300px);
 }
 
 .expense-history-section {
@@ -1468,6 +1484,10 @@ a {
 
 .expense-adjustment-section {
   margin-top: 0;
+}
+
+.expense-notes-section {
+  width: 100%;
 }
 
 .expense-history-table {

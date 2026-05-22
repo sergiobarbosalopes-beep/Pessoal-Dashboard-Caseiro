@@ -86,8 +86,10 @@
 
     <div class="modal" id="expense-modal" aria-hidden="true">
       <div class="modal-card expense-detail-modal" data-expense-modal-kind="outcome" data-expense-modal-readonly="false">
-        <h3 data-modal-title>Detalhe da despesa</h3>
-        <p class="expense-month-indicator" data-expense-month-indicator>Mês: --</p>
+        <div class="expense-modal-title-row">
+          <h3 data-modal-title>Detalhe da despesa</h3>
+          <p class="expense-month-indicator" data-expense-month-indicator>Mês: --</p>
+        </div>
 
         <div class="expense-modal-top-layout">
           <div class="expense-modal-left-stack">
@@ -128,6 +130,13 @@
                 </label>
               </div>
             </section>
+
+            <section class="expense-modal-section expense-notes-section" data-expense-notes-section>
+              <label class="expense-field">
+                <span>Notas</span>
+                <input type="text" data-expense-notes maxlength="300" />
+              </label>
+            </section>
           </div>
 
           <section class="expense-modal-section disabled-future-section expense-history-section">
@@ -146,13 +155,6 @@
             </div>
           </section>
         </div>
-
-        <section class="expense-modal-section" data-expense-notes-section>
-          <label class="expense-field">
-            <span>Notas</span>
-            <input type="text" data-expense-notes maxlength="300" />
-          </label>
-        </section>
 
         <div class="modal-actions">
           <button class="ghost-btn" type="button" data-expense-save>Gravar</button>
