@@ -1435,10 +1435,15 @@ a {
   margin-top: 6px;
 }
 
+.disabled-future-section {
+  width: min(100%, 360px);
+}
+
 .expense-history-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.75rem;
+  table-layout: fixed;
 }
 
 .expense-history-table th,
@@ -1467,6 +1472,11 @@ a {
   margin: 6px 0 0;
   color: #9cb6c4;
   font-size: 0.76rem;
+}
+
+.expense-history-table td:last-child,
+.expense-history-table th:last-child {
+  overflow-wrap: anywhere;
 }
 
 .expense-detail-modal[data-expense-modal-readonly="true"] .expense-modal-section {
@@ -1527,6 +1537,10 @@ a {
   .expense-modal-section {
     padding: 8px;
     margin-top: 8px;
+  }
+
+  .disabled-future-section {
+    width: 100%;
   }
 
   .expense-field input {
