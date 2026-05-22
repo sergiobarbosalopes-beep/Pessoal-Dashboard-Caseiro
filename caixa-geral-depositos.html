@@ -115,16 +115,20 @@
             </div>
           </section>
 
-          <section class="expense-modal-section">
-            <div class="expense-modal-grid">
-              <label class="expense-field add-field">
-                <span>Somar</span>
-                <input type="text" data-expense-add inputmode="decimal" maxlength="10" />
-              </label>
-              <label class="expense-field subtract-field">
-                <span>Subtrair</span>
-                <input type="text" data-expense-subtract inputmode="decimal" maxlength="10" />
-              </label>
+          <section class="expense-modal-section disabled-future-section expense-history-section">
+            <h4>Area 3 - Historico de ajustes</h4>
+            <div class="expense-history-table-wrap" data-expense-history-wrap>
+              <table class="expense-history-table" aria-label="Historico de ajustes">
+                <thead>
+                  <tr>
+                    <th scope="col">Contador</th>
+                    <th scope="col">Valor</th>
+                    <th scope="col">Nota</th>
+                  </tr>
+                </thead>
+                <tbody data-expense-history-body></tbody>
+              </table>
+              <p class="expense-history-empty" data-expense-history-empty>Sem registos para este mes.</p>
             </div>
           </section>
         </div>
@@ -136,20 +140,16 @@
           </label>
         </section>
 
-        <section class="expense-modal-section disabled-future-section">
-          <h4>Area 3 - Historico de ajustes</h4>
-          <div class="expense-history-table-wrap" data-expense-history-wrap>
-            <table class="expense-history-table" aria-label="Historico de ajustes">
-              <thead>
-                <tr>
-                  <th scope="col">Contador</th>
-                  <th scope="col">Valor</th>
-                  <th scope="col">Nota</th>
-                </tr>
-              </thead>
-              <tbody data-expense-history-body></tbody>
-            </table>
-            <p class="expense-history-empty" data-expense-history-empty>Sem registos para este mes.</p>
+        <section class="expense-modal-section expense-adjustment-section">
+          <div class="expense-modal-grid">
+            <label class="expense-field add-field">
+              <span>Somar</span>
+              <input type="text" data-expense-add inputmode="decimal" maxlength="10" />
+            </label>
+            <label class="expense-field subtract-field">
+              <span>Subtrair</span>
+              <input type="text" data-expense-subtract inputmode="decimal" maxlength="10" />
+            </label>
           </div>
         </section>
 

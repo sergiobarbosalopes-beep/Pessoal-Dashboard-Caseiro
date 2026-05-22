@@ -1264,7 +1264,7 @@ a {
   gap: 8px;
   grid-template-columns: repeat(2, minmax(0, max-content));
   justify-content: flex-start;
-  align-items: start;
+  align-items: stretch;
 }
 
 .expense-detail-modal[data-expense-modal-kind="income"] {
@@ -1439,6 +1439,23 @@ a {
   width: min(100%, 360px);
 }
 
+.expense-history-section {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.expense-history-section .expense-history-table-wrap {
+  margin-top: 6px;
+  min-height: 196px;
+  max-height: 100%;
+  overflow: auto;
+}
+
+.expense-adjustment-section {
+  width: min(100%, 360px);
+}
+
 .expense-history-table {
   width: 100%;
   border-collapse: collapse;
@@ -1541,6 +1558,15 @@ a {
 
   .disabled-future-section {
     width: 100%;
+  }
+
+  .expense-adjustment-section {
+    width: 100%;
+  }
+
+  .expense-history-section .expense-history-table-wrap {
+    min-height: 0;
+    max-height: none;
   }
 
   .expense-field input {
