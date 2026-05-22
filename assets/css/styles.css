@@ -1396,36 +1396,15 @@ a {
   position: relative;
 }
 
-.expense-field.is-locked::after,
-.toggle-control.is-locked::after {
-  content: "Bloqueado";
-  position: absolute;
-  right: 8px;
-  top: -8px;
-  padding: 1px 6px;
-  border-radius: 999px;
-  border: 1px solid rgba(230, 167, 64, 0.58);
-  background: rgba(59, 42, 14, 0.95);
-  color: #f5d48f;
-  font-size: 0.62rem;
-  letter-spacing: 0.02em;
-  pointer-events: none;
-}
-
 .expense-field.is-locked input,
 .toggle-control.is-locked .toggle-ui {
-  border-color: rgba(230, 167, 64, 0.58);
-  box-shadow: 0 0 0 1px rgba(230, 167, 64, 0.22);
+  border-color: rgba(176, 210, 226, 0.2);
+  box-shadow: none;
+  opacity: 0.65;
 }
 
 .expense-field.is-locked input {
-  background: repeating-linear-gradient(
-    -45deg,
-    rgba(89, 74, 35, 0.42),
-    rgba(89, 74, 35, 0.42) 8px,
-    rgba(71, 56, 23, 0.42) 8px,
-    rgba(71, 56, 23, 0.42) 16px
-  );
+  background: rgba(12, 33, 44, 0.62);
 }
 
 .toggle-control.is-locked {
