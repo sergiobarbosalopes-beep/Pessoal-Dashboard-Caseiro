@@ -1270,21 +1270,24 @@ a {
 }
 
 .expense-modal-top-layout {
+  --expense-left-col-width: 232px;
+  --expense-right-col-width: 300px;
   margin-top: 16px;
   display: grid;
   gap: 8px;
-  grid-template-columns: max-content max-content;
+  grid-template-columns: minmax(0, var(--expense-left-col-width)) minmax(0, var(--expense-right-col-width));
   justify-content: flex-start;
   align-items: stretch;
-  width: fit-content;
+  width: calc(var(--expense-left-col-width) + var(--expense-right-col-width) + 8px);
   max-width: 100%;
 }
 
 .expense-modal-left-stack {
   display: grid;
   gap: 8px;
-  width: max-content;
-  max-width: 100%;
+  width: 100%;
+  min-width: 0;
+  max-width: var(--expense-left-col-width);
   align-content: start;
 }
 
@@ -1469,7 +1472,8 @@ a {
 }
 
 .disabled-future-section {
-  width: min(100%, 300px);
+  width: 100%;
+  min-width: 0;
 }
 
 .expense-history-section {
@@ -1494,9 +1498,12 @@ a {
 
 .expense-notes-section {
   grid-column: 1 / -1;
-  width: auto;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
+  box-sizing: border-box;
+  justify-self: stretch;
+  overflow: hidden;
 }
 
 .expense-history-table {
@@ -1624,6 +1631,8 @@ a {
   .expense-modal-top-layout {
     grid-template-columns: 1fr;
     gap: 8px;
+    width: 100%;
+    max-width: 100%;
   }
 
   .expense-modal-left-stack {
