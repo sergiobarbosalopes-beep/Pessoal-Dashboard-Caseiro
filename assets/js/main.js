@@ -56,7 +56,6 @@ function initExpenseModal() {
   const inputSubtract = modal.querySelector("[data-expense-subtract]");
   const inputNotes = modal.querySelector("[data-expense-notes]");
   const notesSection = modal.querySelector("[data-expense-notes-section]");
-  const historySection = modal.querySelector("[data-expense-history-section]");
   const historyTableBody = modal.querySelector("[data-expense-history-body]");
   const historyEmpty = modal.querySelector("[data-expense-history-empty]");
   const checkTotalizador = modal.querySelector("[data-expense-totalizador]");
@@ -106,16 +105,6 @@ function initExpenseModal() {
     notesSection.hidden = !showNotes;
   };
 
-  const setHistoryVisibility = (hasEntries) => {
-    const visible = Boolean(hasEntries);
-    if (historySection) {
-      historySection.hidden = !visible;
-    }
-    if (modalCard) {
-      modalCard.setAttribute("data-expense-has-history", String(visible));
-    }
-  };
-
   const renderHistoryRows = (entries) => {
     if (historyTableBody) {
       historyTableBody.innerHTML = "";
@@ -123,14 +112,11 @@ function initExpenseModal() {
 
     const validEntries = Array.isArray(entries) ? entries : [];
     if (!validEntries.length) {
-      setHistoryVisibility(false);
       if (historyEmpty) {
         historyEmpty.hidden = false;
       }
       return;
     }
-
-    setHistoryVisibility(true);
 
     if (historyEmpty) {
       historyEmpty.hidden = true;
@@ -279,7 +265,6 @@ function initExpenseModal() {
     activeContext = { rubricaId, despesaId, monthIndex };
     applyReadonlyState(readonly);
     modal.classList.add("show");
-    setHistoryVisibility(false);
 
     if (window.cgdGetExpenseNotes) {
       window.cgdGetExpenseNotes({ rubricaId, despesaId, monthIndex })
