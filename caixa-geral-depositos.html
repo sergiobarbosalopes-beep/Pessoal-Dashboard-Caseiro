@@ -102,8 +102,16 @@
               </label>
             </div>
             <div class="expense-modal-checks">
-              <label><input type="checkbox" data-expense-totalizador /> Incluir no totalizador</label>
-              <label><input type="checkbox" data-expense-apply-end-year /> Aplicar a todos os meses ate final do ano</label>
+              <label class="toggle-control">
+                <input type="checkbox" data-expense-totalizador />
+                <span class="toggle-ui" aria-hidden="true"></span>
+                <span>Incluir no totalizador</span>
+              </label>
+              <label class="toggle-control">
+                <input type="checkbox" data-expense-apply-end-year />
+                <span class="toggle-ui" aria-hidden="true"></span>
+                <span>Aplicar a todos os meses ate final do ano</span>
+              </label>
             </div>
           </section>
 

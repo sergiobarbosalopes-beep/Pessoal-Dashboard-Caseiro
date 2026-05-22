@@ -1370,8 +1370,64 @@ a {
   color: #cfe2ed;
 }
 
-.expense-modal-checks input[type="checkbox"] {
-  transform: translateY(1px);
+.expense-modal-checks .toggle-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.expense-modal-checks .toggle-control input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.expense-modal-checks .toggle-ui {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(125, 148, 160, 0.45);
+  border: 1px solid rgba(176, 210, 226, 0.28);
+  position: relative;
+  flex-shrink: 0;
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.expense-modal-checks .toggle-ui::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e9f4fb;
+  box-shadow: 0 1px 4px rgba(4, 12, 17, 0.45);
+  transition: transform 180ms ease;
+}
+
+.expense-modal-checks .toggle-control input[type="checkbox"]:checked + .toggle-ui {
+  background: rgba(47, 142, 97, 0.72);
+  border-color: rgba(47, 142, 97, 0.88);
+}
+
+.expense-modal-checks .toggle-control input[type="checkbox"]:checked + .toggle-ui::after {
+  transform: translateX(16px);
+}
+
+.expense-modal-checks .toggle-control input[type="checkbox"]:focus-visible + .toggle-ui {
+  box-shadow: 0 0 0 2px rgba(47, 142, 97, 0.25);
+}
+
+.expense-modal-checks .toggle-control input[type="checkbox"]:disabled + .toggle-ui {
+  opacity: 0.55;
+}
+
+.expense-modal-checks .toggle-control input[type="checkbox"]:disabled ~ span:last-child {
+  opacity: 0.62;
 }
 
 .disabled-future-section p {
