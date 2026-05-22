@@ -46,7 +46,9 @@ function initExpenseModal() {
   if (!modal) {
     return;
   }
+  const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
   const modalTitle = modal.querySelector("[data-modal-title]");
+  const monthIndicator = modal.querySelector("[data-expense-month-indicator]");
   const modalCard = modal.querySelector(".expense-detail-modal");
   const inputValor = modal.querySelector("[data-expense-valor]");
   const inputValorEstimado = modal.querySelector("[data-expense-valor-estimado]");
@@ -113,6 +115,12 @@ function initExpenseModal() {
 
     if (modalTitle) {
       modalTitle.textContent = expenseName;
+    }
+
+    if (monthIndicator) {
+      const monthName = monthNames[monthIndex] || "--";
+      const year = document.querySelector("[data-year-label]")?.textContent?.trim() || "";
+      monthIndicator.textContent = year ? `Mes: ${monthName} ${year}` : `Mes: ${monthName}`;
     }
 
     if (modalCard) {
