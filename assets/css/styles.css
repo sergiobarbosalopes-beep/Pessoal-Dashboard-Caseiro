@@ -903,6 +903,12 @@ a {
   background: color-mix(in srgb, var(--rubric-accent) 60%, #203846 40%);
 }
 
+.rubric-menu .menu-icon.danger,
+.expense-menu .menu-icon.danger {
+  background: linear-gradient(135deg, #7e2633, #ad3345);
+  color: #ffe7eb;
+}
+
 .rubric-menu .menu-icon svg {
   width: 12px;
   height: 12px;

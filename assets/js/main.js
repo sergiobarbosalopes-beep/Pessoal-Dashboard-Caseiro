@@ -205,11 +205,11 @@ function initDelegatedActions() {
         return;
       }
 
-      if (action === "add-rubric") {
-        const rubricKind = row?.getAttribute("data-rubrica-tipo");
-        if (rubricKind && window.cgdCreateRubric) {
-          window.cgdCreateRubric(rubricKind).catch((error) => {
-            console.error("Erro a criar rubrica:", error);
+      if (action === "delete-rubric") {
+        const rubricId = Number(row?.getAttribute("data-rubrica-id"));
+        if (Number.isFinite(rubricId) && window.cgdDeleteRubric) {
+          window.cgdDeleteRubric(rubricId).catch((error) => {
+            console.error("Erro a eliminar rubrica:", error);
           });
         }
         closeAllMenus();
@@ -237,6 +237,18 @@ function initDelegatedActions() {
     if (expenseMenuAction) {
       const row = expenseMenuAction.closest("[data-sortable]");
       const action = expenseMenuAction.getAttribute("data-expense-menu-action");
+      if (action === "delete-expense") {
+        const rubricId = Number(row?.getAttribute("data-rubrica-id"));
+        const despesaId = Number(row?.getAttribute("data-expense-id"));
+        if (Number.isFinite(rubricId) && Number.isFinite(despesaId) && window.cgdDeleteExpense) {
+          window.cgdDeleteExpense(rubricId, despesaId).catch((error) => {
+            console.error("Erro a eliminar despesa:", error);
+          });
+        }
+        closeAllMenus();
+        return;
+      }
+
       const hasRemoteHandler = typeof window.cgdHandleExpenseReorder === "function";
       if (hasRemoteHandler) {
         window.cgdHandleExpenseReorder(row, action).catch((error) => {

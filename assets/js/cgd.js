@@ -235,6 +235,8 @@ function renderExpenseRows(expenses, rubricName) {
             <div class='expense-menu' role='menu'>
               <button type='button' role='menuitem' data-expense-menu-action='up'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 18V6M12 6L7 11M12 6L17 11' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para cima</span></button>
               <button type='button' role='menuitem' data-expense-menu-action='down'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 6V18M12 18L7 13M12 18L17 13' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para baixo</span></button>
+              <div class='menu-separator' role='separator' aria-hidden='true'></div>
+              <button type='button' role='menuitem' data-expense-menu-action='delete-expense'><span class='menu-icon danger' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M6 7H18M9 7V5.8C9 5.36 9.36 5 9.8 5H14.2C14.64 5 15 5.36 15 5.8V7M8.2 9.2L8.8 17.6C8.85 18.23 9.38 18.72 10.01 18.72H13.99C14.62 18.72 15.15 18.23 15.2 17.6L15.8 9.2" stroke='currentColor' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Eliminar despesa</span></button>
             </div>
           </div>
         </div>
@@ -262,9 +264,9 @@ function renderRubrics(rubrics, kind) {
               <div class='rubric-menu' role='menu'>
                 <button type='button' role='menuitem' data-rubric-menu-action='up'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 18V6M12 6L7 11M12 6L17 11' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para cima</span></button>
                 <button type='button' role='menuitem' data-rubric-menu-action='down'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 6V18M12 18L7 13M12 18L17 13' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para baixo</span></button>
-                <div class='menu-separator' role='separator' aria-hidden='true'></div>
                 <button type='button' role='menuitem' data-rubric-menu-action='create-expense'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 5V19M5 12H19' stroke='currentColor' stroke-width='2.2' stroke-linecap='round'/></svg></span><span>Criar despesa</span></button>
-                <button type='button' role='menuitem' data-rubric-menu-action='add-rubric'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 5V19M5 12H19' stroke='currentColor' stroke-width='2.2' stroke-linecap='round'/></svg></span><span>Adicionar rubrica</span></button>
+                <div class='menu-separator' role='separator' aria-hidden='true'></div>
+                <button type='button' role='menuitem' data-rubric-menu-action='delete-rubric'><span class='menu-icon danger' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M6 7H18M9 7V5.8C9 5.36 9.36 5 9.8 5H14.2C14.64 5 15 5.36 15 5.8V7M8.2 9.2L8.8 17.6C8.85 18.23 9.38 18.72 10.01 18.72H13.99C14.62 18.72 15.15 18.23 15.2 17.6L15.8 9.2" stroke='currentColor' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Eliminar rubrica</span></button>
               </div>
             </div>
           </div>
@@ -577,6 +579,94 @@ function requestEntityDescription(options) {
   });
 }
 
+function requestConfirmation(options) {
+  const modal = document.getElementById("confirm-modal");
+  const title = modal?.querySelector("[data-confirm-title]");
+  const subtitle = modal?.querySelector("[data-confirm-subtitle]");
+  const confirmBtn = modal?.querySelector("[data-confirm-yes]");
+  const cancelBtn = modal?.querySelector("[data-confirm-no]");
+
+  if (!modal || !confirmBtn || !cancelBtn) {
+    return Promise.resolve(window.confirm(options?.subtitle || options?.title || "Confirmar"));
+  }
+
+  return new Promise((resolve) => {
+    if (title) {
+      title.textContent = options?.title || "Confirmar";
+    }
+    if (subtitle) {
+      subtitle.textContent = options?.subtitle || "Tem a certeza que pretende continuar?";
+    }
+
+    const close = (result) => {
+      modal.classList.remove("show");
+      modal.setAttribute("aria-hidden", "true");
+      confirmBtn.removeEventListener("click", onConfirm);
+      cancelBtn.removeEventListener("click", onCancel);
+      modal.removeEventListener("click", onBackdrop);
+      resolve(result);
+    };
+
+    const onConfirm = () => close(true);
+    const onCancel = () => close(false);
+    const onBackdrop = (event) => {
+      if (event.target === modal) {
+        close(false);
+      }
+    };
+
+    confirmBtn.addEventListener("click", onConfirm);
+    cancelBtn.addEventListener("click", onCancel);
+    modal.addEventListener("click", onBackdrop);
+
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+  });
+}
+
+async function deleteDespesaForYear(rubricaId, despesaId) {
+  if (!supabaseClient) {
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("cgd_despesa")
+    .delete()
+    .eq("ano", cgdState.selectedYear)
+    .eq("rubrica_id", rubricaId)
+    .eq("despesa_id", despesaId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+async function deleteRubricaForYear(rubricaId) {
+  if (!supabaseClient) {
+    return;
+  }
+
+  const { error: expenseError } = await supabaseClient
+    .from("cgd_despesa")
+    .delete()
+    .eq("ano", cgdState.selectedYear)
+    .eq("rubrica_id", rubricaId);
+
+  if (expenseError) {
+    throw expenseError;
+  }
+
+  const { error: rubricError } = await supabaseClient
+    .from("cgd_rubrica")
+    .delete()
+    .eq("ano", cgdState.selectedYear)
+    .eq("rubrica_id", rubricaId);
+
+  if (rubricError) {
+    throw rubricError;
+  }
+}
+
 window.cgdLoadYearData = loadYearData;
 
 window.cgdCreateRubric = async (kind) => {
@@ -617,6 +707,46 @@ window.cgdCreateExpense = async (rubricaId) => {
     return true;
   } catch (error) {
     console.error("Erro ao criar despesa:", error);
+    return false;
+  }
+};
+
+window.cgdDeleteExpense = async (rubricaId, despesaId) => {
+  const confirmed = await requestConfirmation({
+    title: "Eliminar despesa",
+    subtitle: "Tem a certeza que pretende eliminar a despesa selecionada para o ano atual?"
+  });
+
+  if (!confirmed) {
+    return false;
+  }
+
+  try {
+    await deleteDespesaForYear(Number(rubricaId), Number(despesaId));
+    await loadYearData(cgdState.selectedYear);
+    return true;
+  } catch (error) {
+    console.error("Erro ao eliminar despesa:", error);
+    return false;
+  }
+};
+
+window.cgdDeleteRubric = async (rubricaId) => {
+  const confirmed = await requestConfirmation({
+    title: "Eliminar rubrica",
+    subtitle: "Tem a certeza que pretende eliminar esta rubrica? As despesas contidas na rubrica tambem serao eliminadas."
+  });
+
+  if (!confirmed) {
+    return false;
+  }
+
+  try {
+    await deleteRubricaForYear(Number(rubricaId));
+    await loadYearData(cgdState.selectedYear);
+    return true;
+  } catch (error) {
+    console.error("Erro ao eliminar rubrica:", error);
     return false;
   }
 };
