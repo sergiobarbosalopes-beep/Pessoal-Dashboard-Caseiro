@@ -1075,6 +1075,12 @@ a {
   font-size: 0.8rem;
 }
 
+.desc-pill.panel-menu-trigger {
+  font-size: 1.6rem;
+  font-weight: 900;
+  line-height: 1.05;
+}
+
 
 .money-pill {
   border-radius: var(--radius-pill);
