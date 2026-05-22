@@ -1262,9 +1262,21 @@ a {
   margin-top: 8px;
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(2, minmax(0, max-content));
+  grid-template-columns: max-content minmax(0, 1fr);
   justify-content: flex-start;
   align-items: stretch;
+}
+
+.expense-modal-left-stack {
+  display: grid;
+  gap: 8px;
+  width: max-content;
+  max-width: 100%;
+}
+
+.expense-values-section,
+.expense-adjustment-section {
+  width: 100%;
 }
 
 .expense-detail-modal[data-expense-modal-kind="income"] {
@@ -1436,25 +1448,26 @@ a {
 }
 
 .disabled-future-section {
-  width: min(100%, 360px);
+  width: min(100%, 380px);
 }
 
 .expense-history-section {
   margin-top: 10px;
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .expense-history-section .expense-history-table-wrap {
   margin-top: 6px;
-  min-height: 196px;
-  max-height: 100%;
+  min-height: 0;
+  height: 100%;
+  flex: 1;
   overflow: auto;
 }
 
 .expense-adjustment-section {
-  width: fit-content;
-  max-width: 100%;
+  margin-top: 0;
 }
 
 .expense-history-table {
@@ -1550,6 +1563,10 @@ a {
   .expense-modal-top-layout {
     grid-template-columns: 1fr;
     gap: 8px;
+  }
+
+  .expense-modal-left-stack {
+    width: 100%;
   }
 
   .expense-modal-section {
