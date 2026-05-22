@@ -1229,9 +1229,13 @@ a {
 }
 
 .expense-detail-modal {
-  width: min(660px, calc(100% - 24px));
+  width: min(596px, calc(100% - 24px));
   max-height: min(88vh, 760px);
   overflow-y: auto;
+}
+
+.expense-detail-modal .modal-actions {
+  justify-content: flex-start;
 }
 
 .expense-modal-title-row {
