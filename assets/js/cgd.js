@@ -160,6 +160,46 @@ async function fetchExpenseNotesForKey({ ano, rubricaId, despesaId, mes }) {
   return Array.isArray(fallbackData) ? fallbackData : [];
 }
 
+function buildExpenseHistoryKey(rubricaId, despesaId) {
+  return `${Number(rubricaId)}::${Number(despesaId)}`;
+}
+
+async function fetchExpenseHistoryKeysForYear(year) {
+  if (!supabaseClient) {
+    return new Set();
+  }
+
+  const queryByYear = (tableName) =>
+    supabaseClient
+      .from(tableName)
+      .select("rubrica_id,despesa_id")
+      .eq("ano", Number(year));
+
+  const preferredTable = cgdState.notesTableName || "cgd_despesa_notas";
+  const { data: primaryData, error: primaryError } = await queryByYear(preferredTable);
+  if (!primaryError) {
+    cgdState.notesTableName = preferredTable;
+    return new Set(
+      (Array.isArray(primaryData) ? primaryData : [])
+        .map((row) => buildExpenseHistoryKey(row.rubrica_id, row.despesa_id))
+        .filter((key) => !key.includes("NaN"))
+    );
+  }
+
+  const fallbackTable = preferredTable === "cgd_despesa_notas" ? "cgd_despesas_notas" : "cgd_despesa_notas";
+  const { data: fallbackData, error: fallbackError } = await queryByYear(fallbackTable);
+  if (fallbackError) {
+    throw primaryError;
+  }
+
+  cgdState.notesTableName = fallbackTable;
+  return new Set(
+    (Array.isArray(fallbackData) ? fallbackData : [])
+      .map((row) => buildExpenseHistoryKey(row.rubrica_id, row.despesa_id))
+      .filter((key) => !key.includes("NaN"))
+  );
+}
+
 async function createExpenseNoteEntry({ ano, rubricaId, despesaId, mes, valor, nota }) {
   if (!supabaseClient) {
     return;
@@ -279,7 +319,7 @@ async function deleteExpenseNoteEntry({ ano, rubricaId, despesaId, mes, contador
   return true;
 }
 
-function buildDataModel(rubricRows, expenseRows) {
+function buildDataModel(rubricRows, expenseRows, expenseHistoryKeys = new Set()) {
   const rubricsByKey = new Map();
 
   rubricRows.forEach((row, index) => {
@@ -311,11 +351,13 @@ function buildDataModel(rubricRows, expenseRows) {
     const monthIndex = normalizeMonth(row.mes);
 
     if (!expenseMap.has(expenseKey)) {
+      const hasHistoryNotes = expenseHistoryKeys.has(buildExpenseHistoryKey(row.rubrica_id, row.despesa_id));
       expenseMap.set(expenseKey, {
         id: row.despesa_id,
         rubricId: row.rubrica_id,
         name: row.despesa_desc || "Despesa",
         seq: parseSeq(row.despesa_seq, index + 1),
+        hasHistoryNotes,
         values: emptyValues(),
         estimatedFlags: Array.from({ length: 12 }, () => false),
         monthData: Array.from({ length: 12 }, () => ({
@@ -328,6 +370,7 @@ function buildDataModel(rubricRows, expenseRows) {
     }
 
     const expense = expenseMap.get(expenseKey);
+    expense.hasHistoryNotes = expense.hasHistoryNotes || expenseHistoryKeys.has(buildExpenseHistoryKey(row.rubrica_id, row.despesa_id));
     expense.seq = Math.min(expense.seq, parseSeq(row.despesa_seq, expense.seq));
     if (monthIndex >= 0) {
       const rawValor = Number(row.valor);
@@ -433,11 +476,12 @@ function renderTimeline(year) {
 function renderExpenseRows(expenses, rubricName, kind) {
   return expenses
     .map((expense) => {
+      const historyClass = expense.hasHistoryNotes ? " has-history-notes" : "";
       return `
       <div class='data-row expense' data-sortable data-expense-id='${expense.id ?? ""}' data-rubrica-id='${expense.rubricId ?? ""}' data-despesa-seq='${expense.seq ?? ""}'>
         <div class='desc-cell expense-desc-cell'>
           <span class='chev-spacer' aria-hidden='true'></span>
-          <button class='desc-pill expense-menu-trigger' type='button' data-expense-menu-toggle aria-expanded='false' aria-label='Opcoes da despesa ${expense.name}'>${expense.name}</button>
+          <button class='desc-pill expense-menu-trigger${historyClass}' type='button' data-expense-menu-toggle aria-expanded='false' aria-label='Opcoes da despesa ${expense.name}'>${expense.name}</button>
           <div class='expense-sort-actions'>
             <div class='expense-menu' role='menu'>
               <button type='button' role='menuitem' data-expense-menu-action='up'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 18V6M12 6L7 11M12 6L17 11' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para cima</span></button>
@@ -543,9 +587,10 @@ async function loadYearData(year) {
   }
 
   try {
-    const [rubricsResult, expensesResult] = await Promise.allSettled([
+    const [rubricsResult, expensesResult, expenseHistoryResult] = await Promise.allSettled([
       fetchRubricsForYear(year),
-      fetchExpensesForYear(year)
+      fetchExpensesForYear(year),
+      fetchExpenseHistoryKeysForYear(year)
     ]);
 
     const rubricRows = rubricsResult.status === "fulfilled" ? rubricsResult.value : [];
@@ -560,7 +605,12 @@ async function loadYearData(year) {
       console.error("Erro a carregar despesas CGD:", expensesResult.reason);
     }
 
-    cgdState.data = buildDataModel(rubricRows, expenseRows);
+    if (expenseHistoryResult.status === "rejected") {
+      console.error("Erro a carregar historico de notas CGD:", expenseHistoryResult.reason);
+    }
+
+    const expenseHistoryKeys = expenseHistoryResult.status === "fulfilled" ? expenseHistoryResult.value : new Set();
+    cgdState.data = buildDataModel(rubricRows, expenseRows, expenseHistoryKeys);
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
   } catch (error) {
