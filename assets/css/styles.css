@@ -1334,7 +1334,7 @@ a {
 .expense-values-section .expense-field,
 .expense-adjustment-section .expense-field {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-items: center;
   gap: 10px;
 }
@@ -1342,7 +1342,7 @@ a {
 .expense-values-section .expense-field > span,
 .expense-adjustment-section .expense-field > span {
   white-space: nowrap;
-  text-align: right;
+  text-align: left;
 }
 
 .expense-modal-grid.two-cols {
@@ -1373,6 +1373,11 @@ a {
   width: min(100%, 108px);
   justify-self: end;
   text-align: right;
+}
+
+[data-expense-valor-estimado] {
+  font-style: italic;
+  text-decoration: underline;
 }
 
 [data-expense-notes] {
