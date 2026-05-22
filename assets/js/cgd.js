@@ -1104,17 +1104,23 @@ window.cgdSaveExpenseDetail = async ({ rubricaId, despesaId, monthIndex, valor, 
     ? Array.from({ length: 13 - startMonth }, (_, index) => startMonth + index)
     : [startMonth];
 
-  await Promise.all(
-    targetMonths.map((mes) =>
-      supabaseClient
-        .from("cgd_despesa")
-        .update(payload)
-        .eq("ano", selectedKey.ano)
-        .eq("rubrica_id", selectedKey.rubricaId)
-        .eq("despesa_id", selectedKey.despesaId)
-        .eq("mes", mes)
-    )
-  );
+  if (applyToEndYear) {
+    await supabaseClient
+      .from("cgd_despesa")
+      .update(payload)
+      .eq("ano", selectedKey.ano)
+      .eq("rubrica_id", selectedKey.rubricaId)
+      .eq("despesa_id", selectedKey.despesaId)
+      .gte("mes", startMonth);
+  } else {
+    await supabaseClient
+      .from("cgd_despesa")
+      .update(payload)
+      .eq("ano", selectedKey.ano)
+      .eq("rubrica_id", selectedKey.rubricaId)
+      .eq("despesa_id", selectedKey.despesaId)
+      .eq("mes", startMonth);
+  }
 
   const numericAdjustment = Number(adjustmentValue);
   const adjustmentNote = String(nota == null ? "" : nota).trim();
