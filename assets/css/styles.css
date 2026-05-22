@@ -1333,14 +1333,16 @@ a {
 
 .expense-values-section .expense-field,
 .expense-adjustment-section .expense-field {
-  grid-template-columns: max-content minmax(0, 1fr);
+  display: flex;
+  justify-content: flex-end;
   align-items: center;
-  column-gap: 10px;
+  gap: 10px;
 }
 
 .expense-values-section .expense-field > span,
 .expense-adjustment-section .expense-field > span {
   white-space: nowrap;
+  text-align: right;
 }
 
 .expense-modal-grid.two-cols {
@@ -1369,7 +1371,7 @@ a {
 [data-expense-add],
 [data-expense-subtract] {
   width: min(100%, 108px);
-  justify-self: start;
+  justify-self: end;
   text-align: right;
 }
 
