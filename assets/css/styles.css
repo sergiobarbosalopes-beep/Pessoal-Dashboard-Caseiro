@@ -1331,6 +1331,18 @@ a {
   gap: 8px;
 }
 
+.expense-values-section .expense-field,
+.expense-adjustment-section .expense-field {
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+}
+
+.expense-values-section .expense-field > span,
+.expense-adjustment-section .expense-field > span {
+  white-space: nowrap;
+}
+
 .expense-modal-grid.two-cols {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
