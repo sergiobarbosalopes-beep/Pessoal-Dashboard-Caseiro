@@ -354,6 +354,13 @@ function initExpenseModal() {
 
     const plusValue = toNumber(inputAdd?.value);
     const minusValue = toNumber(inputSubtract?.value);
+    if (plusValue !== 0 && minusValue !== 0) {
+      window.alert("Nao e possivel somar e subtrair ao mesmo tempo.");
+      if (inputAdd) {
+        inputAdd.focus();
+      }
+      return;
+    }
     const adjustmentValue = plusValue - minusValue;
     const registerAdjustment = plusValue !== 0 || minusValue !== 0;
 
