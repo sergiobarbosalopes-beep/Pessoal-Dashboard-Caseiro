@@ -607,7 +607,7 @@ a {
 
 .panel.income {
   --rubric-accent: #2f8e61;
-  background: linear-gradient(180deg, rgba(42, 111, 82, 0.9), rgba(58, 141, 102, 0.86) 42%, rgba(93, 182, 132, 0.82) 78%, rgba(121, 207, 157, 0.78));
+  background: linear-gradient(180deg, rgba(42, 111, 82, 0.72), rgba(58, 141, 102, 0.66) 42%, rgba(93, 182, 132, 0.6) 78%, rgba(121, 207, 157, 0.54));
 }
 
 .panel.outcome {
