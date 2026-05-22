@@ -229,7 +229,7 @@ function monthPills(values, editable, labelPrefix, estimatedFlags = [], detailMe
         </div>`;
       }
       const detailAttrs = detailMeta
-        ? `data-rubrica-id='${detailMeta.rubricaId ?? ""}' data-expense-id='${detailMeta.expenseId ?? ""}' data-month-index='${monthIndex}' data-expense-kind='${detailMeta.kind || "outcome"}'`
+        ? `data-rubrica-id='${detailMeta.rubricaId ?? detailMeta.rubricId ?? ""}' data-expense-id='${detailMeta.expenseId ?? ""}' data-month-index='${monthIndex}' data-expense-kind='${detailMeta.kind || "outcome"}'`
         : "";
       return `
       <div class='money-pill readonly' ${dataMonth}>
