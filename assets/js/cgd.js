@@ -363,7 +363,15 @@ function buildDataModel(rubricRows, expenseRows) {
 }
 
 function sumByMonth(expenses) {
-  return months.map((_, index) => expenses.reduce((acc, expense) => acc + (expense.values[index] || 0), 0));
+  return months.map((_, index) =>
+    expenses.reduce((acc, expense) => {
+      const includeInTotalizer = expense.monthData?.[index]?.totalizador;
+      if (includeInTotalizer === false) {
+        return acc;
+      }
+      return acc + (expense.values[index] || 0);
+    }, 0)
+  );
 }
 
 function money(value) {
