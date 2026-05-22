@@ -1140,8 +1140,8 @@ a {
   position: absolute;
   top: -3px;
   right: -3px;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: rgba(213, 171, 70, 0.95);
   box-shadow: 0 0 0 2px rgba(22, 52, 69, 0.95);
