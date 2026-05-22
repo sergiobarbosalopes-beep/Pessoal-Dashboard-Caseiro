@@ -1234,6 +1234,14 @@ a {
   overflow-y: auto;
 }
 
+.expense-detail-modal[data-expense-has-history="false"] {
+  width: min(520px, calc(100% - 24px));
+}
+
+.expense-detail-modal[data-expense-has-history="false"] .expense-modal-top-layout {
+  grid-template-columns: max-content;
+}
+
 .expense-month-indicator {
   margin: 6px 0 0;
   display: inline-flex;
