@@ -1261,8 +1261,10 @@ a {
 .expense-modal-top-layout {
   margin-top: 8px;
   display: grid;
-  gap: 10px;
-  grid-template-columns: 1.5fr 1fr;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  justify-content: flex-start;
+  align-items: start;
 }
 
 .expense-detail-modal[data-expense-modal-kind="income"] {
@@ -1316,7 +1318,7 @@ a {
 [data-expense-valor-estimado],
 [data-expense-add],
 [data-expense-subtract] {
-  width: min(100%, 122px);
+  width: min(100%, 108px);
   justify-self: start;
   text-align: right;
 }
@@ -1362,10 +1364,9 @@ a {
 
 .expense-modal-checks {
   margin-top: 8px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
+  display: grid;
+  gap: 7px;
+  justify-items: start;
   font-size: 0.78rem;
   color: #cfe2ed;
 }
