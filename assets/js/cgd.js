@@ -1117,7 +1117,9 @@ window.cgdSaveExpenseDetail = async ({ rubricaId, despesaId, monthIndex, valor, 
   );
 
   const numericAdjustment = Number(adjustmentValue);
-  const shouldRegisterAdjustment = Boolean(registerAdjustment) && Number.isFinite(numericAdjustment) && numericAdjustment !== 0;
+  const adjustmentNote = String(nota == null ? "" : nota).trim();
+  const shouldRegisterAdjustment =
+    Boolean(registerAdjustment) && Number.isFinite(numericAdjustment) && numericAdjustment !== 0 && adjustmentNote.length > 0;
   if (shouldRegisterAdjustment) {
     await Promise.all(
       targetMonths.map((mes) =>
@@ -1127,7 +1129,7 @@ window.cgdSaveExpenseDetail = async ({ rubricaId, despesaId, monthIndex, valor, 
           despesaId: selectedKey.despesaId,
           mes,
           valor: numericAdjustment,
-          nota
+          nota: adjustmentNote
         })
       )
     );
