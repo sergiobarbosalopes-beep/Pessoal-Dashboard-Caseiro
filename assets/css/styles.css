@@ -1495,6 +1495,14 @@ a {
   white-space: nowrap;
 }
 
+.expense-history-table th:first-child,
+.expense-history-table td:first-child {
+  width: 9ch;
+  max-width: 9ch;
+  padding-left: 2px;
+  padding-right: 3px;
+}
+
 .expense-history-table .history-note-cell {
   display: flex;
   align-items: center;
