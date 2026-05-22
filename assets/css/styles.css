@@ -1180,8 +1180,8 @@ a {
 }
 
 .panel.income .money-pill.active {
-  border-color: rgba(47, 142, 97, 0.92);
-  box-shadow: 0 0 0 2px rgba(47, 142, 97, 0.46), 0 0 22px rgba(47, 142, 97, 0.34);
+  border-color: rgba(47, 142, 97, 0.98);
+  box-shadow: 0 0 0 2px rgba(47, 142, 97, 0.58), 0 0 26px rgba(47, 142, 97, 0.46);
 }
 
 .panel.outcome .money-pill.active {
