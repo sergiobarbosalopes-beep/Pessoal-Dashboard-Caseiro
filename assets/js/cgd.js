@@ -812,6 +812,31 @@ function findExpenseRecord(rubricaId, despesaId) {
   return null;
 }
 
+function resolveSelectedExpenseKey({ rubricaId, despesaId, monthIndex }) {
+  const index = Number(monthIndex);
+  if (!Number.isInteger(index) || index < 0 || index > 11) {
+    return null;
+  }
+
+  const found = findExpenseRecord(rubricaId, despesaId);
+  if (!found) {
+    return null;
+  }
+
+  const resolvedRubricaId = Number(found.expense?.rubricId ?? rubricaId);
+  const resolvedDespesaId = Number(found.expense?.id ?? despesaId);
+  if (!Number.isFinite(resolvedRubricaId) || !Number.isFinite(resolvedDespesaId)) {
+    return null;
+  }
+
+  return {
+    ano: Number(cgdState.selectedYear),
+    rubricaId: resolvedRubricaId,
+    despesaId: resolvedDespesaId,
+    mes: index + 1
+  };
+}
+
 function resolveExpenseUpdatePayload(detail) {
   const payload = {
     valor: detail.valor,
@@ -940,16 +965,16 @@ window.cgdGetExpenseDetail = ({ rubricaId, despesaId, monthIndex }) => {
 };
 
 window.cgdGetExpenseNotes = async ({ rubricaId, despesaId, monthIndex }) => {
-  const startMonth = Number(monthIndex) + 1;
-  if (!Number.isInteger(startMonth) || startMonth < 1 || startMonth > 12) {
+  const selectedKey = resolveSelectedExpenseKey({ rubricaId, despesaId, monthIndex });
+  if (!selectedKey) {
     return [];
   }
 
   const rows = await fetchExpenseNotesForKey({
-    ano: cgdState.selectedYear,
-    rubricaId,
-    despesaId,
-    mes: startMonth
+    ano: selectedKey.ano,
+    rubricaId: selectedKey.rubricaId,
+    despesaId: selectedKey.despesaId,
+    mes: selectedKey.mes
   });
 
   return rows
@@ -966,10 +991,12 @@ window.cgdSaveExpenseDetail = async ({ rubricaId, despesaId, monthIndex, valor, 
     return false;
   }
 
-  const startMonth = Number(monthIndex) + 1;
-  if (!Number.isInteger(startMonth) || startMonth < 1 || startMonth > 12) {
+  const selectedKey = resolveSelectedExpenseKey({ rubricaId, despesaId, monthIndex });
+  if (!selectedKey) {
     return false;
   }
+
+  const startMonth = selectedKey.mes;
 
   const normalizedValor = Number(valor);
   const normalizedValorEstimado = Number(valorEstimado);
@@ -990,9 +1017,9 @@ window.cgdSaveExpenseDetail = async ({ rubricaId, despesaId, monthIndex, valor, 
       supabaseClient
         .from("cgd_despesa")
         .update(payload)
-        .eq("ano", cgdState.selectedYear)
-        .eq("rubrica_id", Number(rubricaId))
-        .eq("despesa_id", Number(despesaId))
+        .eq("ano", selectedKey.ano)
+        .eq("rubrica_id", selectedKey.rubricaId)
+        .eq("despesa_id", selectedKey.despesaId)
         .eq("mes", mes)
     )
   );
@@ -1003,9 +1030,9 @@ window.cgdSaveExpenseDetail = async ({ rubricaId, despesaId, monthIndex, valor, 
     await Promise.all(
       targetMonths.map((mes) =>
         createExpenseNoteEntry({
-          ano: cgdState.selectedYear,
-          rubricaId,
-          despesaId,
+          ano: selectedKey.ano,
+          rubricaId: selectedKey.rubricaId,
+          despesaId: selectedKey.despesaId,
           mes,
           valor: numericAdjustment,
           nota
