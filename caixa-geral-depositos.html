@@ -87,18 +87,14 @@
     <div class="modal" id="expense-modal" aria-hidden="true">
       <div class="modal-card expense-detail-modal" data-expense-modal-kind="outcome" data-expense-modal-readonly="false">
         <h3 data-modal-title>Detalhe da despesa</h3>
-        <p class="expense-modal-mode" data-expense-modal-mode></p>
 
         <section class="expense-modal-section">
-          <h4>Valores</h4>
           <div class="expense-modal-grid two-cols">
             <label class="expense-field">
-              <span>Valor</span>
-              <input type="text" data-expense-valor inputmode="decimal" />
+              <input type="text" data-expense-valor inputmode="decimal" placeholder="Valor" />
             </label>
             <label class="expense-field">
-              <span>Valor estimado</span>
-              <input type="text" data-expense-valor-estimado inputmode="decimal" />
+              <input type="text" data-expense-valor-estimado inputmode="decimal" placeholder="Valor estimado" />
             </label>
           </div>
           <div class="expense-modal-checks">
@@ -108,7 +104,6 @@
         </section>
 
         <section class="expense-modal-section">
-          <h4>Ajustes rapidos</h4>
           <div class="expense-modal-grid two-cols">
             <label class="expense-field add-field">
               <span>Adicionar</span>
@@ -120,7 +115,7 @@
             </label>
           </div>
           <label class="expense-field">
-            <span>Notas (texto)</span>
+            <span>Notas</span>
             <input type="text" data-expense-notes maxlength="300" />
           </label>
         </section>

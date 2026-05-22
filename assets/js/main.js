@@ -48,7 +48,6 @@ function initExpenseModal() {
   }
   const modalTitle = modal.querySelector("[data-modal-title]");
   const modalCard = modal.querySelector(".expense-detail-modal");
-  const modalMode = modal.querySelector("[data-expense-modal-mode]");
   const inputValor = modal.querySelector("[data-expense-valor]");
   const inputValorEstimado = modal.querySelector("[data-expense-valor-estimado]");
   const inputAdd = modal.querySelector("[data-expense-add]");
@@ -80,11 +79,6 @@ function initExpenseModal() {
     if (modalCard) {
       modalCard.setAttribute("data-expense-modal-readonly", String(readonly));
     }
-    if (modalMode) {
-      modalMode.textContent = readonly
-        ? "Modo de exibicao: este registo nao pertence ao mes selecionado."
-        : "Modo de edicao: este registo pertence ao mes selecionado.";
-    }
   };
 
   const applyAdjustments = () => {
@@ -106,7 +100,10 @@ function initExpenseModal() {
       return;
     }
 
-    const label = fieldBtn.getAttribute("data-expense-field");
+    const expenseName =
+      fieldBtn.closest(".data-row.expense")?.querySelector("[data-expense-menu-toggle]")?.textContent?.trim() ||
+      fieldBtn.getAttribute("data-expense-field") ||
+      "Despesa";
     const rubricaId = Number(fieldBtn.getAttribute("data-rubrica-id"));
     const despesaId = Number(fieldBtn.getAttribute("data-expense-id"));
     const monthIndex = Number(fieldBtn.getAttribute("data-month-index"));
@@ -115,7 +112,7 @@ function initExpenseModal() {
     const readonly = monthIndex !== selectedMonth;
 
     if (modalTitle) {
-      modalTitle.textContent = `Registo detalhado: ${label}`;
+      modalTitle.textContent = expenseName;
     }
 
     if (modalCard) {

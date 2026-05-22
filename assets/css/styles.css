@@ -1240,12 +1240,6 @@ a {
   border: 1px solid rgba(213, 171, 70, 0.45);
 }
 
-.expense-modal-mode {
-  margin: 4px 0 10px;
-  color: #c5dce8;
-  font-size: 0.8rem;
-}
-
 .expense-modal-section {
   margin-top: 10px;
   padding: 10px;
@@ -1302,8 +1296,10 @@ a {
 
 .expense-modal-checks {
   margin-top: 8px;
-  display: grid;
-  gap: 6px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
   font-size: 0.78rem;
   color: #cfe2ed;
 }
