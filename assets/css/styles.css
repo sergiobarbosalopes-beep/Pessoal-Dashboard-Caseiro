@@ -1334,9 +1334,10 @@ a {
 .expense-values-section .expense-field,
 .expense-adjustment-section .expense-field {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
   align-items: center;
   gap: 10px;
+  width: 100%;
 }
 
 .expense-values-section .expense-field > span,
@@ -1371,7 +1372,7 @@ a {
 [data-expense-add],
 [data-expense-subtract] {
   width: min(100%, 108px);
-  justify-self: end;
+  margin-left: auto;
   text-align: right;
 }
 
