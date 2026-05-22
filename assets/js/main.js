@@ -247,6 +247,17 @@ function initExpenseModal() {
     }
   });
 
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+    if (!modal.classList.contains("show")) {
+      return;
+    }
+    event.preventDefault();
+    closeModal();
+  });
+
   const handleSave = async () => {
     if (!activeContext || !window.cgdSaveExpenseDetail) {
       closeModal();
