@@ -1276,6 +1276,8 @@ a {
   grid-template-columns: max-content max-content;
   justify-content: flex-start;
   align-items: stretch;
+  width: fit-content;
+  max-width: 100%;
 }
 
 .expense-modal-left-stack {
@@ -1354,6 +1356,8 @@ a {
 
 [data-expense-notes] {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .expense-field input:focus {
@@ -1490,7 +1494,9 @@ a {
 
 .expense-notes-section {
   grid-column: 1 / -1;
-  width: 100%;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .expense-history-table {
