@@ -612,7 +612,7 @@ a {
 
 .panel.outcome {
   --rubric-accent: #b6843a;
-  background: linear-gradient(180deg, #8e6730, #b6843a 38%, #d8a149 70%, #efbe63);
+  background: linear-gradient(180deg, rgba(142, 103, 48, 0.72), rgba(182, 132, 58, 0.66) 38%, rgba(216, 161, 73, 0.6) 70%, rgba(239, 190, 99, 0.54));
 }
 
 .panel-head {
