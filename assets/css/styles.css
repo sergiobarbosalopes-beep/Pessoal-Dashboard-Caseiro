@@ -1490,7 +1490,8 @@ a {
 }
 
 .expense-history-table .history-value-cell {
-  width: 1%;
+  width: 72px;
+  max-width: 72px;
   white-space: nowrap;
 }
 
