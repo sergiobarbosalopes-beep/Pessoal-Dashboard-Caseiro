@@ -55,6 +55,7 @@ function initExpenseModal() {
   const inputAdd = modal.querySelector("[data-expense-add]");
   const inputSubtract = modal.querySelector("[data-expense-subtract]");
   const inputNotes = modal.querySelector("[data-expense-notes]");
+  const notesSection = modal.querySelector("[data-expense-notes-section]");
   const checkTotalizador = modal.querySelector("[data-expense-totalizador]");
   const checkApplyEndYear = modal.querySelector("[data-expense-apply-end-year]");
   const saveBtn = modal.querySelector("[data-expense-save]");
@@ -67,6 +68,75 @@ function initExpenseModal() {
   };
 
   let activeContext = null;
+
+  const sanitizeDecimalInputValue = (value) => {
+    const raw = String(value || "").replace(/,/g, ".").replace(/[^\d.]/g, "");
+    if (!raw) {
+      return "";
+    }
+
+    const firstDot = raw.indexOf(".");
+    const hasDot = firstDot >= 0;
+    const integerRaw = hasDot ? raw.slice(0, firstDot) : raw;
+    const decimalRaw = hasDot ? raw.slice(firstDot + 1).replace(/\./g, "") : "";
+    const integerPart = integerRaw.slice(0, 6);
+    const decimalPart = decimalRaw.slice(0, 2);
+
+    if (!hasDot) {
+      return integerPart;
+    }
+
+    const normalizedInteger = integerPart || "0";
+    return `${normalizedInteger}.${decimalPart}`;
+  };
+
+  const hasAdjustmentValue = (value) => {
+    const numeric = toNumber(value);
+    return Number.isFinite(numeric) && numeric !== 0;
+  };
+
+  const updateNotesVisibility = () => {
+    if (!notesSection) {
+      return;
+    }
+    const showNotes = hasAdjustmentValue(inputAdd?.value) || hasAdjustmentValue(inputSubtract?.value);
+    notesSection.hidden = !showNotes;
+  };
+
+  const enforceExpenseNumericInput = (input) => {
+    if (!input) {
+      return;
+    }
+
+    input.addEventListener("input", () => {
+      const cursorPosition = input.selectionStart;
+      input.value = sanitizeDecimalInputValue(input.value);
+      if (typeof cursorPosition === "number") {
+        const safePosition = Math.min(cursorPosition, input.value.length);
+        input.setSelectionRange(safePosition, safePosition);
+      }
+      updateNotesVisibility();
+    });
+
+    input.addEventListener("blur", () => {
+      const sanitized = sanitizeDecimalInputValue(input.value);
+      if (!sanitized) {
+        input.value = "";
+        updateNotesVisibility();
+        return;
+      }
+
+      const numeric = Number(sanitized);
+      if (Number.isFinite(numeric)) {
+        input.value = numeric.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      } else {
+        input.value = "";
+      }
+      updateNotesVisibility();
+    });
+  };
+
+  [inputValor, inputValorEstimado, inputAdd, inputSubtract].forEach(enforceExpenseNumericInput);
 
   const applyReadonlyState = (readonly) => {
     [inputValor, inputValorEstimado, inputAdd, inputSubtract, inputNotes, checkTotalizador, checkApplyEndYear].forEach((element) => {
@@ -94,6 +164,7 @@ function initExpenseModal() {
     inputValor.value = result.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     inputAdd.value = "";
     inputSubtract.value = "";
+    updateNotesVisibility();
   };
 
   document.addEventListener("click", (event) => {
@@ -153,9 +224,17 @@ function initExpenseModal() {
       inputSubtract.value = "";
     }
 
+    updateNotesVisibility();
+
     activeContext = { rubricaId, despesaId, monthIndex };
     applyReadonlyState(readonly);
     modal.classList.add("show");
+
+    if (!readonly && inputAdd) {
+      requestAnimationFrame(() => {
+        inputAdd.focus();
+      });
+    }
   });
 
   modal.querySelectorAll("[data-close-modal]").forEach((closeBtn) => {
