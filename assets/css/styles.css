@@ -1453,7 +1453,8 @@ a {
 }
 
 .expense-adjustment-section {
-  width: min(100%, 360px);
+  width: fit-content;
+  max-width: 100%;
 }
 
 .expense-history-table {
