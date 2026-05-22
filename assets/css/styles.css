@@ -1230,6 +1230,8 @@ a {
 
 .expense-detail-modal {
   width: min(760px, calc(100% - 24px));
+  max-height: min(88vh, 760px);
+  overflow-y: auto;
 }
 
 .expense-detail-modal[data-expense-modal-kind="income"] {
@@ -1274,8 +1276,8 @@ a {
   border-radius: 10px;
   background: #102d3a;
   color: #d8ecf5;
-  padding: 9px 10px;
-  font-size: 0.84rem;
+  padding: 8px 9px;
+  font-size: 0.82rem;
   outline: none;
 }
 
@@ -1302,6 +1304,10 @@ a {
   flex-wrap: wrap;
   font-size: 0.78rem;
   color: #cfe2ed;
+}
+
+.expense-modal-checks input[type="checkbox"] {
+  transform: translateY(1px);
 }
 
 .disabled-future-section p {
@@ -1346,6 +1352,34 @@ a {
 
   .cgd-top-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .expense-detail-modal {
+    width: calc(100% - 14px);
+    max-height: 92vh;
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .expense-modal-grid.two-cols {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .expense-modal-section {
+    padding: 8px;
+    margin-top: 8px;
+  }
+
+  .expense-field input {
+    padding: 7px 8px;
+    font-size: 0.8rem;
+  }
+
+  .expense-modal-checks {
+    gap: 8px;
+    align-items: flex-start;
+    font-size: 0.75rem;
   }
 
   .cgd-hero {
