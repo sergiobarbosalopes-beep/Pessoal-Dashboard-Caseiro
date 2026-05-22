@@ -9,7 +9,8 @@ const fallbackMock = {
 const cgdState = {
   selectedYear: new Date().getFullYear(),
   data: fallbackMock,
-  expenseColumns: new Set()
+  expenseColumns: new Set(),
+  notesTableName: null
 };
 
 const SUPABASE_URL = window.CGD_SUPABASE_URL || "https://uooovgxrexpstrtfktst.supabase.co";
@@ -132,44 +133,40 @@ async function fetchExpenseNotesForKey({ ano, rubricaId, despesaId, mes }) {
     return [];
   }
 
-  const buildQuery = (includeMonth) => {
-    let query = supabaseClient
-      .from("cgd_despesas_notas")
+  const keyQuery = (tableName) =>
+    supabaseClient
+      .from(tableName)
       .select("*")
       .eq("ano", Number(ano))
+      .eq("mes", Number(mes))
       .eq("rubrica_id", Number(rubricaId))
       .eq("despesa_id", Number(despesaId))
       .order("contador_id", { ascending: true });
 
-    if (includeMonth) {
-      query = query.eq("mes", Number(mes));
-    }
-
-    return query;
-  };
-
-  const { data: monthScopedRows, error: monthScopedError } = await buildQuery(true);
-  if (monthScopedError) {
-    throw monthScopedError;
+  const preferredTable = cgdState.notesTableName || "cgd_despesa_notas";
+  const { data: primaryData, error: primaryError } = await keyQuery(preferredTable);
+  if (!primaryError) {
+    cgdState.notesTableName = preferredTable;
+    return Array.isArray(primaryData) ? primaryData : [];
   }
 
-  const monthScoped = Array.isArray(monthScopedRows) ? monthScopedRows : [];
-  if (monthScoped.length) {
-    return monthScoped;
+  const fallbackTable = preferredTable === "cgd_despesa_notas" ? "cgd_despesas_notas" : "cgd_despesa_notas";
+  const { data: fallbackData, error: fallbackError } = await keyQuery(fallbackTable);
+  if (fallbackError) {
+    throw primaryError;
   }
 
-  const { data: expenseScopedRows, error: expenseScopedError } = await buildQuery(false);
-  if (expenseScopedError) {
-    throw expenseScopedError;
-  }
-
-  return Array.isArray(expenseScopedRows) ? expenseScopedRows : [];
+  cgdState.notesTableName = fallbackTable;
+  return Array.isArray(fallbackData) ? fallbackData : [];
 }
 
 async function createExpenseNoteEntry({ ano, rubricaId, despesaId, mes, valor, nota }) {
   if (!supabaseClient) {
     return;
   }
+
+  let notesTableName = cgdState.notesTableName || "cgd_despesa_notas";
+  const alternateTableName = notesTableName === "cgd_despesa_notas" ? "cgd_despesas_notas" : "cgd_despesa_notas";
 
   const filters = (query) =>
     query
@@ -178,12 +175,21 @@ async function createExpenseNoteEntry({ ano, rubricaId, despesaId, mes, valor, n
       .eq("despesa_id", Number(despesaId))
       .eq("mes", Number(mes));
 
-  const { data: latestRows, error: latestError } = await filters(
-    supabaseClient.from("cgd_despesas_notas").select("contador_id").order("contador_id", { ascending: false }).limit(1)
+  let { data: latestRows, error: latestError } = await filters(
+    supabaseClient.from(notesTableName).select("contador_id").order("contador_id", { ascending: false }).limit(1)
   );
 
   if (latestError) {
-    throw latestError;
+    const retryLatest = await filters(
+      supabaseClient.from(alternateTableName).select("contador_id").order("contador_id", { ascending: false }).limit(1)
+    );
+    if (retryLatest.error) {
+      throw latestError;
+    }
+    notesTableName = alternateTableName;
+    cgdState.notesTableName = alternateTableName;
+    latestRows = retryLatest.data;
+    latestError = null;
   }
 
   const lastCounter = Number(latestRows?.[0]?.contador_id || 0);
@@ -199,12 +205,26 @@ async function createExpenseNoteEntry({ ano, rubricaId, despesaId, mes, valor, n
     valor: Number.isFinite(Number(valor)) ? Number(valor) : 0
   };
 
-  const { error: insertError } = await supabaseClient
-    .from("cgd_despesas_notas")
+  let { error: insertError } = await supabaseClient
+    .from(notesTableName)
     .insert({
       ...basePayload,
       nota: noteText
     });
+
+  if (insertError) {
+    const retryInsert = await supabaseClient
+      .from(alternateTableName)
+      .insert({
+        ...basePayload,
+        nota: noteText
+      });
+
+    if (!retryInsert.error) {
+      cgdState.notesTableName = alternateTableName;
+      return;
+    }
+  }
 
   if (!insertError) {
     return;
@@ -216,7 +236,7 @@ async function createExpenseNoteEntry({ ano, rubricaId, despesaId, mes, valor, n
   }
 
   const { error: retryError } = await supabaseClient
-    .from("cgd_despesas_notas")
+    .from(notesTableName)
     .insert({
       ...basePayload,
       notas: noteText
