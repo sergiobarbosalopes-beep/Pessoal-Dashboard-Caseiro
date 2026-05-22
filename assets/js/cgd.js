@@ -164,7 +164,11 @@ function buildExpenseHistoryKey(rubricaId, despesaId) {
   return `${Number(rubricaId)}::${Number(despesaId)}`;
 }
 
-async function fetchExpenseHistoryKeysForYear(year) {
+function buildExpenseHistoryMonthKey(rubricaId, despesaId, mes) {
+  return `${Number(rubricaId)}::${Number(despesaId)}::${Number(mes)}`;
+}
+
+async function fetchExpenseHistoryMonthKeysForYear(year) {
   if (!supabaseClient) {
     return new Set();
   }
@@ -172,7 +176,7 @@ async function fetchExpenseHistoryKeysForYear(year) {
   const queryByYear = (tableName) =>
     supabaseClient
       .from(tableName)
-      .select("rubrica_id,despesa_id")
+      .select("rubrica_id,despesa_id,mes")
       .eq("ano", Number(year));
 
   const preferredTable = cgdState.notesTableName || "cgd_despesa_notas";
@@ -181,7 +185,7 @@ async function fetchExpenseHistoryKeysForYear(year) {
     cgdState.notesTableName = preferredTable;
     return new Set(
       (Array.isArray(primaryData) ? primaryData : [])
-        .map((row) => buildExpenseHistoryKey(row.rubrica_id, row.despesa_id))
+        .map((row) => buildExpenseHistoryMonthKey(row.rubrica_id, row.despesa_id, row.mes))
         .filter((key) => !key.includes("NaN"))
     );
   }
@@ -195,7 +199,7 @@ async function fetchExpenseHistoryKeysForYear(year) {
   cgdState.notesTableName = fallbackTable;
   return new Set(
     (Array.isArray(fallbackData) ? fallbackData : [])
-      .map((row) => buildExpenseHistoryKey(row.rubrica_id, row.despesa_id))
+      .map((row) => buildExpenseHistoryMonthKey(row.rubrica_id, row.despesa_id, row.mes))
       .filter((key) => !key.includes("NaN"))
   );
 }
@@ -319,7 +323,7 @@ async function deleteExpenseNoteEntry({ ano, rubricaId, despesaId, mes, contador
   return true;
 }
 
-function buildDataModel(rubricRows, expenseRows, expenseHistoryKeys = new Set()) {
+function buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys = new Set()) {
   const rubricsByKey = new Map();
 
   rubricRows.forEach((row, index) => {
@@ -351,13 +355,12 @@ function buildDataModel(rubricRows, expenseRows, expenseHistoryKeys = new Set())
     const monthIndex = normalizeMonth(row.mes);
 
     if (!expenseMap.has(expenseKey)) {
-      const hasHistoryNotes = expenseHistoryKeys.has(buildExpenseHistoryKey(row.rubrica_id, row.despesa_id));
       expenseMap.set(expenseKey, {
         id: row.despesa_id,
         rubricId: row.rubrica_id,
         name: row.despesa_desc || "Despesa",
         seq: parseSeq(row.despesa_seq, index + 1),
-        hasHistoryNotes,
+        historyByMonth: Array.from({ length: 12 }, () => false),
         values: emptyValues(),
         estimatedFlags: Array.from({ length: 12 }, () => false),
         monthData: Array.from({ length: 12 }, () => ({
@@ -370,9 +373,9 @@ function buildDataModel(rubricRows, expenseRows, expenseHistoryKeys = new Set())
     }
 
     const expense = expenseMap.get(expenseKey);
-    expense.hasHistoryNotes = expense.hasHistoryNotes || expenseHistoryKeys.has(buildExpenseHistoryKey(row.rubrica_id, row.despesa_id));
     expense.seq = Math.min(expense.seq, parseSeq(row.despesa_seq, expense.seq));
     if (monthIndex >= 0) {
+      expense.historyByMonth[monthIndex] = expenseHistoryMonthKeys.has(buildExpenseHistoryMonthKey(row.rubrica_id, row.despesa_id, row.mes));
       const rawValor = Number(row.valor);
       const rawValorEstimado = Number(row.valor_estimado ?? row.valor_Estimado);
       const rawNota = row.nota ?? row.notas ?? "";
@@ -421,7 +424,7 @@ function money(value) {
   return Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function monthPills(values, editable, labelPrefix, estimatedFlags = [], detailMeta = null) {
+function monthPills(values, editable, labelPrefix, estimatedFlags = [], historyByMonth = [], detailMeta = null) {
   return values
     .map((value, monthIndex) => {
       const dataMonth = `data-month-col='${monthIndex}'`;
@@ -434,9 +437,10 @@ function monthPills(values, editable, labelPrefix, estimatedFlags = [], detailMe
       const detailAttrs = detailMeta
         ? `data-rubrica-id='${detailMeta.rubricaId ?? detailMeta.rubricId ?? ""}' data-expense-id='${detailMeta.expenseId ?? ""}' data-month-index='${monthIndex}' data-expense-kind='${detailMeta.kind || "outcome"}'`
         : "";
+      const historyClass = historyByMonth?.[monthIndex] ? "has-history-note" : "";
       return `
       <div class='money-pill readonly' ${dataMonth}>
-        <button type='button' data-expense-field='${labelPrefix} - ${months[monthIndex]}' ${detailAttrs}>
+        <button type='button' class='${historyClass}' data-expense-field='${labelPrefix} - ${months[monthIndex]}' ${detailAttrs}>
           <span class='${estimatedFlags[monthIndex] ? "estimated-value" : ""}'>${money(value)}</span>
         </button>
       </div>`;
@@ -476,12 +480,11 @@ function renderTimeline(year) {
 function renderExpenseRows(expenses, rubricName, kind) {
   return expenses
     .map((expense) => {
-      const historyClass = expense.hasHistoryNotes ? " has-history-notes" : "";
       return `
       <div class='data-row expense' data-sortable data-expense-id='${expense.id ?? ""}' data-rubrica-id='${expense.rubricId ?? ""}' data-despesa-seq='${expense.seq ?? ""}'>
         <div class='desc-cell expense-desc-cell'>
           <span class='chev-spacer' aria-hidden='true'></span>
-          <button class='desc-pill expense-menu-trigger${historyClass}' type='button' data-expense-menu-toggle aria-expanded='false' aria-label='Opcoes da despesa ${expense.name}'>${expense.name}</button>
+          <button class='desc-pill expense-menu-trigger' type='button' data-expense-menu-toggle aria-expanded='false' aria-label='Opcoes da despesa ${expense.name}'>${expense.name}</button>
           <div class='expense-sort-actions'>
             <div class='expense-menu' role='menu'>
               <button type='button' role='menuitem' data-expense-menu-action='up'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 18V6M12 6L7 11M12 6L17 11' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para cima</span></button>
@@ -491,7 +494,11 @@ function renderExpenseRows(expenses, rubricName, kind) {
             </div>
           </div>
         </div>
-        ${monthPills(expense.values, false, `${rubricName} / ${expense.name}`, expense.estimatedFlags, { rubricId: expense.rubricId, expenseId: expense.id, kind })}
+        ${monthPills(expense.values, false, `${rubricName} / ${expense.name}`, expense.estimatedFlags, expense.historyByMonth, {
+          rubricId: expense.rubricId,
+          expenseId: expense.id,
+          kind
+        })}
       </div>
       `;
     })
@@ -590,7 +597,7 @@ async function loadYearData(year) {
     const [rubricsResult, expensesResult, expenseHistoryResult] = await Promise.allSettled([
       fetchRubricsForYear(year),
       fetchExpensesForYear(year),
-      fetchExpenseHistoryKeysForYear(year)
+      fetchExpenseHistoryMonthKeysForYear(year)
     ]);
 
     const rubricRows = rubricsResult.status === "fulfilled" ? rubricsResult.value : [];
@@ -609,8 +616,8 @@ async function loadYearData(year) {
       console.error("Erro a carregar historico de notas CGD:", expenseHistoryResult.reason);
     }
 
-    const expenseHistoryKeys = expenseHistoryResult.status === "fulfilled" ? expenseHistoryResult.value : new Set();
-    cgdState.data = buildDataModel(rubricRows, expenseRows, expenseHistoryKeys);
+    const expenseHistoryMonthKeys = expenseHistoryResult.status === "fulfilled" ? expenseHistoryResult.value : new Set();
+    cgdState.data = buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys);
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
   } catch (error) {
