@@ -1250,7 +1250,7 @@ a {
 }
 
 .expense-month-indicator {
-  margin: 0;
+  margin: 0 0 0 auto;
   display: inline-flex;
   align-items: center;
   padding: 3px 9px;

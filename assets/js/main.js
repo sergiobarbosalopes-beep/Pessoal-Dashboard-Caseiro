@@ -280,7 +280,7 @@ function initExpenseModal() {
     if (monthIndicator) {
       const monthName = monthNames[monthIndex] || "--";
       const year = document.querySelector("[data-year-label]")?.textContent?.trim() || "";
-      monthIndicator.textContent = year ? `Mês: ${monthName} ${year}` : `Mês: ${monthName}`;
+      monthIndicator.textContent = year ? `${monthName} ${year}` : monthName;
     }
 
     if (modalCard) {
