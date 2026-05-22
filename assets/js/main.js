@@ -208,8 +208,19 @@ function highlightMonth(monthIndex) {
   });
 
   document.querySelectorAll(".money-pill").forEach((pill) => pill.classList.remove("active"));
-  document.querySelectorAll(`[data-month-col='${monthIndex}']`).forEach((pill) => {
+  document.querySelectorAll(`.data-row.expense [data-month-col='${monthIndex}']`).forEach((pill) => {
     pill.classList.add("active");
+  });
+
+  document.querySelectorAll("article.rubric").forEach((rubric) => {
+    const rubricBody = rubric.querySelector(":scope > .rubric-body");
+    const isCollapsed = rubricBody?.classList.contains("is-collapsed");
+    if (!isCollapsed) {
+      return;
+    }
+
+    const rubricMonthPill = rubric.querySelector(`.rubric-head [data-month-col='${monthIndex}']`);
+    rubricMonthPill?.classList.add("active");
   });
 }
 
@@ -416,6 +427,11 @@ function initDelegatedActions() {
       if (parent && toggleBtn.closest(".panel-head")) {
         collapseWithinPanel(parent, expanded);
       }
+
+      const activeMonth = Number(document.querySelector(".month-tile.active")?.getAttribute("data-month"));
+      if (Number.isInteger(activeMonth) && activeMonth >= 0 && activeMonth <= 11) {
+        highlightMonth(activeMonth);
+      }
       return;
     }
 
@@ -486,5 +502,9 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 document.addEventListener("cgd:rendered", () => {
+  const activeMonth = Number(document.querySelector(".month-tile.active")?.getAttribute("data-month"));
+  if (Number.isInteger(activeMonth) && activeMonth >= 0 && activeMonth <= 11) {
+    highlightMonth(activeMonth);
+  }
   syncExpensePastMonthsState();
 });
