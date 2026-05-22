@@ -1270,7 +1270,7 @@ a {
 }
 
 .expense-modal-top-layout {
-  margin-top: 8px;
+  margin-top: 16px;
   display: grid;
   gap: 8px;
   grid-template-columns: max-content max-content;
@@ -1472,6 +1472,7 @@ a {
   display: flex;
   flex-direction: column;
   height: 100%;
+  align-self: start;
 }
 
 .expense-history-section .expense-history-table-wrap {
