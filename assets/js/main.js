@@ -205,6 +205,17 @@ function initDelegatedActions() {
         return;
       }
 
+      if (action === "add-rubric") {
+        const rubricKind = row?.getAttribute("data-rubrica-tipo");
+        if (rubricKind && window.cgdCreateRubric) {
+          window.cgdCreateRubric(rubricKind).catch((error) => {
+            console.error("Erro a criar rubrica:", error);
+          });
+        }
+        closeAllMenus();
+        return;
+      }
+
       const hasRemoteHandler = typeof window.cgdHandleRubricReorder === "function";
       if (hasRemoteHandler) {
         window.cgdHandleRubricReorder(row, action).catch((error) => {

@@ -886,6 +886,12 @@ a {
   background: color-mix(in srgb, var(--rubric-accent) 26%, transparent);
 }
 
+.menu-separator {
+  height: 1px;
+  margin: 4px 2px;
+  background: rgba(182, 215, 230, 0.24);
+}
+
 .rubric-menu .menu-icon {
   width: 18px;
   height: 18px;
