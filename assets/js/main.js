@@ -56,6 +56,8 @@ function initExpenseModal() {
   const inputSubtract = modal.querySelector("[data-expense-subtract]");
   const inputNotes = modal.querySelector("[data-expense-notes]");
   const notesSection = modal.querySelector("[data-expense-notes-section]");
+  const historyTableBody = modal.querySelector("[data-expense-history-body]");
+  const historyEmpty = modal.querySelector("[data-expense-history-empty]");
   const checkTotalizador = modal.querySelector("[data-expense-totalizador]");
   const checkApplyEndYear = modal.querySelector("[data-expense-apply-end-year]");
   const saveBtn = modal.querySelector("[data-expense-save]");
@@ -101,6 +103,39 @@ function initExpenseModal() {
     }
     const showNotes = hasAdjustmentValue(inputAdd?.value) || hasAdjustmentValue(inputSubtract?.value);
     notesSection.hidden = !showNotes;
+  };
+
+  const renderHistoryRows = (entries) => {
+    if (historyTableBody) {
+      historyTableBody.innerHTML = "";
+    }
+
+    const validEntries = Array.isArray(entries) ? entries : [];
+    if (!validEntries.length) {
+      if (historyEmpty) {
+        historyEmpty.hidden = false;
+      }
+      return;
+    }
+
+    if (historyEmpty) {
+      historyEmpty.hidden = true;
+    }
+
+    if (!historyTableBody) {
+      return;
+    }
+
+    const rowsHtml = validEntries
+      .map((entry) => {
+        const counter = Number(entry?.contadorId) || 0;
+        const value = Number(entry?.valor) || 0;
+        const note = entry?.nota == null ? "" : String(entry.nota);
+        return `<tr><td>${counter}</td><td>${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${note}</td></tr>`;
+      })
+      .join("");
+
+    historyTableBody.innerHTML = rowsHtml;
   };
 
   const enforceExpenseNumericInput = (input) => {
@@ -230,6 +265,17 @@ function initExpenseModal() {
     applyReadonlyState(readonly);
     modal.classList.add("show");
 
+    if (window.cgdGetExpenseNotes) {
+      window.cgdGetExpenseNotes({ rubricaId, despesaId, monthIndex })
+        .then((entries) => {
+          renderHistoryRows(entries);
+        })
+        .catch((error) => {
+          console.error("Erro ao carregar historico de ajustes:", error);
+          renderHistoryRows([]);
+        });
+    }
+
     if (!readonly && inputAdd) {
       requestAnimationFrame(() => {
         inputAdd.focus();
@@ -264,6 +310,11 @@ function initExpenseModal() {
       return;
     }
 
+    const plusValue = toNumber(inputAdd?.value);
+    const minusValue = toNumber(inputSubtract?.value);
+    const adjustmentValue = plusValue - minusValue;
+    const registerAdjustment = plusValue !== 0 || minusValue !== 0;
+
     applyAdjustments();
 
     const success = await window.cgdSaveExpenseDetail({
@@ -274,7 +325,9 @@ function initExpenseModal() {
       valorEstimado: toNumber(inputValorEstimado?.value),
       totalizador: Boolean(checkTotalizador?.checked),
       applyToEndYear: Boolean(checkApplyEndYear?.checked),
-      nota: inputNotes?.value || ""
+      nota: inputNotes?.value || "",
+      adjustmentValue,
+      registerAdjustment
     });
 
     if (success) {

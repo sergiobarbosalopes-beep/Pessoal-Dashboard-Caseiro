@@ -127,6 +127,88 @@ async function fetchExpensesForYear(year) {
   return Array.isArray(data) ? data : [];
 }
 
+async function fetchExpenseNotesForKey({ ano, rubricaId, despesaId, mes }) {
+  if (!supabaseClient) {
+    return [];
+  }
+
+  const { data, error } = await supabaseClient
+    .from("cgd_despesas_notas")
+    .select("*")
+    .eq("ano", Number(ano))
+    .eq("rubrica_id", Number(rubricaId))
+    .eq("despesa_id", Number(despesaId))
+    .eq("mes", Number(mes))
+    .order("contador_id", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+async function createExpenseNoteEntry({ ano, rubricaId, despesaId, mes, valor, nota }) {
+  if (!supabaseClient) {
+    return;
+  }
+
+  const filters = (query) =>
+    query
+      .eq("ano", Number(ano))
+      .eq("rubrica_id", Number(rubricaId))
+      .eq("despesa_id", Number(despesaId))
+      .eq("mes", Number(mes));
+
+  const { data: latestRows, error: latestError } = await filters(
+    supabaseClient.from("cgd_despesas_notas").select("contador_id").order("contador_id", { ascending: false }).limit(1)
+  );
+
+  if (latestError) {
+    throw latestError;
+  }
+
+  const lastCounter = Number(latestRows?.[0]?.contador_id || 0);
+  const nextCounter = Number.isFinite(lastCounter) ? lastCounter + 1 : 1;
+  const noteText = nota == null ? "" : String(nota);
+
+  const basePayload = {
+    ano: Number(ano),
+    mes: Number(mes),
+    rubrica_id: Number(rubricaId),
+    despesa_id: Number(despesaId),
+    contador_id: nextCounter,
+    valor: Number.isFinite(Number(valor)) ? Number(valor) : 0
+  };
+
+  const { error: insertError } = await supabaseClient
+    .from("cgd_despesas_notas")
+    .insert({
+      ...basePayload,
+      nota: noteText
+    });
+
+  if (!insertError) {
+    return;
+  }
+
+  const shouldRetryWithNotas = /column/i.test(String(insertError.message || "")) && /nota/i.test(String(insertError.message || ""));
+  if (!shouldRetryWithNotas) {
+    throw insertError;
+  }
+
+  const { error: retryError } = await supabaseClient
+    .from("cgd_despesas_notas")
+    .insert({
+      ...basePayload,
+      notas: noteText
+    });
+
+  if (retryError) {
+    throw retryError;
+  }
+}
+
 function buildDataModel(rubricRows, expenseRows) {
   const rubricsByKey = new Map();
 
@@ -857,7 +939,29 @@ window.cgdGetExpenseDetail = ({ rubricaId, despesaId, monthIndex }) => {
   };
 };
 
-window.cgdSaveExpenseDetail = async ({ rubricaId, despesaId, monthIndex, valor, valorEstimado, totalizador, nota, applyToEndYear }) => {
+window.cgdGetExpenseNotes = async ({ rubricaId, despesaId, monthIndex }) => {
+  const startMonth = Number(monthIndex) + 1;
+  if (!Number.isInteger(startMonth) || startMonth < 1 || startMonth > 12) {
+    return [];
+  }
+
+  const rows = await fetchExpenseNotesForKey({
+    ano: cgdState.selectedYear,
+    rubricaId,
+    despesaId,
+    mes: startMonth
+  });
+
+  return rows
+    .map((row) => ({
+      contadorId: Number(row.contador_id) || 0,
+      valor: Number(row.valor) || 0,
+      nota: row.nota ?? row.notas ?? ""
+    }))
+    .sort((a, b) => a.contadorId - b.contadorId);
+};
+
+window.cgdSaveExpenseDetail = async ({ rubricaId, despesaId, monthIndex, valor, valorEstimado, totalizador, nota, applyToEndYear, adjustmentValue, registerAdjustment }) => {
   if (!supabaseClient) {
     return false;
   }
@@ -892,6 +996,23 @@ window.cgdSaveExpenseDetail = async ({ rubricaId, despesaId, monthIndex, valor, 
         .eq("mes", mes)
     )
   );
+
+  const numericAdjustment = Number(adjustmentValue);
+  const shouldRegisterAdjustment = Boolean(registerAdjustment) && Number.isFinite(numericAdjustment) && numericAdjustment !== 0;
+  if (shouldRegisterAdjustment) {
+    await Promise.all(
+      targetMonths.map((mes) =>
+        createExpenseNoteEntry({
+          ano: cgdState.selectedYear,
+          rubricaId,
+          despesaId,
+          mes,
+          valor: numericAdjustment,
+          nota
+        })
+      )
+    );
+  }
 
   await loadYearData(cgdState.selectedYear);
   return true;

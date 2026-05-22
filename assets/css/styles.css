@@ -1431,10 +1431,37 @@ a {
   opacity: 0.62;
 }
 
-.disabled-future-section p {
-  margin: 0;
+.expense-history-table-wrap {
+  margin-top: 6px;
+}
+
+.expense-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.expense-history-table th,
+.expense-history-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(176, 210, 226, 0.14);
+  text-align: left;
+}
+
+.expense-history-table th {
+  color: #bfd8e6;
+  font-weight: 700;
+}
+
+.expense-history-table td:nth-child(2),
+.expense-history-table th:nth-child(2) {
+  text-align: right;
+}
+
+.expense-history-empty {
+  margin: 6px 0 0;
   color: #9cb6c4;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
 }
 
 .expense-detail-modal[data-expense-modal-readonly="true"] .expense-modal-section {
