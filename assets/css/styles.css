@@ -957,6 +957,8 @@ a {
   font-weight: 900;
   border-radius: 10px;
   line-height: 1.1;
+  border: 1px solid rgba(214, 228, 237, 0.24);
+  transition: transform 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 
 .panel.income .panel-menu-trigger {
@@ -974,6 +976,12 @@ a {
 .panel-menu-trigger[aria-expanded="true"] {
   border-color: rgba(213, 171, 70, 0.9);
   box-shadow: 0 0 0 2px rgba(213, 171, 70, 0.32), 0 0 16px rgba(213, 171, 70, 0.22);
+}
+
+.panel-menu-trigger:hover {
+  transform: translateY(-1px);
+  border-color: rgba(214, 228, 237, 0.4);
+  box-shadow: 0 8px 18px rgba(5, 18, 26, 0.26);
 }
 
 .panel-sort-actions {
@@ -1034,13 +1042,14 @@ a {
   background: rgba(10, 30, 40, 0.45);
   color: #d9ecf6;
   cursor: pointer;
-  transition: transform 140ms ease, background-color 140ms ease, border-color 140ms ease;
+  transition: transform 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 
 .chev:hover {
   transform: translateY(-1px);
   background: rgba(31, 69, 87, 0.65);
   border-color: rgba(214, 228, 237, 0.4);
+  box-shadow: 0 8px 18px rgba(5, 18, 26, 0.26);
 }
 
 .chev[aria-expanded="false"] {
