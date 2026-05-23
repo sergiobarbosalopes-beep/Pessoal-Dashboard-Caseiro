@@ -592,9 +592,11 @@ function buildPanel(title, kind, rubrics) {
           title='${comparisonChartVisible ? "Fechar grafico comparativo" : "Abrir grafico comparativo"}'
         >
           <svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden='true'>
-            <path d='M4 17.5H20' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'/>
-            <path d='M4 15.5C6.2 13 8 10.5 10.6 9.8C12.8 9.2 14.6 10.6 16.4 11.1C17.7 11.4 18.9 10.9 20 9.3' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/>
-            <path d='M4 11.8C6.1 10.7 7.8 9.4 9.8 7.4C12 5.2 14.2 5.4 16 7.3C17 8.3 18.3 8.9 20 8.6' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/>
+            <path d='M4.5 18.5H19.5' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'/>
+            <path d='M6.5 17V11.5' stroke='currentColor' stroke-width='2.1' stroke-linecap='round'/>
+            <path d='M9.5 17V8.5' stroke='currentColor' stroke-width='2.1' stroke-linecap='round'/>
+            <path d='M14.5 17V13.5' stroke='currentColor' stroke-width='2.1' stroke-linecap='round'/>
+            <path d='M17.5 17V7' stroke='currentColor' stroke-width='2.1' stroke-linecap='round'/>
           </svg>
         </button>
       </div>`
