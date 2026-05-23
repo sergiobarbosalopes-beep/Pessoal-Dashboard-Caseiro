@@ -571,6 +571,24 @@ function initDelegatedActions() {
       return;
     }
 
+    const outcomeComparisonChartToggle = event.target.closest("[data-outcome-comparison-chart-toggle-visibility]");
+    if (outcomeComparisonChartToggle) {
+      if (window.cgdToggleOutcomeComparisonChart) {
+        window.cgdToggleOutcomeComparisonChart();
+      }
+      closeAllMenus();
+      return;
+    }
+
+    const incomeComparisonChartToggle = event.target.closest("[data-income-comparison-chart-toggle-visibility]");
+    if (incomeComparisonChartToggle) {
+      if (window.cgdToggleIncomeComparisonChart) {
+        window.cgdToggleIncomeComparisonChart();
+      }
+      closeAllMenus();
+      return;
+    }
+
     const menuToggle = event.target.closest("[data-rubric-menu-toggle]");
     if (menuToggle) {
       const descCell = menuToggle.closest(".rubric-desc-cell");

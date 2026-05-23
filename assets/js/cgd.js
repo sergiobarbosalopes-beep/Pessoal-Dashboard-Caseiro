@@ -12,10 +12,12 @@ const cgdState = {
   expenseColumns: new Set(),
   notesTableName: null,
   incomeChartVisible: false,
+  incomeComparisonChartVisible: false,
   incomeChartHiddenRubrics: new Set(),
   incomeChartSelectedRubricKey: null,
   incomeDrilldownHiddenExpenses: new Set(),
   outcomeChartVisible: false,
+  outcomeComparisonChartVisible: false,
   outcomeChartHiddenRubrics: new Set(),
   outcomeChartSelectedRubricKey: null,
   outcomeDrilldownHiddenExpenses: new Set()
@@ -557,20 +559,38 @@ function buildPanel(title, kind, rubrics) {
   const bodyId = `${panelId}-body`;
   const showChartAction = kind === "outcome" || kind === "income";
   const isOutcome = kind === "outcome";
-  const chartVisible = isOutcome ? cgdState.outcomeChartVisible : cgdState.incomeChartVisible;
-  const chartToggleAttr = isOutcome ? "data-outcome-chart-toggle-visibility" : "data-income-chart-toggle-visibility";
+  const lineChartVisible = isOutcome ? cgdState.outcomeChartVisible : cgdState.incomeChartVisible;
+  const comparisonChartVisible = isOutcome ? cgdState.outcomeComparisonChartVisible : cgdState.incomeComparisonChartVisible;
+  const lineChartToggleAttr = isOutcome ? "data-outcome-chart-toggle-visibility" : "data-income-chart-toggle-visibility";
+  const comparisonChartToggleAttr = isOutcome
+    ? "data-outcome-comparison-chart-toggle-visibility"
+    : "data-income-comparison-chart-toggle-visibility";
   const chartAction = showChartAction
     ? `<div class='panel-head-actions'>
         <button
           type='button'
-          class='panel-chart-toggle ${chartVisible ? "is-active" : ""}'
-          ${chartToggleAttr}
-          aria-pressed='${chartVisible ? "true" : "false"}'
-          aria-label='${chartVisible ? "Fechar grafico" : "Abrir grafico"}'
-          title='${chartVisible ? "Fechar grafico" : "Abrir grafico"}'
+          class='panel-chart-toggle ${lineChartVisible ? "is-active" : ""}'
+          ${lineChartToggleAttr}
+          aria-pressed='${lineChartVisible ? "true" : "false"}'
+          aria-label='${lineChartVisible ? "Fechar grafico" : "Abrir grafico"}'
+          title='${lineChartVisible ? "Fechar grafico" : "Abrir grafico"}'
         >
           <svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden='true'>
             <path d='M4 18V15M9.5 18V10M15 18V6M20 18V12' stroke='currentColor' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'/>
+          </svg>
+        </button>
+        <button
+          type='button'
+          class='panel-chart-toggle ${comparisonChartVisible ? "is-active" : ""}'
+          ${comparisonChartToggleAttr}
+          aria-pressed='${comparisonChartVisible ? "true" : "false"}'
+          aria-label='${comparisonChartVisible ? "Fechar grafico comparativo" : "Abrir grafico comparativo"}'
+          title='${comparisonChartVisible ? "Fechar grafico comparativo" : "Abrir grafico comparativo"}'
+        >
+          <svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden='true'>
+            <path d='M4 17.5H20' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'/>
+            <path d='M4 15.5C6.2 13 8 10.5 10.6 9.8C12.8 9.2 14.6 10.6 16.4 11.1C17.7 11.4 18.9 10.9 20 9.3' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/>
+            <path d='M4 11.8C6.1 10.7 7.8 9.4 9.8 7.4C12 5.2 14.2 5.4 16 7.3C17 8.3 18.3 8.9 20 8.6' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/>
           </svg>
         </button>
       </div>`
@@ -1440,13 +1460,212 @@ function renderPanels() {
     <section class='outcome-evolution-card income-evolution-card'>
       <div class='outcome-evolution' id='income-evolution-chart' aria-live='polite'></div>
     </section>
+    <section class='outcome-evolution-card income-comparison-card'>
+      <div class='outcome-evolution' id='income-comparison-chart' aria-live='polite'></div>
+    </section>
     ${buildPanel("Outcome", "outcome", cgdState.data.outcome)}
   `;
 
   restoreCollapseState(collapseState);
 
   renderIncomeEvolutionChart();
+  renderIncomeComparisonChart();
   renderOutcomeEvolutionChart();
+  renderOutcomeComparisonChart();
+}
+
+function buildComparisonSeriesForKind(kind) {
+  const sourceRubrics = kind === "income" ? cgdState.data?.income : cgdState.data?.outcome;
+  const rubrics = Array.isArray(sourceRubrics) ? sourceRubrics : [];
+  const valueTotals = emptyValues();
+  const estimatedTotals = emptyValues();
+
+  rubrics.forEach((rubric) => {
+    const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
+    expenses.forEach((expense) => {
+      months.forEach((_, monthIndex) => {
+        const monthData = expense?.monthData?.[monthIndex] || {};
+        const rawValor = Number(monthData.valor);
+        const rawEstimado = Number(monthData.valorEstimado);
+        valueTotals[monthIndex] += Number.isFinite(rawValor) ? rawValor : 0;
+        estimatedTotals[monthIndex] += Number.isFinite(rawEstimado) ? rawEstimado : 0;
+      });
+    });
+  });
+
+  return [
+    { key: "valor", name: "Valor", color: "#76c5ff", values: valueTotals },
+    { key: "estimado", name: "Valor estimado", color: "#f2c46a", values: estimatedTotals }
+  ];
+}
+
+function bindComparisonChartHover(host) {
+  if (!host) {
+    return;
+  }
+  bindOutcomeChartHover(host);
+}
+
+function bindComparisonChartInteractions(host, kind) {
+  if (!host || host.dataset.comparisonChartBound === "1") {
+    return;
+  }
+
+  host.dataset.comparisonChartBound = "1";
+  host.addEventListener("click", (event) => {
+    const closeBtn = event.target.closest("[data-income-comparison-chart-close-main], [data-outcome-comparison-chart-close-main]");
+    if (!closeBtn) {
+      return;
+    }
+
+    if (kind === "income") {
+      cgdState.incomeComparisonChartVisible = false;
+    } else {
+      cgdState.outcomeComparisonChartVisible = false;
+    }
+
+    renderPanels();
+    document.dispatchEvent(new Event("cgd:rendered"));
+  });
+}
+
+function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
+  const host = document.getElementById(hostId);
+  if (!host) {
+    return;
+  }
+
+  const chartCard = host.closest(".outcome-evolution-card");
+  if (!isVisible) {
+    if (chartCard) {
+      chartCard.classList.add("outcome-evolution-card-hidden");
+    }
+    host.innerHTML = "";
+    return;
+  }
+
+  if (chartCard) {
+    chartCard.classList.remove("outcome-evolution-card-hidden");
+  }
+
+  bindComparisonChartInteractions(host, kind);
+
+  const series = buildComparisonSeriesForKind(kind);
+  const hasData = series.some((entry) => entry.values.some((value) => Number(value) !== 0));
+  if (!hasData) {
+    host.innerHTML = `
+      <div class='outcome-drilldown-toolbar'>
+        <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
+      </div>
+      <p class='outcome-evolution-empty'>Ainda nao existem valores para comparar valor e valor estimado.</p>
+    `;
+    return;
+  }
+
+  const chartWidth = 980;
+  const chartHeight = 320;
+  const padding = { top: 20, right: 18, bottom: 38, left: 54 };
+  const plotWidth = chartWidth - padding.left - padding.right;
+  const plotHeight = chartHeight - padding.top - padding.bottom;
+  const monthStep = plotWidth / (months.length - 1);
+  const plotBottom = padding.top + plotHeight;
+
+  const maxValue = Math.max(...series.flatMap((entry) => entry.values));
+  const yMax = maxValue > 0 ? maxValue : 1;
+
+  const xFor = (monthIndex) => padding.left + monthIndex * monthStep;
+  const yFor = (value) => padding.top + plotHeight - (value / yMax) * plotHeight;
+
+  const horizontalGridCount = 12;
+  const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
+    const ratio = index / horizontalGridCount;
+    const y = padding.top + plotHeight - ratio * plotHeight;
+    const labelValue = yMax * ratio;
+    return `
+      <line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.18)' stroke-width='0.7' />
+      <text x='${padding.left - 8}' y='${y + 4}' text-anchor='end' fill='rgba(197,220,231,0.82)' font-size='9'>${labelValue.toFixed(0)}</text>
+    `;
+  }).join("");
+
+  const monthLabels = months
+    .map((month, monthIndex) => {
+      const x = xFor(monthIndex);
+      return `<text x='${x}' y='${chartHeight - 12}' text-anchor='middle' fill='rgba(197,220,231,0.9)' font-size='10'>${escapeHtml(month)}</text>`;
+    })
+    .join("");
+
+  const monthGridLines = months
+    .map((_, monthIndex) => {
+      const x = xFor(monthIndex);
+      return `<line x1='${x}' y1='${padding.top}' x2='${x}' y2='${padding.top + plotHeight}' stroke='rgba(176,210,226,0.12)' stroke-width='1' />`;
+    })
+    .join("");
+
+  const lines = series
+    .map((entry) => {
+      const points = entry.values.map((value, monthIndex) => ({ x: xFor(monthIndex), y: yFor(value), value, monthIndex }));
+      const pathData = buildSmoothPathData(points);
+      const areaPath = `${pathData} L ${points[points.length - 1].x.toFixed(2)} ${plotBottom.toFixed(2)} L ${points[0].x.toFixed(2)} ${plotBottom.toFixed(2)} Z`;
+      const pointsMarkup = entry.values
+        .map((value, monthIndex) => {
+          const cx = xFor(monthIndex);
+          const cy = yFor(value);
+          return `<circle class='outcome-evolution-point' cx='${cx.toFixed(2)}' cy='${cy.toFixed(2)}' r='2.8' fill='${entry.color}' tabindex='0' data-series-name='${escapeHtml(entry.name)}' data-month-name='${escapeHtml(months[monthIndex])}' data-value='${Number(value).toFixed(2)}' data-series-color='${entry.color}'></circle>`;
+        })
+        .join("");
+      return `
+        <g class='outcome-evolution-series'>
+          <path d='${areaPath}' class='outcome-evolution-area' fill='${entry.color}' fill-opacity='0.08' />
+          <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round' />
+          ${pointsMarkup}
+        </g>
+      `;
+    })
+    .join("");
+
+  const legend = series
+    .map((entry) => `<span class='outcome-evolution-legend-item is-active'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</span>`)
+    .join("");
+
+  const chartLabel = kind === "income"
+    ? "Grafico comparativo mensal de valor e valor estimado do income"
+    : "Grafico comparativo mensal de valor e valor estimado do outcome";
+
+  host.innerHTML = `
+    <div class='outcome-drilldown-toolbar'>
+      <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
+    </div>
+    <div class='outcome-evolution-top-series'>${legend}</div>
+    <div class='outcome-evolution-svg-wrap'>
+      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${chartLabel}'>
+        ${gridLines}
+        ${monthGridLines}
+        ${lines}
+        ${monthLabels}
+      </svg>
+      <div class='outcome-evolution-tooltip' aria-hidden='true'></div>
+    </div>
+  `;
+
+  bindComparisonChartHover(host);
+}
+
+function renderIncomeComparisonChart() {
+  renderComparisonChart({
+    hostId: "income-comparison-chart",
+    kind: "income",
+    isVisible: cgdState.incomeComparisonChartVisible,
+    closeAttr: "data-income-comparison-chart-close-main"
+  });
+}
+
+function renderOutcomeComparisonChart() {
+  renderComparisonChart({
+    hostId: "outcome-comparison-chart",
+    kind: "outcome",
+    isVisible: cgdState.outcomeComparisonChartVisible,
+    closeAttr: "data-outcome-comparison-chart-close-main"
+  });
 }
 
 window.cgdToggleIncomeChart = () => {
@@ -1468,6 +1687,21 @@ window.cgdToggleIncomeChart = () => {
   return cgdState.incomeChartVisible;
 };
 
+window.cgdToggleIncomeComparisonChart = () => {
+  cgdState.incomeComparisonChartVisible = !cgdState.incomeComparisonChartVisible;
+  renderPanels();
+  document.dispatchEvent(new Event("cgd:rendered"));
+
+  if (cgdState.incomeComparisonChartVisible) {
+    requestAnimationFrame(() => {
+      const chartCard = document.querySelector(".income-comparison-card");
+      ensureChartBottomVisible(chartCard);
+    });
+  }
+
+  return cgdState.incomeComparisonChartVisible;
+};
+
 window.cgdToggleOutcomeChart = () => {
   cgdState.outcomeChartVisible = !cgdState.outcomeChartVisible;
   if (!cgdState.outcomeChartVisible) {
@@ -1485,6 +1719,21 @@ window.cgdToggleOutcomeChart = () => {
   }
 
   return cgdState.outcomeChartVisible;
+};
+
+window.cgdToggleOutcomeComparisonChart = () => {
+  cgdState.outcomeComparisonChartVisible = !cgdState.outcomeComparisonChartVisible;
+  renderPanels();
+  document.dispatchEvent(new Event("cgd:rendered"));
+
+  if (cgdState.outcomeComparisonChartVisible) {
+    requestAnimationFrame(() => {
+      const chartCard = document.querySelector(".outcome-comparison-card");
+      ensureChartBottomVisible(chartCard);
+    });
+  }
+
+  return cgdState.outcomeComparisonChartVisible;
 };
 
 async function loadYearData(year) {
