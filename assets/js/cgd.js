@@ -603,6 +603,75 @@ function buildSmoothPathData(points) {
   return path;
 }
 
+function positionOutcomeChartTooltip(tooltip, wrap, event) {
+  const wrapRect = wrap.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const margin = 10;
+  let left = event.clientX - wrapRect.left + 12;
+  let top = event.clientY - wrapRect.top - tooltipRect.height - 12;
+
+  if (left + tooltipRect.width > wrapRect.width - margin) {
+    left = wrapRect.width - tooltipRect.width - margin;
+  }
+  if (left < margin) {
+    left = margin;
+  }
+
+  if (top < margin) {
+    top = event.clientY - wrapRect.top + 14;
+  }
+  if (top + tooltipRect.height > wrapRect.height - margin) {
+    top = wrapRect.height - tooltipRect.height - margin;
+  }
+
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
+}
+
+function bindOutcomeChartHover(host) {
+  if (!host) {
+    return;
+  }
+
+  host.querySelectorAll(".outcome-evolution-svg-wrap").forEach((wrap) => {
+    const tooltip = wrap.querySelector(".outcome-evolution-tooltip");
+    if (!tooltip) {
+      return;
+    }
+
+    const hideTooltip = () => {
+      tooltip.classList.remove("is-visible");
+    };
+
+    wrap.addEventListener("pointerleave", hideTooltip);
+
+    wrap.querySelectorAll(".outcome-evolution-point").forEach((point) => {
+      const showTooltip = (event) => {
+        const monthName = point.getAttribute("data-month-name") || "";
+        const seriesName = point.getAttribute("data-series-name") || "";
+        const value = point.getAttribute("data-value") || "0.00";
+        const color = point.getAttribute("data-series-color") || "#b8ced9";
+
+        tooltip.innerHTML = `
+          <div class='outcome-evolution-tooltip-month'>${escapeHtml(monthName)}</div>
+          <div class='outcome-evolution-tooltip-row'>
+            <span class='outcome-evolution-tooltip-dot' style='background:${escapeHtml(color)};'></span>
+            <span class='outcome-evolution-tooltip-series'>${escapeHtml(seriesName)}</span>
+            <strong class='outcome-evolution-tooltip-value'>${escapeHtml(value)}</strong>
+          </div>
+        `;
+        tooltip.classList.add("is-visible");
+        positionOutcomeChartTooltip(tooltip, wrap, event);
+      };
+
+      point.addEventListener("pointerenter", showTooltip);
+      point.addEventListener("pointermove", showTooltip);
+      point.addEventListener("focus", (event) => showTooltip(event));
+      point.addEventListener("blur", hideTooltip);
+    });
+  });
+}
+
 function buildOutcomeRubricSeries() {
   const palette = ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"];
   const sourceRubrics = Array.isArray(cgdState.data?.outcome) ? cgdState.data.outcome : [];
@@ -707,7 +776,11 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
   const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
     const ratio = index / horizontalGridCount;
     const y = padding.top + plotHeight - ratio * plotHeight;
-    return `<line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.16)' stroke-width='0.7' />`;
+    const labelValue = yMax * ratio;
+    return `
+      <line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.16)' stroke-width='0.7' />
+      <text x='${padding.left - 8}' y='${y + 4}' text-anchor='end' fill='rgba(197,220,231,0.8)' font-size='9'>${labelValue.toFixed(0)}</text>
+    `;
   }).join("");
 
   const monthLabels = months
@@ -733,7 +806,7 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
         .map((value, monthIndex) => {
           const cx = xFor(monthIndex);
           const cy = yFor(value);
-          return `<circle cx='${cx.toFixed(2)}' cy='${cy.toFixed(2)}' r='2.4' fill='${entry.color}'><title>${escapeHtml(entry.name)} - ${months[monthIndex]}: ${value.toFixed(2)}</title></circle>`;
+          return `<circle class='outcome-evolution-point' cx='${cx.toFixed(2)}' cy='${cy.toFixed(2)}' r='2.4' fill='${entry.color}' tabindex='0' data-series-name='${escapeHtml(entry.name)}' data-month-name='${escapeHtml(months[monthIndex])}' data-value='${value.toFixed(2)}' data-series-color='${entry.color}'></circle>`;
         })
         .join("");
       return `
@@ -757,6 +830,7 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
           ${lines}
           ${monthLabels}
         </svg>
+        <div class='outcome-evolution-tooltip' aria-hidden='true'></div>
       </div>
     </div>
   `;
@@ -916,7 +990,11 @@ function renderOutcomeEvolutionChart() {
   const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
     const ratio = index / horizontalGridCount;
     const y = padding.top + plotHeight - ratio * plotHeight;
-    return `<line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.18)' stroke-width='0.7' />`;
+    const labelValue = yMax * ratio;
+    return `
+      <line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.18)' stroke-width='0.7' />
+      <text x='${padding.left - 8}' y='${y + 4}' text-anchor='end' fill='rgba(197,220,231,0.82)' font-size='9'>${labelValue.toFixed(0)}</text>
+    `;
   }).join("");
 
   const monthLabels = months
@@ -944,7 +1022,7 @@ function renderOutcomeEvolutionChart() {
         .map((value, monthIndex) => {
           const cx = xFor(monthIndex);
           const cy = yFor(value);
-          return `<circle cx='${cx.toFixed(2)}' cy='${cy.toFixed(2)}' r='2.8' fill='${entry.color}'><title>${escapeHtml(entry.name)} - ${months[monthIndex]}: ${value.toFixed(2)}</title></circle>`;
+          return `<circle class='outcome-evolution-point' cx='${cx.toFixed(2)}' cy='${cy.toFixed(2)}' r='2.8' fill='${entry.color}' tabindex='0' data-series-name='${escapeHtml(entry.name)}' data-month-name='${escapeHtml(months[monthIndex])}' data-value='${value.toFixed(2)}' data-series-color='${entry.color}'></circle>`;
         })
         .join("");
       return `
@@ -968,9 +1046,12 @@ function renderOutcomeEvolutionChart() {
         ${lines}
         ${monthLabels}
       </svg>
+      <div class='outcome-evolution-tooltip' aria-hidden='true'></div>
     </div>
     ${drilldownMarkup}
   `;
+
+  bindOutcomeChartHover(host);
 }
 
 function renderPanels() {

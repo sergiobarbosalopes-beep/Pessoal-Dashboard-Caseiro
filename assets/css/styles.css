@@ -676,8 +676,10 @@ a {
 }
 
 .outcome-evolution-svg-wrap {
+  position: relative;
   width: 100%;
   overflow-x: auto;
+  overflow-y: visible;
 }
 
 .outcome-evolution-svg {
@@ -689,6 +691,69 @@ a {
 
 .outcome-evolution-line {
   filter: drop-shadow(0 0 7px rgba(9, 30, 40, 0.48));
+}
+
+.outcome-evolution-point {
+  cursor: pointer;
+  transition: r 140ms ease;
+}
+
+.outcome-evolution-point:hover,
+.outcome-evolution-point:focus {
+  r: 3.6;
+}
+
+.outcome-evolution-tooltip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 8;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(2px);
+  transition: opacity 100ms ease, transform 100ms ease;
+  min-width: 130px;
+  max-width: 220px;
+  border: 1px solid rgba(176, 210, 226, 0.34);
+  border-radius: 10px;
+  background: rgba(8, 20, 28, 0.96);
+  color: #d8e8f2;
+  padding: 8px 9px;
+  box-shadow: 0 10px 24px rgba(5, 12, 17, 0.36);
+}
+
+.outcome-evolution-tooltip.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.outcome-evolution-tooltip-month {
+  font-size: 0.7rem;
+  color: #9fc1d2;
+  margin-bottom: 4px;
+}
+
+.outcome-evolution-tooltip-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.outcome-evolution-tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.outcome-evolution-tooltip-series {
+  font-size: 0.73rem;
+  color: #cddfea;
+}
+
+.outcome-evolution-tooltip-value {
+  font-size: 0.74rem;
+  color: #f0f8fc;
 }
 
 .outcome-evolution-series {
