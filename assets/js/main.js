@@ -553,6 +553,15 @@ function initDelegatedActions() {
       return;
     }
 
+    const outcomeChartToggle = event.target.closest("[data-outcome-chart-toggle-visibility]");
+    if (outcomeChartToggle) {
+      if (window.cgdToggleOutcomeChart) {
+        window.cgdToggleOutcomeChart();
+      }
+      closeAllMenus();
+      return;
+    }
+
     const menuToggle = event.target.closest("[data-rubric-menu-toggle]");
     if (menuToggle) {
       const descCell = menuToggle.closest(".rubric-desc-cell");

@@ -11,6 +11,7 @@ const cgdState = {
   data: fallbackMock,
   expenseColumns: new Set(),
   notesTableName: null,
+  outcomeChartVisible: false,
   outcomeChartHiddenRubrics: new Set(),
   outcomeChartSelectedRubricKey: null,
   outcomeDrilldownHiddenExpenses: new Set()
@@ -550,6 +551,23 @@ function renderRubrics(rubrics, kind) {
 function buildPanel(title, kind, rubrics) {
   const panelId = `panel-${kind}`;
   const bodyId = `${panelId}-body`;
+  const showChartAction = kind === "outcome";
+  const chartAction = showChartAction
+    ? `<div class='panel-head-actions'>
+        <button
+          type='button'
+          class='panel-chart-toggle ${cgdState.outcomeChartVisible ? "is-active" : ""}'
+          data-outcome-chart-toggle-visibility
+          aria-pressed='${cgdState.outcomeChartVisible ? "true" : "false"}'
+          aria-label='${cgdState.outcomeChartVisible ? "Fechar grafico" : "Abrir grafico"}'
+          title='${cgdState.outcomeChartVisible ? "Fechar grafico" : "Abrir grafico"}'
+        >
+          <svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden='true'>
+            <path d='M4 18V15M9.5 18V10M15 18V6M20 18V12' stroke='currentColor' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'/>
+          </svg>
+        </button>
+      </div>`
+    : "";
   return `
   <section class='panel ${kind}' data-panel-block data-panel-kind='${kind}'>
     <header class='panel-head'>
@@ -562,6 +580,7 @@ function buildPanel(title, kind, rubrics) {
           </div>
         </div>
       </div>
+      ${chartAction}
     </header>
     <div class='panel-body' id='${bodyId}'>
       ${renderRubrics(rubrics, kind)}
@@ -843,6 +862,15 @@ function bindOutcomeChartInteractions(host) {
 
   host.dataset.chartBound = "1";
   host.addEventListener("click", (event) => {
+    const closeMainChartBtn = event.target.closest("[data-outcome-chart-close-main]");
+    if (closeMainChartBtn) {
+      cgdState.outcomeChartVisible = false;
+      cgdState.outcomeChartSelectedRubricKey = null;
+      cgdState.outcomeChartHiddenRubrics.clear();
+      renderPanels();
+      return;
+    }
+
     const closeDrilldownBtn = event.target.closest("[data-outcome-chart-close-drilldown]");
     if (closeDrilldownBtn) {
       cgdState.outcomeChartSelectedRubricKey = null;
@@ -942,6 +970,19 @@ function renderOutcomeEvolutionChart() {
     return;
   }
 
+  const chartCard = host.closest(".outcome-evolution-card");
+  if (!cgdState.outcomeChartVisible) {
+    if (chartCard) {
+      chartCard.classList.add("outcome-evolution-card-hidden");
+    }
+    host.innerHTML = "";
+    return;
+  }
+
+  if (chartCard) {
+    chartCard.classList.remove("outcome-evolution-card-hidden");
+  }
+
   bindOutcomeChartInteractions(host);
 
   const series = buildOutcomeRubricSeries();
@@ -1038,6 +1079,9 @@ function renderOutcomeEvolutionChart() {
   const drilldownMarkup = buildOutcomeExpenseDrilldownMarkup(selectedRubric);
 
   host.innerHTML = `
+    <div class='outcome-drilldown-toolbar'>
+      <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-main>Fechar</button>
+    </div>
     <div class='outcome-evolution-top-series'>${legend}</div>
     <div class='outcome-evolution-svg-wrap'>
       <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='Grafico de linhas com evolucao das rubricas de outcome'>
@@ -1067,6 +1111,16 @@ function renderPanels() {
 
   renderOutcomeEvolutionChart();
 }
+
+window.cgdToggleOutcomeChart = () => {
+  cgdState.outcomeChartVisible = !cgdState.outcomeChartVisible;
+  if (!cgdState.outcomeChartVisible) {
+    cgdState.outcomeChartSelectedRubricKey = null;
+    cgdState.outcomeChartHiddenRubrics.clear();
+  }
+  renderPanels();
+  return cgdState.outcomeChartVisible;
+};
 
 async function loadYearData(year) {
   cgdState.selectedYear = year;
