@@ -567,6 +567,116 @@ function buildPanel(title, kind, rubrics) {
   `;
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderOutcomeEvolutionChart() {
+  const host = document.getElementById("outcome-evolution-chart");
+  if (!host) {
+    return;
+  }
+
+  const sourceRubrics = Array.isArray(cgdState.data?.outcome) ? cgdState.data.outcome : [];
+  const series = sourceRubrics
+    .map((rubric, index) => ({
+      index,
+      name: rubric?.name || `Rubrica ${index + 1}`,
+      values: months.map((_, monthIndex) => {
+        const numeric = Number(rubric?.values?.[monthIndex]);
+        return Number.isFinite(numeric) ? numeric : 0;
+      })
+    }))
+    .filter((entry) => entry.values.some((value) => value !== 0));
+
+  if (!series.length) {
+    host.innerHTML = `
+      <div class='outcome-evolution-head'>
+        <h3>Evolucao Temporal das Rubricas (Outcome)</h3>
+      </div>
+      <p class='outcome-evolution-empty'>Ainda nao existem valores totalizadores para desenhar a evolucao anual.</p>
+    `;
+    return;
+  }
+
+  const colors = ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"];
+  const chartWidth = 980;
+  const chartHeight = 320;
+  const padding = { top: 20, right: 18, bottom: 38, left: 54 };
+  const plotWidth = chartWidth - padding.left - padding.right;
+  const plotHeight = chartHeight - padding.top - padding.bottom;
+  const monthStep = plotWidth / (months.length - 1);
+
+  const maxValue = Math.max(...series.flatMap((entry) => entry.values));
+  const yMax = maxValue > 0 ? maxValue : 1;
+
+  const xFor = (monthIndex) => padding.left + monthIndex * monthStep;
+  const yFor = (value) => padding.top + plotHeight - (value / yMax) * plotHeight;
+
+  const horizontalGridCount = 4;
+  const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
+    const ratio = index / horizontalGridCount;
+    const y = padding.top + plotHeight - ratio * plotHeight;
+    const labelValue = yMax * ratio;
+    return `
+      <line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.18)' stroke-width='1' />
+      <text x='${padding.left - 8}' y='${y + 4}' text-anchor='end' fill='rgba(197,220,231,0.9)' font-size='10'>${labelValue.toFixed(0)}</text>
+    `;
+  }).join("");
+
+  const monthLabels = months
+    .map((month, monthIndex) => {
+      const x = xFor(monthIndex);
+      return `<text x='${x}' y='${chartHeight - 12}' text-anchor='middle' fill='rgba(197,220,231,0.9)' font-size='10'>${escapeHtml(month)}</text>`;
+    })
+    .join("");
+
+  const lines = series
+    .map((entry, seriesIndex) => {
+      const color = colors[seriesIndex % colors.length];
+      const points = entry.values.map((value, monthIndex) => `${xFor(monthIndex)},${yFor(value)}`).join(" ");
+      const pointsMarkup = entry.values
+        .map((value, monthIndex) => {
+          const cx = xFor(monthIndex);
+          const cy = yFor(value);
+          return `<circle cx='${cx}' cy='${cy}' r='2.8' fill='${color}'><title>${escapeHtml(entry.name)} - ${months[monthIndex]}: ${value.toFixed(2)}</title></circle>`;
+        })
+        .join("");
+      return `
+        <polyline points='${points}' fill='none' stroke='${color}' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' />
+        ${pointsMarkup}
+      `;
+    })
+    .join("");
+
+  const legend = series
+    .map((entry, seriesIndex) => {
+      const color = colors[seriesIndex % colors.length];
+      return `<span class='outcome-evolution-legend-item'><span class='outcome-evolution-legend-dot' style='background:${color};'></span>${escapeHtml(entry.name)}</span>`;
+    })
+    .join("");
+
+  host.innerHTML = `
+    <div class='outcome-evolution-head'>
+      <h3>Evolucao Temporal das Rubricas (Outcome)</h3>
+      <p>Totalizadores por mes - Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
+    </div>
+    <div class='outcome-evolution-svg-wrap'>
+      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='Grafico de linhas com evolucao das rubricas de outcome'>
+        ${gridLines}
+        ${lines}
+        ${monthLabels}
+      </svg>
+    </div>
+    <div class='outcome-evolution-legend'>${legend}</div>
+  `;
+}
+
 function renderPanels() {
   const panels = document.getElementById("cgd-panels");
   if (!panels) {
@@ -577,6 +687,8 @@ function renderPanels() {
     ${buildPanel("Income", "income", cgdState.data.income)}
     ${buildPanel("Outcome", "outcome", cgdState.data.outcome)}
   `;
+
+  renderOutcomeEvolutionChart();
 }
 
 async function loadYearData(year) {
