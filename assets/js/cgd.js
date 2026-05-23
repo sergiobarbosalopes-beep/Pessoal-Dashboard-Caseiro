@@ -684,7 +684,7 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
           <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-drilldown>Fechar</button>
         </div>
         <p class='outcome-evolution-empty'>Nenhuma despesa selecionada. Clica na legenda para voltar a mostrar.</p>
-        <div class='outcome-evolution-legend'>${expenseLegend}</div>
+        <div class='outcome-evolution-top-series'>${expenseLegend}</div>
       </div>
     `;
   }
@@ -728,12 +728,6 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
     })
     .join("");
 
-  const valueIndex = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
-    const ratio = index / horizontalGridCount;
-    const labelValue = yMax * (1 - ratio);
-    return `<span>${labelValue.toFixed(0)}</span>`;
-  }).join("<span class='sep'>|</span>");
-
   const lines = visibleExpenseSeries
     .map((entry) => {
       const points = entry.values.map((value, monthIndex) => ({ x: xFor(monthIndex), y: yFor(value) }));
@@ -760,7 +754,6 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
         <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-drilldown>Fechar</button>
       </div>
       <div class='outcome-evolution-top-series'>${expenseLegend}</div>
-      <div class='outcome-evolution-scale'>Indice: ${valueIndex}</div>
       <div class='outcome-evolution-svg-wrap'>
         <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='Grafico de linhas com evolucao das despesas da rubrica selecionada'>
           ${gridLines}
@@ -932,12 +925,6 @@ function renderOutcomeEvolutionChart() {
     })
     .join("");
 
-  const valueIndex = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
-    const ratio = index / horizontalGridCount;
-    const labelValue = yMax * (1 - ratio);
-    return `<span>${labelValue.toFixed(0)}</span>`;
-  }).join("<span class='sep'>|</span>");
-
   const lines = visibleSeries
     .map((entry) => {
       const isSelected = entry.key === cgdState.outcomeChartSelectedRubricKey;
@@ -965,7 +952,7 @@ function renderOutcomeEvolutionChart() {
   const drilldownMarkup = buildOutcomeExpenseDrilldownMarkup(selectedRubric);
 
   host.innerHTML = `
-    <div class='outcome-evolution-scale'>Indice: ${valueIndex}</div>
+    <div class='outcome-evolution-top-series'>${legend}</div>
     <div class='outcome-evolution-svg-wrap'>
       <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='Grafico de linhas com evolucao das rubricas de outcome'>
         ${gridLines}
@@ -974,7 +961,6 @@ function renderOutcomeEvolutionChart() {
         ${monthLabels}
       </svg>
     </div>
-    <div class='outcome-evolution-legend'>${legend}</div>
     ${drilldownMarkup}
   `;
 }
