@@ -11,6 +11,10 @@ const cgdState = {
   data: fallbackMock,
   expenseColumns: new Set(),
   notesTableName: null,
+  incomeChartVisible: false,
+  incomeChartHiddenRubrics: new Set(),
+  incomeChartSelectedRubricKey: null,
+  incomeDrilldownHiddenExpenses: new Set(),
   outcomeChartVisible: false,
   outcomeChartHiddenRubrics: new Set(),
   outcomeChartSelectedRubricKey: null,
@@ -551,16 +555,19 @@ function renderRubrics(rubrics, kind) {
 function buildPanel(title, kind, rubrics) {
   const panelId = `panel-${kind}`;
   const bodyId = `${panelId}-body`;
-  const showChartAction = kind === "outcome";
+  const showChartAction = kind === "outcome" || kind === "income";
+  const isOutcome = kind === "outcome";
+  const chartVisible = isOutcome ? cgdState.outcomeChartVisible : cgdState.incomeChartVisible;
+  const chartToggleAttr = isOutcome ? "data-outcome-chart-toggle-visibility" : "data-income-chart-toggle-visibility";
   const chartAction = showChartAction
     ? `<div class='panel-head-actions'>
         <button
           type='button'
-          class='panel-chart-toggle ${cgdState.outcomeChartVisible ? "is-active" : ""}'
-          data-outcome-chart-toggle-visibility
-          aria-pressed='${cgdState.outcomeChartVisible ? "true" : "false"}'
-          aria-label='${cgdState.outcomeChartVisible ? "Fechar grafico" : "Abrir grafico"}'
-          title='${cgdState.outcomeChartVisible ? "Fechar grafico" : "Abrir grafico"}'
+          class='panel-chart-toggle ${chartVisible ? "is-active" : ""}'
+          ${chartToggleAttr}
+          aria-pressed='${chartVisible ? "true" : "false"}'
+          aria-label='${chartVisible ? "Fechar grafico" : "Abrir grafico"}'
+          title='${chartVisible ? "Fechar grafico" : "Abrir grafico"}'
         >
           <svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden='true'>
             <path d='M4 18V15M9.5 18V10M15 18V6M20 18V12' stroke='currentColor' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'/>
@@ -724,6 +731,39 @@ function buildOutcomeRubricSeries() {
     .filter((entry) => entry.values.some((value) => value !== 0));
 }
 
+function buildIncomeRubricSeries() {
+  const palette = ["#6ecf9a", "#7cc4ff", "#9ed86b", "#58d2c3", "#8bcf7a", "#5fb3de", "#9edfb7", "#71d0ff", "#77c87f", "#79bdf0"];
+  const sourceRubrics = Array.isArray(cgdState.data?.income) ? cgdState.data.income : [];
+
+  return sourceRubrics
+    .map((rubric, index) => {
+      const rawId = rubric?.id;
+      const key = Number.isFinite(Number(rawId)) ? `id-${Number(rawId)}` : `idx-${index}`;
+      const values = months.map((_, monthIndex) => {
+        const numeric = Number(rubric?.values?.[monthIndex]);
+        return Number.isFinite(numeric) ? numeric : 0;
+      });
+      const expenses = Array.isArray(rubric?.expenses)
+        ? rubric.expenses.map((expense, expenseIndex) => ({
+            key: `expense-${index}-${expenseIndex}-${Number(expense?.id) || 0}`,
+            name: expense?.name || `Despesa ${expenseIndex + 1}`,
+            values: months.map((_, monthIndex) => {
+              const numeric = Number(expense?.values?.[monthIndex]);
+              return Number.isFinite(numeric) ? numeric : 0;
+            })
+          }))
+        : [];
+      return {
+        key,
+        name: rubric?.name || `Rubrica ${index + 1}`,
+        values,
+        color: palette[index % palette.length],
+        expenses
+      };
+    })
+    .filter((entry) => entry.values.some((value) => value !== 0));
+}
+
 function buildOutcomeExpenseSeriesForRubric(rubric) {
   if (!rubric) {
     return [];
@@ -741,6 +781,303 @@ function buildOutcomeExpenseSeriesForRubric(rubric) {
       color: palette[index % palette.length]
     }))
     .filter((entry) => entry.values.some((value) => value !== 0));
+}
+
+function buildIncomeExpenseSeriesForRubric(rubric) {
+  if (!rubric) {
+    return [];
+  }
+
+  const palette = ["#8fdcb3", "#8bc8f5", "#9fdc88", "#7fded2", "#95d889", "#79bfe3", "#abdcc6", "#8fd7ff", "#8bcf96", "#93c4eb"];
+  return (rubric.expenses || [])
+    .map((expense, index) => ({
+      key: expense.key || `expense-${index}`,
+      name: expense.name || `Despesa ${index + 1}`,
+      values: months.map((_, monthIndex) => {
+        const numeric = Number(expense.values?.[monthIndex]);
+        return Number.isFinite(numeric) ? numeric : 0;
+      }),
+      color: palette[index % palette.length]
+    }))
+    .filter((entry) => entry.values.some((value) => value !== 0));
+}
+
+function bindIncomeChartInteractions(host) {
+  if (!host || host.dataset.chartBoundIncome === "1") {
+    return;
+  }
+
+  host.dataset.chartBoundIncome = "1";
+  host.addEventListener("click", (event) => {
+    const closeMainChartBtn = event.target.closest("[data-income-chart-close-main]");
+    if (closeMainChartBtn) {
+      cgdState.incomeChartVisible = false;
+      cgdState.incomeChartSelectedRubricKey = null;
+      cgdState.incomeChartHiddenRubrics.clear();
+      renderPanels();
+      return;
+    }
+
+    const drilldownToggle = event.target.closest("[data-income-drilldown-toggle]");
+    if (drilldownToggle) {
+      const expenseKey = String(drilldownToggle.getAttribute("data-income-drilldown-toggle") || "").trim();
+      const activeRubricKey = cgdState.incomeChartSelectedRubricKey || String(host.dataset.singleIncomeRubricKey || "").trim();
+      if (expenseKey) {
+        const stateKey = `${activeRubricKey}::${expenseKey}`;
+        if (cgdState.incomeDrilldownHiddenExpenses.has(stateKey)) {
+          cgdState.incomeDrilldownHiddenExpenses.delete(stateKey);
+        } else {
+          cgdState.incomeDrilldownHiddenExpenses.add(stateKey);
+        }
+        renderIncomeEvolutionChart();
+      }
+      return;
+    }
+
+    const drilldownTarget = event.target.closest("[data-income-chart-drilldown]");
+    if (drilldownTarget) {
+      const key = String(drilldownTarget.getAttribute("data-income-chart-drilldown") || "").trim();
+      const isSameSelectedRubric = cgdState.incomeChartSelectedRubricKey === key;
+
+      if (isSameSelectedRubric) {
+        cgdState.incomeChartSelectedRubricKey = null;
+        cgdState.incomeChartHiddenRubrics.clear();
+      } else {
+        cgdState.incomeChartSelectedRubricKey = key;
+        const allRubricKeys = buildIncomeRubricSeries().map((entry) => entry.key);
+        cgdState.incomeChartHiddenRubrics.clear();
+        allRubricKeys.forEach((rubricKey) => {
+          if (rubricKey !== key) {
+            cgdState.incomeChartHiddenRubrics.add(rubricKey);
+          }
+        });
+      }
+
+      renderIncomeEvolutionChart();
+      return;
+    }
+
+    const toggleBtn = event.target.closest("[data-income-chart-toggle]");
+    if (toggleBtn) {
+      const key = String(toggleBtn.getAttribute("data-income-chart-toggle") || "").trim();
+      if (key) {
+        if (cgdState.incomeChartHiddenRubrics.has(key)) {
+          cgdState.incomeChartHiddenRubrics.delete(key);
+        } else {
+          cgdState.incomeChartHiddenRubrics.add(key);
+          if (cgdState.incomeChartSelectedRubricKey === key) {
+            cgdState.incomeChartSelectedRubricKey = null;
+          }
+        }
+        renderIncomeEvolutionChart();
+      }
+      return;
+    }
+
+    const selectAllBtn = event.target.closest("[data-income-chart-select-all]");
+    if (selectAllBtn) {
+      cgdState.incomeChartHiddenRubrics.clear();
+      renderIncomeEvolutionChart();
+      return;
+    }
+
+    const deselectAllBtn = event.target.closest("[data-income-chart-deselect-all]");
+    if (deselectAllBtn) {
+      host.querySelectorAll("[data-income-chart-toggle]").forEach((item) => {
+        const key = String(item.getAttribute("data-income-chart-toggle") || "").trim();
+        if (key) {
+          cgdState.incomeChartHiddenRubrics.add(key);
+        }
+      });
+      cgdState.incomeChartSelectedRubricKey = null;
+      renderIncomeEvolutionChart();
+    }
+  });
+}
+
+function renderIncomeEvolutionChart() {
+  const host = document.getElementById("income-evolution-chart");
+  if (!host) {
+    return;
+  }
+
+  const chartCard = host.closest(".income-evolution-card");
+  if (!cgdState.incomeChartVisible) {
+    if (chartCard) {
+      chartCard.classList.add("outcome-evolution-card-hidden");
+    }
+    host.innerHTML = "";
+    return;
+  }
+
+  if (chartCard) {
+    chartCard.classList.remove("outcome-evolution-card-hidden");
+  }
+
+  bindIncomeChartInteractions(host);
+
+  const series = buildIncomeRubricSeries();
+  const visibleSeries = series.filter((entry) => !cgdState.incomeChartHiddenRubrics.has(entry.key));
+  const singleVisibleRubric = visibleSeries.length === 1 ? visibleSeries[0] : null;
+  host.dataset.singleIncomeRubricKey = singleVisibleRubric ? singleVisibleRubric.key : "";
+
+  const legend = series
+    .map((entry) => {
+      const isVisible = !cgdState.incomeChartHiddenRubrics.has(entry.key);
+      const stateClass = isVisible ? "is-active" : "is-inactive";
+      return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-income-chart-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisible ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</button>`;
+    })
+    .join("");
+
+  if (!series.length) {
+    host.innerHTML = `
+      <p class='outcome-evolution-empty'>Ainda nao existem valores totalizadores para desenhar a evolucao anual.</p>
+      <div class='outcome-evolution-legend'></div>
+    `;
+    return;
+  }
+
+  if (!visibleSeries.length) {
+    host.innerHTML = `
+      <p class='outcome-evolution-empty'>Nenhuma rubrica selecionada. Clica na legenda para voltar a mostrar.</p>
+      <div class='outcome-evolution-legend'>${legend}</div>
+    `;
+    return;
+  }
+
+  const isSingleRubricMode = Boolean(singleVisibleRubric);
+  const expenseSeries = isSingleRubricMode ? buildIncomeExpenseSeriesForRubric(singleVisibleRubric) : [];
+  const expenseStateKey = (expenseKey) => `${singleVisibleRubric.key}::${expenseKey}`;
+  const visibleExpenseSeries = isSingleRubricMode
+    ? expenseSeries.filter((entry) => !cgdState.incomeDrilldownHiddenExpenses.has(expenseStateKey(entry.key)))
+    : [];
+
+  const chartWidth = 980;
+  const chartHeight = 320;
+  const padding = { top: 20, right: 18, bottom: 38, left: 54 };
+  const plotWidth = chartWidth - padding.left - padding.right;
+  const plotHeight = chartHeight - padding.top - padding.bottom;
+  const monthStep = plotWidth / (months.length - 1);
+  const plotBottom = padding.top + plotHeight;
+
+  const plottedSeries = isSingleRubricMode ? visibleExpenseSeries : visibleSeries;
+  if (isSingleRubricMode && !expenseSeries.length) {
+    host.innerHTML = `
+      <div class='outcome-drilldown-toolbar'>
+        <button type='button' class='outcome-drilldown-close-btn' data-income-chart-close-main>Fechar</button>
+      </div>
+      <div class='outcome-evolution-top-series'>${legend}</div>
+      <p class='outcome-evolution-empty'>Esta rubrica nao tem despesas com valores ao longo do ano.</p>
+    `;
+    return;
+  }
+
+  if (isSingleRubricMode && !visibleExpenseSeries.length) {
+    host.innerHTML = `
+      <div class='outcome-drilldown-toolbar'>
+        <button type='button' class='outcome-drilldown-close-btn' data-income-chart-close-main>Fechar</button>
+      </div>
+      <div class='outcome-evolution-top-series'>${legend}</div>
+      <p class='outcome-evolution-empty'>Nenhuma despesa selecionada. Clica na legenda para voltar a mostrar.</p>
+      <div class='outcome-evolution-top-series'>${expenseSeries
+        .map((entry) => {
+          const isVisible = !cgdState.incomeDrilldownHiddenExpenses.has(expenseStateKey(entry.key));
+          const stateClass = isVisible ? "is-active" : "is-inactive";
+          return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-income-drilldown-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisible ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</button>`;
+        })
+        .join("")}</div>
+    `;
+    return;
+  }
+
+  const maxValue = Math.max(...plottedSeries.flatMap((entry) => entry.values));
+  const yMax = maxValue > 0 ? maxValue : 1;
+
+  const xFor = (monthIndex) => padding.left + monthIndex * monthStep;
+  const yFor = (value) => padding.top + plotHeight - (value / yMax) * plotHeight;
+
+  const horizontalGridCount = 12;
+  const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
+    const ratio = index / horizontalGridCount;
+    const y = padding.top + plotHeight - ratio * plotHeight;
+    const labelValue = yMax * ratio;
+    return `
+      <line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.18)' stroke-width='0.7' />
+      <text x='${padding.left - 8}' y='${y + 4}' text-anchor='end' fill='rgba(197,220,231,0.82)' font-size='9'>${labelValue.toFixed(0)}</text>
+    `;
+  }).join("");
+
+  const monthLabels = months
+    .map((month, monthIndex) => {
+      const x = xFor(monthIndex);
+      return `<text x='${x}' y='${chartHeight - 12}' text-anchor='middle' fill='rgba(197,220,231,0.9)' font-size='10'>${escapeHtml(month)}</text>`;
+    })
+    .join("");
+
+  const monthGridLines = months
+    .map((_, monthIndex) => {
+      const x = xFor(monthIndex);
+      return `<line x1='${x}' y1='${padding.top}' x2='${x}' y2='${padding.top + plotHeight}' stroke='rgba(176,210,226,0.12)' stroke-width='1' />`;
+    })
+    .join("");
+
+  const lines = plottedSeries
+    .map((entry) => {
+      const isSelected = !isSingleRubricMode && entry.key === cgdState.incomeChartSelectedRubricKey;
+      const strokeWidth = isSingleRubricMode ? "0.6" : "1.3";
+      const selectionClass = isSelected ? "is-selected" : "";
+      const points = entry.values.map((value, monthIndex) => ({ x: xFor(monthIndex), y: yFor(value), value, monthIndex }));
+      const pathData = buildSmoothPathData(points);
+      const areaPath = `${pathData} L ${points[points.length - 1].x.toFixed(2)} ${plotBottom.toFixed(2)} L ${points[0].x.toFixed(2)} ${plotBottom.toFixed(2)} Z`;
+      const pointsMarkup = entry.values
+        .map((value, monthIndex) => {
+          const cx = xFor(monthIndex);
+          const cy = yFor(value);
+          return `<circle class='outcome-evolution-point' cx='${cx.toFixed(2)}' cy='${cy.toFixed(2)}' r='2.8' fill='${entry.color}' tabindex='0' data-series-name='${escapeHtml(entry.name)}' data-month-name='${escapeHtml(months[monthIndex])}' data-value='${value.toFixed(2)}' data-series-color='${entry.color}'></circle>`;
+        })
+        .join("");
+      return `
+        <g class='outcome-evolution-series ${selectionClass}' ${isSingleRubricMode ? "" : `data-income-chart-drilldown='${escapeHtml(entry.key)}'`}>
+          <path d='${areaPath}' class='outcome-evolution-area' fill='${entry.color}' fill-opacity='0.10' />
+          <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='${strokeWidth}' stroke-linecap='round' stroke-linejoin='round' />
+          ${pointsMarkup}
+        </g>
+      `;
+    })
+    .join("");
+
+  const expenseLegend = isSingleRubricMode
+    ? expenseSeries
+        .map((entry) => {
+          const isVisible = !cgdState.incomeDrilldownHiddenExpenses.has(expenseStateKey(entry.key));
+          const stateClass = isVisible ? "is-active" : "is-inactive";
+          return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-income-drilldown-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisible ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</button>`;
+        })
+        .join("")
+    : "";
+
+  const singleRubricLegendMarkup = isSingleRubricMode && expenseSeries.length
+    ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>`
+    : "";
+
+  host.innerHTML = `
+    <div class='outcome-drilldown-toolbar'>
+      <button type='button' class='outcome-drilldown-close-btn' data-income-chart-close-main>Fechar</button>
+    </div>
+    <div class='outcome-evolution-top-series'>${legend}</div>
+    ${singleRubricLegendMarkup}
+    <div class='outcome-evolution-svg-wrap'>
+      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${isSingleRubricMode ? "Grafico de linhas com evolucao das despesas da rubrica selecionada" : "Grafico de linhas com evolucao das rubricas de income"}'>
+        ${gridLines}
+        ${monthGridLines}
+        ${lines}
+        ${monthLabels}
+      </svg>
+      <div class='outcome-evolution-tooltip' aria-hidden='true'></div>
+    </div>
+  `;
+
+  bindOutcomeChartHover(host);
 }
 
 function bindOutcomeChartInteractions(host) {
@@ -1048,8 +1385,29 @@ function renderPanels() {
     ${buildPanel("Outcome", "outcome", cgdState.data.outcome)}
   `;
 
+  renderIncomeEvolutionChart();
   renderOutcomeEvolutionChart();
 }
+
+window.cgdToggleIncomeChart = () => {
+  cgdState.incomeChartVisible = !cgdState.incomeChartVisible;
+  if (!cgdState.incomeChartVisible) {
+    cgdState.incomeChartSelectedRubricKey = null;
+    cgdState.incomeChartHiddenRubrics.clear();
+  }
+  renderPanels();
+
+  if (cgdState.incomeChartVisible) {
+    requestAnimationFrame(() => {
+      const chartCard = document.querySelector(".income-evolution-card");
+      if (chartCard) {
+        chartCard.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  }
+
+  return cgdState.incomeChartVisible;
+};
 
 window.cgdToggleOutcomeChart = () => {
   cgdState.outcomeChartVisible = !cgdState.outcomeChartVisible;

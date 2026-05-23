@@ -562,6 +562,15 @@ function initDelegatedActions() {
       return;
     }
 
+    const incomeChartToggle = event.target.closest("[data-income-chart-toggle-visibility]");
+    if (incomeChartToggle) {
+      if (window.cgdToggleIncomeChart) {
+        window.cgdToggleIncomeChart();
+      }
+      closeAllMenus();
+      return;
+    }
+
     const menuToggle = event.target.closest("[data-rubric-menu-toggle]");
     if (menuToggle) {
       const descCell = menuToggle.closest(".rubric-desc-cell");
