@@ -742,7 +742,7 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
         .join("");
       return `
         <path d='${areaPath}' class='outcome-evolution-area' fill='${entry.color}' fill-opacity='0.08' />
-        <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round' />
+        <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' />
         ${pointsMarkup}
       `;
     })
@@ -942,7 +942,7 @@ function renderOutcomeEvolutionChart() {
       return `
         <g class='outcome-evolution-series ${selectionClass}' data-outcome-chart-drilldown='${escapeHtml(entry.key)}'>
           <path d='${areaPath}' class='outcome-evolution-area' fill='${entry.color}' fill-opacity='0.10' />
-          <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' />
+          <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' />
           ${pointsMarkup}
         </g>
       `;
