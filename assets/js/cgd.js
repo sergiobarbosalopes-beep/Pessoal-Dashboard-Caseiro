@@ -807,6 +807,15 @@ function bindOutcomeChartInteractions(host) {
       const key = String(drilldownTarget.getAttribute("data-outcome-chart-drilldown") || "").trim();
       cgdState.outcomeChartSelectedRubricKey = cgdState.outcomeChartSelectedRubricKey === key ? null : key;
       renderOutcomeEvolutionChart();
+
+      if (cgdState.outcomeChartSelectedRubricKey) {
+        requestAnimationFrame(() => {
+          const drilldown = host.querySelector(".outcome-drilldown");
+          if (drilldown) {
+            drilldown.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        });
+      }
       return;
     }
 
