@@ -665,6 +665,26 @@ function ensureChartBottomVisible(chartCard, gap = 14) {
   }
 }
 
+function ensurePanelHeadVisible(kind, topGap = 84, bottomGap = 16) {
+  const panel = document.querySelector(`.panel.${kind}`);
+  const panelHead = panel?.querySelector(".panel-head") || panel;
+  if (!panelHead) {
+    return;
+  }
+
+  const rect = panelHead.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+
+  if (rect.top < topGap) {
+    window.scrollBy({ top: rect.top - topGap, behavior: "smooth" });
+    return;
+  }
+
+  if (rect.bottom > viewportHeight - bottomGap) {
+    window.scrollBy({ top: rect.bottom - (viewportHeight - bottomGap), behavior: "smooth" });
+  }
+}
+
 function captureCollapseState() {
   const state = new Map();
   document.querySelectorAll("[data-toggle-target]").forEach((button) => {
@@ -889,6 +909,9 @@ function bindIncomeChartInteractions(host) {
       cgdState.incomeChartHiddenRubrics.clear();
       renderPanels();
       document.dispatchEvent(new Event("cgd:rendered"));
+      requestAnimationFrame(() => {
+        ensurePanelHeadVisible("income");
+      });
       return;
     }
 
@@ -1168,6 +1191,9 @@ function bindOutcomeChartInteractions(host) {
       cgdState.outcomeChartHiddenRubrics.clear();
       renderPanels();
       document.dispatchEvent(new Event("cgd:rendered"));
+      requestAnimationFrame(() => {
+        ensurePanelHeadVisible("outcome");
+      });
       return;
     }
 
@@ -1576,6 +1602,9 @@ function bindComparisonChartInteractions(host, kind) {
 
       renderPanels();
       document.dispatchEvent(new Event("cgd:rendered"));
+      requestAnimationFrame(() => {
+        ensurePanelHeadVisible(kind);
+      });
       return;
     }
 
@@ -1811,6 +1840,10 @@ window.cgdToggleIncomeChart = () => {
       const chartCard = document.querySelector(".income-evolution-card");
       ensureChartBottomVisible(chartCard);
     });
+  } else {
+    requestAnimationFrame(() => {
+      ensurePanelHeadVisible("income");
+    });
   }
 
   return cgdState.incomeChartVisible;
@@ -1828,6 +1861,10 @@ window.cgdToggleIncomeComparisonChart = () => {
     requestAnimationFrame(() => {
       const chartCard = document.querySelector(".income-comparison-card");
       ensureChartBottomVisible(chartCard);
+    });
+  } else {
+    requestAnimationFrame(() => {
+      ensurePanelHeadVisible("income");
     });
   }
 
@@ -1848,6 +1885,10 @@ window.cgdToggleOutcomeChart = () => {
       const chartCard = document.querySelector(".outcome-evolution-card:not(.income-evolution-card)");
       ensureChartBottomVisible(chartCard);
     });
+  } else {
+    requestAnimationFrame(() => {
+      ensurePanelHeadVisible("outcome");
+    });
   }
 
   return cgdState.outcomeChartVisible;
@@ -1865,6 +1906,10 @@ window.cgdToggleOutcomeComparisonChart = () => {
     requestAnimationFrame(() => {
       const chartCard = document.querySelector(".outcome-comparison-card");
       ensureChartBottomVisible(chartCard);
+    });
+  } else {
+    requestAnimationFrame(() => {
+      ensurePanelHeadVisible("outcome");
     });
   }
 
