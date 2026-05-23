@@ -742,6 +742,30 @@ a {
   border-top: 1px dashed rgba(176, 210, 226, 0.26);
 }
 
+.outcome-drilldown-head-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.outcome-drilldown-close-btn {
+  border: 1px solid rgba(176, 210, 226, 0.24);
+  border-radius: 999px;
+  background: rgba(15, 38, 49, 0.72);
+  color: #d6e8f2;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.outcome-drilldown-close-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(33, 73, 94, 0.78);
+}
+
 .panel {
   border-radius: var(--radius-lg);
   border: 1px solid rgba(17, 34, 43, 0.1);
