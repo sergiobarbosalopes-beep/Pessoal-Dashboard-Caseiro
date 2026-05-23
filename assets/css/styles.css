@@ -633,10 +633,12 @@ a {
   margin-bottom: 9px;
   display: flex;
   align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 6px;
   font-size: 0.71rem;
   color: #b8ced9;
+  text-align: center;
 }
 
 .outcome-evolution-scale .sep {
@@ -761,6 +763,12 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+.outcome-drilldown-toolbar {
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .outcome-drilldown-close-btn {

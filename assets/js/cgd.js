@@ -669,12 +669,8 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
   if (!expenseSeries.length) {
     return `
       <div class='outcome-drilldown'>
-        <div class='outcome-evolution-head'>
-          <h3>Drilldown - ${escapeHtml(selectedRubric.name)}</h3>
-          <div class='outcome-drilldown-head-actions'>
-            <p>Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
-            <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-drilldown>Fechar</button>
-          </div>
+        <div class='outcome-drilldown-toolbar'>
+          <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-drilldown>Fechar</button>
         </div>
         <p class='outcome-evolution-empty'>Esta rubrica nao tem despesas com valores ao longo do ano.</p>
       </div>
@@ -684,12 +680,8 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
   if (!visibleExpenseSeries.length) {
     return `
       <div class='outcome-drilldown'>
-        <div class='outcome-evolution-head'>
-          <h3>Drilldown - ${escapeHtml(selectedRubric.name)}</h3>
-          <div class='outcome-drilldown-head-actions'>
-            <p>Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
-            <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-drilldown>Fechar</button>
-          </div>
+        <div class='outcome-drilldown-toolbar'>
+          <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-drilldown>Fechar</button>
         </div>
         <p class='outcome-evolution-empty'>Nenhuma despesa selecionada. Clica na legenda para voltar a mostrar.</p>
         <div class='outcome-evolution-legend'>${expenseLegend}</div>
@@ -729,6 +721,13 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
     })
     .join("");
 
+  const monthGridLines = months
+    .map((_, monthIndex) => {
+      const x = xFor(monthIndex);
+      return `<line x1='${x}' y1='${padding.top}' x2='${x}' y2='${padding.top + plotHeight}' stroke='rgba(176,210,226,0.12)' stroke-width='1' />`;
+    })
+    .join("");
+
   const valueIndex = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
     const ratio = index / horizontalGridCount;
     const labelValue = yMax * (1 - ratio);
@@ -757,17 +756,14 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
 
   return `
     <div class='outcome-drilldown'>
-      <div class='outcome-evolution-head'>
-        <h3>Drilldown - ${escapeHtml(selectedRubric.name)}</h3>
-        <div class='outcome-drilldown-head-actions'>
-          <p>Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
-          <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-drilldown>Fechar</button>
-        </div>
+      <div class='outcome-drilldown-toolbar'>
+        <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-drilldown>Fechar</button>
       </div>
       <div class='outcome-evolution-scale'>Indice: ${valueIndex}</div>
       <div class='outcome-evolution-svg-wrap'>
         <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='Grafico de linhas com evolucao das despesas da rubrica selecionada'>
           ${gridLines}
+          ${monthGridLines}
           ${lines}
           ${monthLabels}
         </svg>
@@ -874,10 +870,6 @@ function renderOutcomeEvolutionChart() {
 
   if (!series.length) {
     host.innerHTML = `
-      <div class='outcome-evolution-head'>
-        <h3>Evolucao Temporal das Rubricas (Outcome)</h3>
-        <p>Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
-      </div>
       <p class='outcome-evolution-empty'>Ainda nao existem valores totalizadores para desenhar a evolucao anual.</p>
       <div class='outcome-evolution-legend'></div>
     `;
@@ -886,10 +878,6 @@ function renderOutcomeEvolutionChart() {
 
   if (!visibleSeries.length) {
     host.innerHTML = `
-      <div class='outcome-evolution-head'>
-        <h3>Evolucao Temporal das Rubricas (Outcome)</h3>
-        <p>Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
-      </div>
       <p class='outcome-evolution-empty'>Nenhuma rubrica selecionada. Clica na legenda para voltar a mostrar.</p>
       <div class='outcome-evolution-legend'>${legend}</div>
     `;
@@ -928,6 +916,13 @@ function renderOutcomeEvolutionChart() {
     })
     .join("");
 
+  const monthGridLines = months
+    .map((_, monthIndex) => {
+      const x = xFor(monthIndex);
+      return `<line x1='${x}' y1='${padding.top}' x2='${x}' y2='${padding.top + plotHeight}' stroke='rgba(176,210,226,0.12)' stroke-width='1' />`;
+    })
+    .join("");
+
   const valueIndex = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
     const ratio = index / horizontalGridCount;
     const labelValue = yMax * (1 - ratio);
@@ -961,14 +956,11 @@ function renderOutcomeEvolutionChart() {
   const drilldownMarkup = buildOutcomeExpenseDrilldownMarkup(selectedRubric);
 
   host.innerHTML = `
-    <div class='outcome-evolution-head'>
-      <h3>Evolucao Temporal das Rubricas (Outcome)</h3>
-      <p>Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
-    </div>
     <div class='outcome-evolution-scale'>Indice: ${valueIndex}</div>
     <div class='outcome-evolution-svg-wrap'>
       <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='Grafico de linhas com evolucao das rubricas de outcome'>
         ${gridLines}
+        ${monthGridLines}
         ${lines}
         ${monthLabels}
       </svg>
