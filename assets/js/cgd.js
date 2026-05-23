@@ -1382,7 +1382,7 @@ function renderPanels() {
 
   panels.innerHTML = `
     ${buildPanel("Income", "income", cgdState.data.income)}
-    <section class='card outcome-evolution-card income-evolution-card'>
+    <section class='outcome-evolution-card income-evolution-card'>
       <div class='outcome-evolution' id='income-evolution-chart' aria-live='polite'></div>
     </section>
     ${buildPanel("Outcome", "outcome", cgdState.data.outcome)}
@@ -1422,7 +1422,7 @@ window.cgdToggleOutcomeChart = () => {
 
   if (cgdState.outcomeChartVisible) {
     requestAnimationFrame(() => {
-      const chartCard = document.querySelector(".outcome-evolution-card");
+      const chartCard = document.querySelector(".outcome-evolution-card:not(.income-evolution-card)");
       if (chartCard) {
         chartCard.scrollIntoView({ behavior: "smooth", block: "start" });
       }
