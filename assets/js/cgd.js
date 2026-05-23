@@ -776,6 +776,7 @@ function bindOutcomeChartInteractions(host) {
     const closeDrilldownBtn = event.target.closest("[data-outcome-chart-close-drilldown]");
     if (closeDrilldownBtn) {
       cgdState.outcomeChartSelectedRubricKey = null;
+      cgdState.outcomeChartHiddenRubrics.clear();
       renderOutcomeEvolutionChart();
       return;
     }
@@ -798,7 +799,22 @@ function bindOutcomeChartInteractions(host) {
     const drilldownTarget = event.target.closest("[data-outcome-chart-drilldown]");
     if (drilldownTarget) {
       const key = String(drilldownTarget.getAttribute("data-outcome-chart-drilldown") || "").trim();
-      cgdState.outcomeChartSelectedRubricKey = cgdState.outcomeChartSelectedRubricKey === key ? null : key;
+      const isSameSelectedRubric = cgdState.outcomeChartSelectedRubricKey === key;
+
+      if (isSameSelectedRubric) {
+        cgdState.outcomeChartSelectedRubricKey = null;
+        cgdState.outcomeChartHiddenRubrics.clear();
+      } else {
+        cgdState.outcomeChartSelectedRubricKey = key;
+        const allRubricKeys = buildOutcomeRubricSeries().map((entry) => entry.key);
+        cgdState.outcomeChartHiddenRubrics.clear();
+        allRubricKeys.forEach((rubricKey) => {
+          if (rubricKey !== key) {
+            cgdState.outcomeChartHiddenRubrics.add(rubricKey);
+          }
+        });
+      }
+
       renderOutcomeEvolutionChart();
 
       if (cgdState.outcomeChartSelectedRubricKey) {
