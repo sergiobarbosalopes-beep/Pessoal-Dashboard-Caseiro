@@ -643,6 +643,43 @@ function ensureChartBottomVisible(chartCard, gap = 14) {
   }
 }
 
+function captureCollapseState() {
+  const state = new Map();
+  document.querySelectorAll("[data-toggle-target]").forEach((button) => {
+    const targetId = String(button.getAttribute("data-toggle-target") || "").trim();
+    if (!targetId) {
+      return;
+    }
+    const target = document.getElementById(targetId);
+    if (!target) {
+      return;
+    }
+    state.set(targetId, target.classList.contains("is-collapsed"));
+  });
+  return state;
+}
+
+function restoreCollapseState(state) {
+  if (!(state instanceof Map) || !state.size) {
+    return;
+  }
+
+  state.forEach((isCollapsed, targetId) => {
+    const target = document.getElementById(targetId);
+    if (!target) {
+      return;
+    }
+
+    target.classList.toggle("is-collapsed", Boolean(isCollapsed));
+
+    document.querySelectorAll("[data-toggle-target]").forEach((button) => {
+      if (button.getAttribute("data-toggle-target") === targetId) {
+        button.setAttribute("aria-expanded", String(!isCollapsed));
+      }
+    });
+  });
+}
+
 function positionOutcomeChartTooltip(tooltip, wrap, event) {
   const wrapRect = wrap.getBoundingClientRect();
   const tooltipRect = tooltip.getBoundingClientRect();
@@ -1396,6 +1433,8 @@ function renderPanels() {
     return;
   }
 
+  const collapseState = captureCollapseState();
+
   panels.innerHTML = `
     ${buildPanel("Income", "income", cgdState.data.income)}
     <section class='outcome-evolution-card income-evolution-card'>
@@ -1403,6 +1442,8 @@ function renderPanels() {
     </section>
     ${buildPanel("Outcome", "outcome", cgdState.data.outcome)}
   `;
+
+  restoreCollapseState(collapseState);
 
   renderIncomeEvolutionChart();
   renderOutcomeEvolutionChart();
