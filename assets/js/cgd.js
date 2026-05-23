@@ -1093,6 +1093,8 @@ function renderOutcomeEvolutionChart() {
   const lines = plottedSeries
     .map((entry) => {
       const isSelected = !isSingleRubricMode && entry.key === cgdState.outcomeChartSelectedRubricKey;
+      const isRubricLineInSingleMode = isSingleRubricMode && entry.key === singleVisibleRubric.key;
+      const strokeWidth = isSingleRubricMode && !isRubricLineInSingleMode ? "1.0" : "1.3";
       const selectionClass = isSelected ? "is-selected" : "";
       const points = entry.values.map((value, monthIndex) => ({ x: xFor(monthIndex), y: yFor(value), value, monthIndex }));
       const pathData = buildSmoothPathData(points);
@@ -1107,7 +1109,7 @@ function renderOutcomeEvolutionChart() {
       return `
         <g class='outcome-evolution-series ${selectionClass}' ${isSingleRubricMode ? "" : `data-outcome-chart-drilldown='${escapeHtml(entry.key)}'`}>
           <path d='${areaPath}' class='outcome-evolution-area' fill='${entry.color}' fill-opacity='0.10' />
-          <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round' />
+          <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='${strokeWidth}' stroke-linecap='round' stroke-linejoin='round' />
           ${pointsMarkup}
         </g>
       `;
