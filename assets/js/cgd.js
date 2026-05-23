@@ -829,6 +829,7 @@ function bindIncomeChartInteractions(host) {
       cgdState.incomeChartSelectedRubricKey = null;
       cgdState.incomeChartHiddenRubrics.clear();
       renderPanels();
+      document.dispatchEvent(new Event("cgd:rendered"));
       return;
     }
 
@@ -1107,6 +1108,7 @@ function bindOutcomeChartInteractions(host) {
       cgdState.outcomeChartSelectedRubricKey = null;
       cgdState.outcomeChartHiddenRubrics.clear();
       renderPanels();
+      document.dispatchEvent(new Event("cgd:rendered"));
       return;
     }
 
@@ -1413,6 +1415,7 @@ window.cgdToggleIncomeChart = () => {
     cgdState.incomeChartHiddenRubrics.clear();
   }
   renderPanels();
+  document.dispatchEvent(new Event("cgd:rendered"));
 
   if (cgdState.incomeChartVisible) {
     requestAnimationFrame(() => {
@@ -1431,6 +1434,7 @@ window.cgdToggleOutcomeChart = () => {
     cgdState.outcomeChartHiddenRubrics.clear();
   }
   renderPanels();
+  document.dispatchEvent(new Event("cgd:rendered"));
 
   if (cgdState.outcomeChartVisible) {
     requestAnimationFrame(() => {
