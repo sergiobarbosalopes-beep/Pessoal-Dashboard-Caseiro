@@ -1140,6 +1140,13 @@ a {
 .rubric-title {
   flex: 1 1 auto;
   width: auto;
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.rubric-title:hover {
+  transform: translateY(-1px);
+  border-color: rgba(214, 228, 237, 0.4);
+  box-shadow: 0 8px 18px rgba(5, 18, 26, 0.26);
 }
 
 .panel.income .rubric-title {
@@ -1264,6 +1271,13 @@ a {
   box-shadow: inset 0 0 0 1px rgba(216, 236, 245, 0.18), 0 4px 12px rgba(2, 8, 13, 0.3);
   text-align: left;
   cursor: pointer;
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.expense-menu-trigger:hover {
+  transform: translateY(-1px);
+  border-color: rgba(214, 228, 237, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(216, 236, 245, 0.2), 0 8px 18px rgba(5, 18, 26, 0.26);
 }
 
 .expense-menu-trigger[aria-expanded="true"] {
@@ -1722,6 +1736,15 @@ a {
   padding: 7px 8px;
   font-size: 0.8rem;
   outline: none;
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+}
+
+.expense-field input:hover,
+.expense-field input:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(214, 228, 237, 0.4);
+  background: #163847;
+  box-shadow: 0 8px 18px rgba(5, 18, 26, 0.26);
 }
 
 [data-expense-valor],
