@@ -759,6 +759,7 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
       <div class='outcome-drilldown-toolbar'>
         <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-drilldown>Fechar</button>
       </div>
+      <div class='outcome-evolution-top-series'>${expenseLegend}</div>
       <div class='outcome-evolution-scale'>Indice: ${valueIndex}</div>
       <div class='outcome-evolution-svg-wrap'>
         <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='Grafico de linhas com evolucao das despesas da rubrica selecionada'>
@@ -768,7 +769,6 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
           ${monthLabels}
         </svg>
       </div>
-      <div class='outcome-evolution-legend'>${expenseLegend}</div>
     </div>
   `;
 }
