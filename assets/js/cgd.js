@@ -1050,27 +1050,15 @@ function renderOutcomeEvolutionChart() {
   const monthStep = plotWidth / (months.length - 1);
   const plotBottom = padding.top + plotHeight;
 
-  const plottedSeries = isSingleRubricMode ? visibleExpenseSeries : visibleSeries;
-  if (isSingleRubricMode && !plottedSeries.length) {
-    const expenseLegend = expenseSeries
-      .map((entry) => {
-        const isVisible = !cgdState.outcomeDrilldownHiddenExpenses.has(expenseStateKey(entry.key));
-        const stateClass = isVisible ? "is-active" : "is-inactive";
-        return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-outcome-drilldown-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisible ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</button>`;
-      })
-      .join("");
-
-    host.innerHTML = `
-      <div class='outcome-drilldown-toolbar'>
-        <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-main>Fechar</button>
-      </div>
-      <div class='outcome-evolution-top-series'>${legend}</div>
-      <p class='outcome-evolution-empty'>Nenhuma despesa selecionada. Clica na linha de despesas para voltar a mostrar.</p>
-      <div class='outcome-evolution-top-series'>${expenseLegend}</div>
-    `;
-    return;
-  }
-
+  const singleRubricBaseSeries = isSingleRubricMode
+    ? [{
+        key: singleVisibleRubric.key,
+        name: singleVisibleRubric.name,
+        values: singleVisibleRubric.values,
+        color: singleVisibleRubric.color
+      }]
+    : [];
+  const plottedSeries = isSingleRubricMode ? [...singleRubricBaseSeries, ...visibleExpenseSeries] : visibleSeries;
   const maxValue = Math.max(...plottedSeries.flatMap((entry) => entry.values));
   const yMax = maxValue > 0 ? maxValue : 1;
 
