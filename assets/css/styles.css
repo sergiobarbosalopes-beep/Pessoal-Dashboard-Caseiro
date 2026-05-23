@@ -629,6 +629,20 @@ a {
   color: #a9c2cf;
 }
 
+.outcome-evolution-scale {
+  margin-bottom: 9px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.71rem;
+  color: #b8ced9;
+}
+
+.outcome-evolution-scale .sep {
+  opacity: 0.45;
+}
+
 .outcome-evolution-controls {
   margin-bottom: 10px;
   display: flex;

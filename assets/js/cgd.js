@@ -657,12 +657,6 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
     .filter((entry) => entry.values.some((value) => value !== 0));
 
   const visibleExpenseSeries = expenseSeries.filter((entry) => !cgdState.outcomeDrilldownHiddenExpenses.has(expenseStateKey(entry.key)));
-  const expenseControls = `
-    <div class='outcome-evolution-controls'>
-      <button type='button' class='outcome-evolution-control-btn' data-outcome-drilldown-select-all ${visibleExpenseSeries.length === expenseSeries.length ? "disabled" : ""}>Selecionar despesas</button>
-      <button type='button' class='outcome-evolution-control-btn' data-outcome-drilldown-deselect-all ${visibleExpenseSeries.length === 0 ? "disabled" : ""}>Desselecionar despesas</button>
-    </div>
-  `;
 
   const expenseLegend = expenseSeries
     .map((entry) => {
@@ -678,11 +672,10 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
         <div class='outcome-evolution-head'>
           <h3>Drilldown - ${escapeHtml(selectedRubric.name)}</h3>
           <div class='outcome-drilldown-head-actions'>
-            <p>Despesas da rubrica por mes</p>
+            <p>Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
             <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-drilldown>Fechar</button>
           </div>
         </div>
-        ${expenseControls}
         <p class='outcome-evolution-empty'>Esta rubrica nao tem despesas com valores ao longo do ano.</p>
       </div>
     `;
@@ -694,11 +687,10 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
         <div class='outcome-evolution-head'>
           <h3>Drilldown - ${escapeHtml(selectedRubric.name)}</h3>
           <div class='outcome-drilldown-head-actions'>
-            <p>Despesas da rubrica por mes</p>
+            <p>Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
             <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-drilldown>Fechar</button>
           </div>
         </div>
-        ${expenseControls}
         <p class='outcome-evolution-empty'>Nenhuma despesa selecionada. Clica na legenda para voltar a mostrar.</p>
         <div class='outcome-evolution-legend'>${expenseLegend}</div>
       </div>
@@ -719,7 +711,7 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
   const xFor = (monthIndex) => padding.left + monthIndex * monthStep;
   const yFor = (value) => padding.top + plotHeight - (value / yMax) * plotHeight;
 
-  const horizontalGridCount = 4;
+  const horizontalGridCount = 8;
   const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
     const ratio = index / horizontalGridCount;
     const y = padding.top + plotHeight - ratio * plotHeight;
@@ -736,6 +728,12 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
       return `<text x='${x}' y='${chartHeight - 12}' text-anchor='middle' fill='rgba(197,220,231,0.9)' font-size='10'>${escapeHtml(month)}</text>`;
     })
     .join("");
+
+  const valueIndex = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
+    const ratio = index / horizontalGridCount;
+    const labelValue = yMax * (1 - ratio);
+    return `<span>${labelValue.toFixed(0)}</span>`;
+  }).join("<span class='sep'>|</span>");
 
   const lines = visibleExpenseSeries
     .map((entry) => {
@@ -762,11 +760,11 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
       <div class='outcome-evolution-head'>
         <h3>Drilldown - ${escapeHtml(selectedRubric.name)}</h3>
         <div class='outcome-drilldown-head-actions'>
-          <p>Despesas da rubrica por mes</p>
+          <p>Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
           <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-drilldown>Fechar</button>
         </div>
       </div>
-      ${expenseControls}
+      <div class='outcome-evolution-scale'>Indice: ${valueIndex}</div>
       <div class='outcome-evolution-svg-wrap'>
         <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='Grafico de linhas com evolucao das despesas da rubrica selecionada'>
           ${gridLines}
@@ -805,30 +803,6 @@ function bindOutcomeChartInteractions(host) {
         }
         renderOutcomeEvolutionChart();
       }
-      return;
-    }
-
-    const drilldownSelectAll = event.target.closest("[data-outcome-drilldown-select-all]");
-    if (drilldownSelectAll && cgdState.outcomeChartSelectedRubricKey) {
-      const prefix = `${cgdState.outcomeChartSelectedRubricKey}::`;
-      cgdState.outcomeDrilldownHiddenExpenses.forEach((item) => {
-        if (item.startsWith(prefix)) {
-          cgdState.outcomeDrilldownHiddenExpenses.delete(item);
-        }
-      });
-      renderOutcomeEvolutionChart();
-      return;
-    }
-
-    const drilldownDeselectAll = event.target.closest("[data-outcome-drilldown-deselect-all]");
-    if (drilldownDeselectAll && cgdState.outcomeChartSelectedRubricKey) {
-      host.querySelectorAll("[data-outcome-drilldown-toggle]").forEach((item) => {
-        const expenseKey = String(item.getAttribute("data-outcome-drilldown-toggle") || "").trim();
-        if (expenseKey) {
-          cgdState.outcomeDrilldownHiddenExpenses.add(`${cgdState.outcomeChartSelectedRubricKey}::${expenseKey}`);
-        }
-      });
-      renderOutcomeEvolutionChart();
       return;
     }
 
@@ -889,14 +863,6 @@ function renderOutcomeEvolutionChart() {
   const series = buildOutcomeRubricSeries();
   const visibleSeries = series.filter((entry) => !cgdState.outcomeChartHiddenRubrics.has(entry.key));
   const selectedRubric = visibleSeries.find((entry) => entry.key === cgdState.outcomeChartSelectedRubricKey) || null;
-  const selectedCount = visibleSeries.length;
-
-  const controls = `
-    <div class='outcome-evolution-controls'>
-      <button type='button' class='outcome-evolution-control-btn' data-outcome-chart-select-all ${selectedCount === series.length ? "disabled" : ""}>Selecionar todas</button>
-      <button type='button' class='outcome-evolution-control-btn' data-outcome-chart-deselect-all ${selectedCount === 0 ? "disabled" : ""}>Desselecionar todas</button>
-    </div>
-  `;
 
   const legend = series
     .map((entry) => {
@@ -910,9 +876,8 @@ function renderOutcomeEvolutionChart() {
     host.innerHTML = `
       <div class='outcome-evolution-head'>
         <h3>Evolucao Temporal das Rubricas (Outcome)</h3>
-        <p>Totalizadores por mes - Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
+        <p>Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
       </div>
-      ${controls}
       <p class='outcome-evolution-empty'>Ainda nao existem valores totalizadores para desenhar a evolucao anual.</p>
       <div class='outcome-evolution-legend'></div>
     `;
@@ -923,9 +888,8 @@ function renderOutcomeEvolutionChart() {
     host.innerHTML = `
       <div class='outcome-evolution-head'>
         <h3>Evolucao Temporal das Rubricas (Outcome)</h3>
-        <p>Totalizadores por mes - Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
+        <p>Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
       </div>
-      ${controls}
       <p class='outcome-evolution-empty'>Nenhuma rubrica selecionada. Clica na legenda para voltar a mostrar.</p>
       <div class='outcome-evolution-legend'>${legend}</div>
     `;
@@ -946,7 +910,7 @@ function renderOutcomeEvolutionChart() {
   const xFor = (monthIndex) => padding.left + monthIndex * monthStep;
   const yFor = (value) => padding.top + plotHeight - (value / yMax) * plotHeight;
 
-  const horizontalGridCount = 4;
+  const horizontalGridCount = 8;
   const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
     const ratio = index / horizontalGridCount;
     const y = padding.top + plotHeight - ratio * plotHeight;
@@ -963,6 +927,12 @@ function renderOutcomeEvolutionChart() {
       return `<text x='${x}' y='${chartHeight - 12}' text-anchor='middle' fill='rgba(197,220,231,0.9)' font-size='10'>${escapeHtml(month)}</text>`;
     })
     .join("");
+
+  const valueIndex = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
+    const ratio = index / horizontalGridCount;
+    const labelValue = yMax * (1 - ratio);
+    return `<span>${labelValue.toFixed(0)}</span>`;
+  }).join("<span class='sep'>|</span>");
 
   const lines = visibleSeries
     .map((entry) => {
@@ -993,9 +963,9 @@ function renderOutcomeEvolutionChart() {
   host.innerHTML = `
     <div class='outcome-evolution-head'>
       <h3>Evolucao Temporal das Rubricas (Outcome)</h3>
-      <p>Totalizadores por mes - Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
+      <p>Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
     </div>
-    ${controls}
+    <div class='outcome-evolution-scale'>Indice: ${valueIndex}</div>
     <div class='outcome-evolution-svg-wrap'>
       <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='Grafico de linhas com evolucao das rubricas de outcome'>
         ${gridLines}
