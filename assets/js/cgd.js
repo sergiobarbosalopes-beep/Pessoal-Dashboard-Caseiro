@@ -629,6 +629,20 @@ function buildSmoothPathData(points) {
   return path;
 }
 
+function ensureChartBottomVisible(chartCard, gap = 14) {
+  if (!chartCard) {
+    return;
+  }
+
+  const rect = chartCard.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const overflowBottom = rect.bottom - viewportHeight + gap;
+
+  if (overflowBottom > 0) {
+    window.scrollBy({ top: overflowBottom, behavior: "smooth" });
+  }
+}
+
 function positionOutcomeChartTooltip(tooltip, wrap, event) {
   const wrapRect = wrap.getBoundingClientRect();
   const tooltipRect = tooltip.getBoundingClientRect();
@@ -1403,9 +1417,7 @@ window.cgdToggleIncomeChart = () => {
   if (cgdState.incomeChartVisible) {
     requestAnimationFrame(() => {
       const chartCard = document.querySelector(".income-evolution-card");
-      if (chartCard) {
-        chartCard.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+      ensureChartBottomVisible(chartCard);
     });
   }
 
@@ -1423,9 +1435,7 @@ window.cgdToggleOutcomeChart = () => {
   if (cgdState.outcomeChartVisible) {
     requestAnimationFrame(() => {
       const chartCard = document.querySelector(".outcome-evolution-card:not(.income-evolution-card)");
-      if (chartCard) {
-        chartCard.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+      ensureChartBottomVisible(chartCard);
     });
   }
 
