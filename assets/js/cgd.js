@@ -10,7 +10,8 @@ const cgdState = {
   selectedYear: new Date().getFullYear(),
   data: fallbackMock,
   expenseColumns: new Set(),
-  notesTableName: null
+  notesTableName: null,
+  outcomeChartHiddenRubrics: new Set()
 };
 
 const SUPABASE_URL = window.CGD_SUPABASE_URL || "https://uooovgxrexpstrtfktst.supabase.co";
@@ -576,43 +577,155 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
+function buildSmoothPathData(points) {
+  if (!Array.isArray(points) || points.length < 2) {
+    return "";
+  }
+
+  let path = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const p0 = points[index - 1] || points[index];
+    const p1 = points[index];
+    const p2 = points[index + 1];
+    const p3 = points[index + 2] || p2;
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+    path += ` C ${cp1x.toFixed(2)} ${cp1y.toFixed(2)}, ${cp2x.toFixed(2)} ${cp2y.toFixed(2)}, ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
+  }
+
+  return path;
+}
+
+function buildOutcomeRubricSeries() {
+  const palette = ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"];
+  const sourceRubrics = Array.isArray(cgdState.data?.outcome) ? cgdState.data.outcome : [];
+
+  return sourceRubrics
+    .map((rubric, index) => {
+      const rawId = rubric?.id;
+      const key = Number.isFinite(Number(rawId)) ? `id-${Number(rawId)}` : `idx-${index}`;
+      const values = months.map((_, monthIndex) => {
+        const numeric = Number(rubric?.values?.[monthIndex]);
+        return Number.isFinite(numeric) ? numeric : 0;
+      });
+      return {
+        key,
+        name: rubric?.name || `Rubrica ${index + 1}`,
+        values,
+        color: palette[index % palette.length]
+      };
+    })
+    .filter((entry) => entry.values.some((value) => value !== 0));
+}
+
+function bindOutcomeChartInteractions(host) {
+  if (!host || host.dataset.chartBound === "1") {
+    return;
+  }
+
+  host.dataset.chartBound = "1";
+  host.addEventListener("click", (event) => {
+    const toggleBtn = event.target.closest("[data-outcome-chart-toggle]");
+    if (toggleBtn) {
+      const key = String(toggleBtn.getAttribute("data-outcome-chart-toggle") || "").trim();
+      if (key) {
+        if (cgdState.outcomeChartHiddenRubrics.has(key)) {
+          cgdState.outcomeChartHiddenRubrics.delete(key);
+        } else {
+          cgdState.outcomeChartHiddenRubrics.add(key);
+        }
+        renderOutcomeEvolutionChart();
+      }
+      return;
+    }
+
+    const selectAllBtn = event.target.closest("[data-outcome-chart-select-all]");
+    if (selectAllBtn) {
+      cgdState.outcomeChartHiddenRubrics.clear();
+      renderOutcomeEvolutionChart();
+      return;
+    }
+
+    const deselectAllBtn = event.target.closest("[data-outcome-chart-deselect-all]");
+    if (deselectAllBtn) {
+      host.querySelectorAll("[data-outcome-chart-toggle]").forEach((item) => {
+        const key = String(item.getAttribute("data-outcome-chart-toggle") || "").trim();
+        if (key) {
+          cgdState.outcomeChartHiddenRubrics.add(key);
+        }
+      });
+      renderOutcomeEvolutionChart();
+    }
+  });
+}
+
 function renderOutcomeEvolutionChart() {
   const host = document.getElementById("outcome-evolution-chart");
   if (!host) {
     return;
   }
 
-  const sourceRubrics = Array.isArray(cgdState.data?.outcome) ? cgdState.data.outcome : [];
-  const series = sourceRubrics
-    .map((rubric, index) => ({
-      index,
-      name: rubric?.name || `Rubrica ${index + 1}`,
-      values: months.map((_, monthIndex) => {
-        const numeric = Number(rubric?.values?.[monthIndex]);
-        return Number.isFinite(numeric) ? numeric : 0;
-      })
-    }))
-    .filter((entry) => entry.values.some((value) => value !== 0));
+  bindOutcomeChartInteractions(host);
+
+  const series = buildOutcomeRubricSeries();
+  const visibleSeries = series.filter((entry) => !cgdState.outcomeChartHiddenRubrics.has(entry.key));
+  const selectedCount = visibleSeries.length;
+
+  const controls = `
+    <div class='outcome-evolution-controls'>
+      <button type='button' class='outcome-evolution-control-btn' data-outcome-chart-select-all ${selectedCount === series.length ? "disabled" : ""}>Selecionar todas</button>
+      <button type='button' class='outcome-evolution-control-btn' data-outcome-chart-deselect-all ${selectedCount === 0 ? "disabled" : ""}>Desselecionar todas</button>
+    </div>
+  `;
+
+  const legend = series
+    .map((entry) => {
+      const isVisible = !cgdState.outcomeChartHiddenRubrics.has(entry.key);
+      const stateClass = isVisible ? "is-active" : "is-inactive";
+      return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-outcome-chart-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisible ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</button>`;
+    })
+    .join("");
 
   if (!series.length) {
     host.innerHTML = `
       <div class='outcome-evolution-head'>
         <h3>Evolucao Temporal das Rubricas (Outcome)</h3>
+        <p>Totalizadores por mes - Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
       </div>
+      ${controls}
       <p class='outcome-evolution-empty'>Ainda nao existem valores totalizadores para desenhar a evolucao anual.</p>
+      <div class='outcome-evolution-legend'></div>
     `;
     return;
   }
 
-  const colors = ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"];
+  if (!visibleSeries.length) {
+    host.innerHTML = `
+      <div class='outcome-evolution-head'>
+        <h3>Evolucao Temporal das Rubricas (Outcome)</h3>
+        <p>Totalizadores por mes - Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
+      </div>
+      ${controls}
+      <p class='outcome-evolution-empty'>Nenhuma rubrica selecionada. Clica na legenda para voltar a mostrar.</p>
+      <div class='outcome-evolution-legend'>${legend}</div>
+    `;
+    return;
+  }
+
   const chartWidth = 980;
   const chartHeight = 320;
   const padding = { top: 20, right: 18, bottom: 38, left: 54 };
   const plotWidth = chartWidth - padding.left - padding.right;
   const plotHeight = chartHeight - padding.top - padding.bottom;
   const monthStep = plotWidth / (months.length - 1);
+  const plotBottom = padding.top + plotHeight;
 
-  const maxValue = Math.max(...series.flatMap((entry) => entry.values));
+  const maxValue = Math.max(...visibleSeries.flatMap((entry) => entry.values));
   const yMax = maxValue > 0 ? maxValue : 1;
 
   const xFor = (monthIndex) => padding.left + monthIndex * monthStep;
@@ -636,28 +749,23 @@ function renderOutcomeEvolutionChart() {
     })
     .join("");
 
-  const lines = series
-    .map((entry, seriesIndex) => {
-      const color = colors[seriesIndex % colors.length];
-      const points = entry.values.map((value, monthIndex) => `${xFor(monthIndex)},${yFor(value)}`).join(" ");
+  const lines = visibleSeries
+    .map((entry) => {
+      const points = entry.values.map((value, monthIndex) => ({ x: xFor(monthIndex), y: yFor(value), value, monthIndex }));
+      const pathData = buildSmoothPathData(points);
+      const areaPath = `${pathData} L ${points[points.length - 1].x.toFixed(2)} ${plotBottom.toFixed(2)} L ${points[0].x.toFixed(2)} ${plotBottom.toFixed(2)} Z`;
       const pointsMarkup = entry.values
         .map((value, monthIndex) => {
           const cx = xFor(monthIndex);
           const cy = yFor(value);
-          return `<circle cx='${cx}' cy='${cy}' r='2.8' fill='${color}'><title>${escapeHtml(entry.name)} - ${months[monthIndex]}: ${value.toFixed(2)}</title></circle>`;
+          return `<circle cx='${cx.toFixed(2)}' cy='${cy.toFixed(2)}' r='2.8' fill='${entry.color}'><title>${escapeHtml(entry.name)} - ${months[monthIndex]}: ${value.toFixed(2)}</title></circle>`;
         })
         .join("");
       return `
-        <polyline points='${points}' fill='none' stroke='${color}' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' />
+        <path d='${areaPath}' class='outcome-evolution-area' fill='${entry.color}' fill-opacity='0.10' />
+        <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' />
         ${pointsMarkup}
       `;
-    })
-    .join("");
-
-  const legend = series
-    .map((entry, seriesIndex) => {
-      const color = colors[seriesIndex % colors.length];
-      return `<span class='outcome-evolution-legend-item'><span class='outcome-evolution-legend-dot' style='background:${color};'></span>${escapeHtml(entry.name)}</span>`;
     })
     .join("");
 
@@ -666,6 +774,7 @@ function renderOutcomeEvolutionChart() {
       <h3>Evolucao Temporal das Rubricas (Outcome)</h3>
       <p>Totalizadores por mes - Ano ${escapeHtml(String(cgdState.selectedYear))}</p>
     </div>
+    ${controls}
     <div class='outcome-evolution-svg-wrap'>
       <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='Grafico de linhas com evolucao das rubricas de outcome'>
         ${gridLines}
