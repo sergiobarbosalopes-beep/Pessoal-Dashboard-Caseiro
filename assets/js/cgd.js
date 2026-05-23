@@ -679,6 +679,21 @@ function scheduleChartOpenScroll(selector) {
   });
 }
 
+function scheduleChartOpenScrollByHostId(hostId) {
+  if (!hostId) {
+    return;
+  }
+
+  // Resolve by host id to avoid ambiguous selectors when multiple chart cards share classes.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const host = document.getElementById(hostId);
+      const chartCard = host?.closest(".outcome-evolution-card") || host;
+      ensureChartBottomVisible(chartCard);
+    });
+  });
+}
+
 function ensurePanelHeadVisible(kind, topGap = 84, bottomGap = 16) {
   const panel = document.querySelector(`.panel.${kind}`);
   const panelHead = panel?.querySelector(".panel-head") || panel;
@@ -1889,7 +1904,7 @@ window.cgdToggleOutcomeChart = () => {
   document.dispatchEvent(new Event("cgd:rendered"));
 
   if (cgdState.outcomeChartVisible) {
-    scheduleChartOpenScroll(".outcome-evolution-card:not(.income-evolution-card):not(.outcome-comparison-card)");
+    scheduleChartOpenScrollByHostId("outcome-evolution-chart");
   } else {
     requestAnimationFrame(() => {
       ensurePanelHeadVisible("outcome");
