@@ -703,15 +703,11 @@ function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
   const xFor = (monthIndex) => padding.left + monthIndex * monthStep;
   const yFor = (value) => padding.top + plotHeight - (value / yMax) * plotHeight;
 
-  const horizontalGridCount = 8;
+  const horizontalGridCount = 12;
   const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
     const ratio = index / horizontalGridCount;
     const y = padding.top + plotHeight - ratio * plotHeight;
-    const labelValue = yMax * ratio;
-    return `
-      <line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.16)' stroke-width='1' />
-      <text x='${padding.left - 8}' y='${y + 4}' text-anchor='end' fill='rgba(197,220,231,0.88)' font-size='10'>${labelValue.toFixed(0)}</text>
-    `;
+    return `<line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.16)' stroke-width='0.7' />`;
   }).join("");
 
   const monthLabels = months
@@ -916,15 +912,11 @@ function renderOutcomeEvolutionChart() {
   const xFor = (monthIndex) => padding.left + monthIndex * monthStep;
   const yFor = (value) => padding.top + plotHeight - (value / yMax) * plotHeight;
 
-  const horizontalGridCount = 8;
+  const horizontalGridCount = 12;
   const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
     const ratio = index / horizontalGridCount;
     const y = padding.top + plotHeight - ratio * plotHeight;
-    const labelValue = yMax * ratio;
-    return `
-      <line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.18)' stroke-width='1' />
-      <text x='${padding.left - 8}' y='${y + 4}' text-anchor='end' fill='rgba(197,220,231,0.9)' font-size='10'>${labelValue.toFixed(0)}</text>
-    `;
+    return `<line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.18)' stroke-width='0.7' />`;
   }).join("");
 
   const monthLabels = months
