@@ -14,12 +14,14 @@ const cgdState = {
   incomeChartVisible: false,
   incomeComparisonChartVisible: false,
   incomeComparisonHiddenRubrics: new Set(),
+  incomeComparisonHiddenExpenses: new Set(),
   incomeChartHiddenRubrics: new Set(),
   incomeChartSelectedRubricKey: null,
   incomeDrilldownHiddenExpenses: new Set(),
   outcomeChartVisible: false,
   outcomeComparisonChartVisible: false,
   outcomeComparisonHiddenRubrics: new Set(),
+  outcomeComparisonHiddenExpenses: new Set(),
   outcomeChartHiddenRubrics: new Set(),
   outcomeChartSelectedRubricKey: null,
   outcomeDrilldownHiddenExpenses: new Set()
@@ -1545,26 +1547,66 @@ function buildComparisonSeriesForKind(kind) {
       const valueTotals = emptyValues();
       const estimatedTotals = emptyValues();
 
-    const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
-    expenses.forEach((expense) => {
-      months.forEach((_, monthIndex) => {
-        const monthData = expense?.monthData?.[monthIndex] || {};
-        const rawValor = Number(monthData.valor);
-        const rawEstimado = Number(monthData.valorEstimado);
-        valueTotals[monthIndex] += Number.isFinite(rawValor) ? rawValor : 0;
-        estimatedTotals[monthIndex] += Number.isFinite(rawEstimado) ? rawEstimado : 0;
-      });
-    });
+      const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
+      const comparisonExpenses = expenses
+        .map((expense, expenseIndex) => {
+          const expenseKey = Number.isFinite(Number(expense?.id))
+            ? `id-${Number(expense.id)}`
+            : `idx-${expenseIndex}`;
+          const expenseValues = emptyValues();
+          const expenseEstimatedValues = emptyValues();
+
+          months.forEach((_, monthIndex) => {
+            const monthData = expense?.monthData?.[monthIndex] || {};
+            const rawValor = Number(monthData.valor);
+            const rawEstimado = Number(monthData.valorEstimado);
+            const normalizedValor = Number.isFinite(rawValor) ? rawValor : 0;
+            const normalizedEstimado = Number.isFinite(rawEstimado) ? rawEstimado : 0;
+
+            expenseValues[monthIndex] = normalizedValor;
+            expenseEstimatedValues[monthIndex] = normalizedEstimado;
+            valueTotals[monthIndex] += normalizedValor;
+            estimatedTotals[monthIndex] += normalizedEstimado;
+          });
+
+          return {
+            key: expenseKey,
+            name: expense?.name || `Despesa ${expenseIndex + 1}`,
+            values: expenseValues,
+            estimatedValues: expenseEstimatedValues
+          };
+        })
+        .filter((entry) => entry.values.some((value) => value !== 0) || entry.estimatedValues.some((value) => value !== 0));
 
       return {
         key,
         name: rubric?.name || `Rubrica ${index + 1}`,
         color: palette[index % palette.length],
         values: valueTotals,
-        estimatedValues: estimatedTotals
+        estimatedValues: estimatedTotals,
+        expenses: comparisonExpenses
       };
     })
     .filter((entry) => entry.values.some((value) => value !== 0) || entry.estimatedValues.some((value) => value !== 0));
+}
+
+function buildComparisonExpenseSeriesForRubric(rubric, kind) {
+  if (!rubric) {
+    return [];
+  }
+
+  const palette = kind === "income"
+    ? ["#8fdcb3", "#8bc8f5", "#9fdc88", "#7fded2", "#95d889", "#79bfe3", "#abdcc6", "#8fd7ff", "#8bcf96", "#93c4eb"]
+    : ["#9ad9ff", "#a9e46f", "#f7c86a", "#f3a47d", "#95c7ff", "#84d56b", "#e8a0b4", "#7acfc6", "#eac17a", "#a6d8b5"];
+
+  const expenses = Array.isArray(rubric.expenses) ? rubric.expenses : [];
+  return expenses.map((expense, index) => ({
+    key: expense.key,
+    name: expense.name,
+    values: expense.values,
+    estimatedValues: expense.estimatedValues,
+    color: palette[index % palette.length]
+  }));
 }
 
 function bindComparisonChartHover(host) {
@@ -1619,10 +1661,12 @@ function bindComparisonChartInteractions(host, kind) {
   host.dataset.comparisonChartBound = "1";
   host.addEventListener("click", (event) => {
     const hiddenSet = kind === "income" ? cgdState.incomeComparisonHiddenRubrics : cgdState.outcomeComparisonHiddenRubrics;
+    const hiddenExpensesSet = kind === "income" ? cgdState.incomeComparisonHiddenExpenses : cgdState.outcomeComparisonHiddenExpenses;
 
     const closeBtn = event.target.closest("[data-income-comparison-chart-close-main], [data-outcome-comparison-chart-close-main]");
     if (closeBtn) {
       hiddenSet.clear();
+      hiddenExpensesSet.clear();
       if (kind === "income") {
         cgdState.incomeComparisonChartVisible = false;
       } else {
@@ -1634,6 +1678,29 @@ function bindComparisonChartInteractions(host, kind) {
       requestAnimationFrame(() => {
         ensurePanelHeadVisible(kind);
       });
+      return;
+    }
+
+    const drilldownToggle = event.target.closest("[data-comparison-drilldown-toggle]");
+    if (drilldownToggle) {
+      const expenseKey = String(drilldownToggle.getAttribute("data-comparison-drilldown-toggle") || "").trim();
+      const activeRubricKey = String(host.dataset.singleComparisonRubricKey || "").trim();
+      if (!expenseKey || !activeRubricKey) {
+        return;
+      }
+
+      const stateKey = `${activeRubricKey}::${expenseKey}`;
+      if (hiddenExpensesSet.has(stateKey)) {
+        hiddenExpensesSet.delete(stateKey);
+      } else {
+        hiddenExpensesSet.add(stateKey);
+      }
+
+      if (kind === "income") {
+        renderIncomeComparisonChart();
+      } else {
+        renderOutcomeComparisonChart();
+      }
       return;
     }
 
@@ -1708,6 +1775,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
   bindComparisonChartInteractions(host, kind);
 
   const hiddenSet = kind === "income" ? cgdState.incomeComparisonHiddenRubrics : cgdState.outcomeComparisonHiddenRubrics;
+  const hiddenExpensesSet = kind === "income" ? cgdState.incomeComparisonHiddenExpenses : cgdState.outcomeComparisonHiddenExpenses;
   const rubricSeries = buildComparisonSeriesForKind(kind);
 
   if (!rubricSeries.length) {
@@ -1721,6 +1789,18 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
   }
 
   const visibleRubrics = rubricSeries.filter((entry) => !hiddenSet.has(entry.key));
+  const singleVisibleRubric = visibleRubrics.length === 1 ? visibleRubrics[0] : null;
+  host.dataset.singleComparisonRubricKey = singleVisibleRubric ? singleVisibleRubric.key : "";
+
+  const expenseSeries = singleVisibleRubric ? buildComparisonExpenseSeriesForRubric(singleVisibleRubric, kind) : [];
+  const expenseStateKey = (expenseKey) => `${singleVisibleRubric.key}::${expenseKey}`;
+  const visibleExpenseSeries = singleVisibleRubric
+    ? expenseSeries.filter((entry) => !hiddenExpensesSet.has(expenseStateKey(entry.key)))
+    : [];
+
+  const isSingleRubricMode = Boolean(singleVisibleRubric);
+  const plottedSeries = isSingleRubricMode ? visibleExpenseSeries : visibleRubrics;
+
   const legend = rubricSeries
     .map((entry) => {
       const isVisibleRubric = !hiddenSet.has(entry.key);
@@ -1728,6 +1808,16 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
       return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-comparison-chart-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisibleRubric ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</button>`;
     })
     .join("");
+
+  const expenseLegend = isSingleRubricMode
+    ? expenseSeries
+        .map((entry) => {
+          const isVisibleExpense = !hiddenExpensesSet.has(expenseStateKey(entry.key));
+          const stateClass = isVisibleExpense ? "is-active" : "is-inactive";
+          return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-comparison-drilldown-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisibleExpense ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</button>`;
+        })
+        .join("")
+    : "";
 
   if (!visibleRubrics.length) {
     host.innerHTML = `
@@ -1744,6 +1834,37 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
     return;
   }
 
+  if (isSingleRubricMode && !expenseSeries.length) {
+    host.innerHTML = `
+      <div class='outcome-drilldown-toolbar'>
+        <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
+      </div>
+      <div class='outcome-evolution-controls'>
+        <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-select-all>Selecionar todas</button>
+        <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-deselect-all>Desselecionar todas</button>
+      </div>
+      <div class='outcome-evolution-top-series'>${legend}</div>
+      <p class='outcome-evolution-empty'>Esta rubrica nao tem despesas com valores para comparar.</p>
+    `;
+    return;
+  }
+
+  if (isSingleRubricMode && !visibleExpenseSeries.length) {
+    host.innerHTML = `
+      <div class='outcome-drilldown-toolbar'>
+        <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
+      </div>
+      <div class='outcome-evolution-controls'>
+        <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-select-all>Selecionar todas</button>
+        <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-deselect-all>Desselecionar todas</button>
+      </div>
+      <div class='outcome-evolution-top-series'>${legend}</div>
+      <p class='outcome-evolution-empty'>Nenhuma despesa selecionada. Clica na legenda de despesas para voltar a mostrar.</p>
+      <div class='outcome-evolution-top-series'>${expenseLegend}</div>
+    `;
+    return;
+  }
+
   const chartWidth = 980;
   const chartHeight = 320;
   const padding = { top: 20, right: 18, bottom: 38, left: 54 };
@@ -1751,7 +1872,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
   const plotHeight = chartHeight - padding.top - padding.bottom;
   const monthBand = plotWidth / months.length;
 
-  const maxValue = Math.max(...visibleRubrics.flatMap((entry) => [...entry.values, ...entry.estimatedValues]));
+  const maxValue = Math.max(...plottedSeries.flatMap((entry) => [...entry.values, ...entry.estimatedValues]));
   const yMax = maxValue > 0 ? maxValue : 1;
 
   const xFor = (monthIndex) => padding.left + monthIndex * monthBand;
@@ -1782,7 +1903,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
     })
     .join("");
 
-  const barPairsPerMonth = Math.max(visibleRubrics.length, 1);
+  const barPairsPerMonth = Math.max(plottedSeries.length, 1);
   const monthInnerPadding = 6;
   const barSlotWidth = Math.max((monthBand - monthInnerPadding * 2) / (barPairsPerMonth * 2), 2);
   const barWidth = Math.min(barSlotWidth, 11);
@@ -1791,19 +1912,19 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
   const bars = months
     .map((monthName, monthIndex) => {
       const monthStart = xFor(monthIndex) + monthBand / 2 - clusterWidth / 2;
-      return visibleRubrics
-        .map((rubric, rubricIndex) => {
-          const baseX = monthStart + rubricIndex * 2 * barWidth;
-          const value = Number(rubric.values?.[monthIndex]) || 0;
-          const estimated = Number(rubric.estimatedValues?.[monthIndex]) || 0;
+      return plottedSeries
+        .map((entry, entryIndex) => {
+          const baseX = monthStart + entryIndex * 2 * barWidth;
+          const value = Number(entry.values?.[monthIndex]) || 0;
+          const estimated = Number(entry.estimatedValues?.[monthIndex]) || 0;
           const valueY = yFor(value);
           const estimatedY = yFor(estimated);
           const valueHeight = Math.max(padding.top + plotHeight - valueY, 1);
           const estimatedHeight = Math.max(padding.top + plotHeight - estimatedY, 1);
 
           return `
-            <rect class='outcome-comparison-bar' x='${baseX.toFixed(2)}' y='${valueY.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${valueHeight.toFixed(2)}' fill='${rubric.color}' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${rubric.name} · Valor`)}' data-month-name='${escapeHtml(monthName)}' data-value='${value.toFixed(2)}' data-series-color='${rubric.color}'></rect>
-            <rect class='outcome-comparison-bar outcome-comparison-bar-estimated' x='${(baseX + barWidth).toFixed(2)}' y='${estimatedY.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${estimatedHeight.toFixed(2)}' fill='${rubric.color}' fill-opacity='0.42' stroke='${rubric.color}' stroke-width='0.8' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${rubric.name} · Estimado`)}' data-month-name='${escapeHtml(monthName)}' data-value='${estimated.toFixed(2)}' data-series-color='${rubric.color}'></rect>
+            <rect class='outcome-comparison-bar' x='${baseX.toFixed(2)}' y='${valueY.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${valueHeight.toFixed(2)}' fill='${entry.color}' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} · Valor`)}' data-month-name='${escapeHtml(monthName)}' data-value='${value.toFixed(2)}' data-series-color='${entry.color}'></rect>
+            <rect class='outcome-comparison-bar outcome-comparison-bar-estimated' x='${(baseX + barWidth).toFixed(2)}' y='${estimatedY.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${estimatedHeight.toFixed(2)}' fill='${entry.color}' fill-opacity='0.42' stroke='${entry.color}' stroke-width='0.8' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} · Estimado`)}' data-month-name='${escapeHtml(monthName)}' data-value='${estimated.toFixed(2)}' data-series-color='${entry.color}'></rect>
           `;
         })
         .join("");
@@ -1811,8 +1932,16 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
     .join("");
 
   const chartLabel = kind === "income"
-    ? "Grafico comparativo mensal de valor e valor estimado do income"
-    : "Grafico comparativo mensal de valor e valor estimado do outcome";
+    ? (isSingleRubricMode
+      ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de income selecionada"
+      : "Grafico comparativo mensal de valor e valor estimado do income")
+    : (isSingleRubricMode
+      ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de outcome selecionada"
+      : "Grafico comparativo mensal de valor e valor estimado do outcome");
+
+  const singleRubricLegendMarkup = isSingleRubricMode && expenseSeries.length
+    ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>`
+    : "";
 
   host.innerHTML = `
     <div class='outcome-drilldown-toolbar'>
@@ -1823,6 +1952,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
       <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-deselect-all>Desselecionar todas</button>
     </div>
     <div class='outcome-evolution-top-series'>${legend}</div>
+    ${singleRubricLegendMarkup}
     <div class='outcome-evolution-svg-wrap'>
       <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${chartLabel}'>
         ${gridLines}
@@ -1879,6 +2009,7 @@ window.cgdToggleIncomeComparisonChart = () => {
   cgdState.incomeComparisonChartVisible = !cgdState.incomeComparisonChartVisible;
   if (!cgdState.incomeComparisonChartVisible) {
     cgdState.incomeComparisonHiddenRubrics.clear();
+    cgdState.incomeComparisonHiddenExpenses.clear();
   }
   renderPanels();
   document.dispatchEvent(new Event("cgd:rendered"));
@@ -1918,6 +2049,7 @@ window.cgdToggleOutcomeComparisonChart = () => {
   cgdState.outcomeComparisonChartVisible = !cgdState.outcomeComparisonChartVisible;
   if (!cgdState.outcomeComparisonChartVisible) {
     cgdState.outcomeComparisonHiddenRubrics.clear();
+    cgdState.outcomeComparisonHiddenExpenses.clear();
   }
   renderPanels();
   document.dispatchEvent(new Event("cgd:rendered"));
