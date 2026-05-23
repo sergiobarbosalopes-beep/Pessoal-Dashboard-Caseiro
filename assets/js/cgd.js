@@ -580,7 +580,12 @@ function buildPanel(title, kind, rubrics) {
           title='${lineChartVisible ? "Fechar grafico" : "Abrir grafico"}'
         >
           <svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden='true'>
-            <path d='M4 18V15M9.5 18V10M15 18V6M20 18V12' stroke='currentColor' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'/>
+            <path d='M4.5 18.5H19.5' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'/>
+            <path d='M5.5 15.8L9.3 11.9L12.6 13.9L18.5 7.8' stroke='currentColor' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'/>
+            <circle cx='5.5' cy='15.8' r='1.2' fill='currentColor'/>
+            <circle cx='9.3' cy='11.9' r='1.2' fill='currentColor'/>
+            <circle cx='12.6' cy='13.9' r='1.2' fill='currentColor'/>
+            <circle cx='18.5' cy='7.8' r='1.2' fill='currentColor'/>
           </svg>
         </button>
         <button
