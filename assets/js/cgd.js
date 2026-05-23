@@ -1094,7 +1094,7 @@ function renderOutcomeEvolutionChart() {
     .map((entry) => {
       const isSelected = !isSingleRubricMode && entry.key === cgdState.outcomeChartSelectedRubricKey;
       const isRubricLineInSingleMode = isSingleRubricMode && entry.key === singleVisibleRubric.key;
-      const strokeWidth = isSingleRubricMode && !isRubricLineInSingleMode ? "0.8" : "1.3";
+      const strokeWidth = isSingleRubricMode && !isRubricLineInSingleMode ? "0.6" : "1.3";
       const selectionClass = isSelected ? "is-selected" : "";
       const points = entry.values.map((value, monthIndex) => ({ x: xFor(monthIndex), y: yFor(value), value, monthIndex }));
       const pathData = buildSmoothPathData(points);
