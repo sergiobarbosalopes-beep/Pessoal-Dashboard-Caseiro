@@ -1382,6 +1382,9 @@ function renderPanels() {
 
   panels.innerHTML = `
     ${buildPanel("Income", "income", cgdState.data.income)}
+    <section class='card outcome-evolution-card income-evolution-card'>
+      <div class='outcome-evolution' id='income-evolution-chart' aria-live='polite'></div>
+    </section>
     ${buildPanel("Outcome", "outcome", cgdState.data.outcome)}
   `;
 
