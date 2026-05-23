@@ -1119,6 +1119,16 @@ window.cgdToggleOutcomeChart = () => {
     cgdState.outcomeChartHiddenRubrics.clear();
   }
   renderPanels();
+
+  if (cgdState.outcomeChartVisible) {
+    requestAnimationFrame(() => {
+      const chartCard = document.querySelector(".outcome-evolution-card");
+      if (chartCard) {
+        chartCard.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  }
+
   return cgdState.outcomeChartVisible;
 };
 
