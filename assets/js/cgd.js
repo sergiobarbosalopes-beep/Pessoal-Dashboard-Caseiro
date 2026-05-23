@@ -724,6 +724,25 @@ function buildOutcomeRubricSeries() {
     .filter((entry) => entry.values.some((value) => value !== 0));
 }
 
+function buildOutcomeExpenseSeriesForRubric(rubric) {
+  if (!rubric) {
+    return [];
+  }
+
+  const palette = ["#9ad9ff", "#a9e46f", "#f7c86a", "#f3a47d", "#95c7ff", "#84d56b", "#e8a0b4", "#7acfc6", "#eac17a", "#a6d8b5"];
+  return (rubric.expenses || [])
+    .map((expense, index) => ({
+      key: expense.key || `expense-${index}`,
+      name: expense.name || `Despesa ${index + 1}`,
+      values: months.map((_, monthIndex) => {
+        const numeric = Number(expense.values?.[monthIndex]);
+        return Number.isFinite(numeric) ? numeric : 0;
+      }),
+      color: palette[index % palette.length]
+    }))
+    .filter((entry) => entry.values.some((value) => value !== 0));
+}
+
 function buildOutcomeExpenseDrilldownMarkup(selectedRubric) {
   if (!selectedRubric) {
     return "";
@@ -880,10 +899,11 @@ function bindOutcomeChartInteractions(host) {
     }
 
     const drilldownToggle = event.target.closest("[data-outcome-drilldown-toggle]");
-    if (drilldownToggle && cgdState.outcomeChartSelectedRubricKey) {
+    if (drilldownToggle) {
       const expenseKey = String(drilldownToggle.getAttribute("data-outcome-drilldown-toggle") || "").trim();
+      const activeRubricKey = cgdState.outcomeChartSelectedRubricKey || String(host.dataset.singleRubricKey || "").trim();
       if (expenseKey) {
-        const stateKey = `${cgdState.outcomeChartSelectedRubricKey}::${expenseKey}`;
+        const stateKey = `${activeRubricKey}::${expenseKey}`;
         if (cgdState.outcomeDrilldownHiddenExpenses.has(stateKey)) {
           cgdState.outcomeDrilldownHiddenExpenses.delete(stateKey);
         } else {
@@ -988,6 +1008,8 @@ function renderOutcomeEvolutionChart() {
   const series = buildOutcomeRubricSeries();
   const visibleSeries = series.filter((entry) => !cgdState.outcomeChartHiddenRubrics.has(entry.key));
   const selectedRubric = visibleSeries.find((entry) => entry.key === cgdState.outcomeChartSelectedRubricKey) || null;
+  const singleVisibleRubric = visibleSeries.length === 1 ? visibleSeries[0] : null;
+  host.dataset.singleRubricKey = singleVisibleRubric ? singleVisibleRubric.key : "";
 
   const legend = series
     .map((entry) => {
@@ -1013,6 +1035,13 @@ function renderOutcomeEvolutionChart() {
     return;
   }
 
+  const isSingleRubricMode = Boolean(singleVisibleRubric);
+  const expenseSeries = isSingleRubricMode ? buildOutcomeExpenseSeriesForRubric(singleVisibleRubric) : [];
+  const expenseStateKey = (expenseKey) => `${singleVisibleRubric.key}::${expenseKey}`;
+  const visibleExpenseSeries = isSingleRubricMode
+    ? expenseSeries.filter((entry) => !cgdState.outcomeDrilldownHiddenExpenses.has(expenseStateKey(entry.key)))
+    : [];
+
   const chartWidth = 980;
   const chartHeight = 320;
   const padding = { top: 20, right: 18, bottom: 38, left: 54 };
@@ -1021,7 +1050,28 @@ function renderOutcomeEvolutionChart() {
   const monthStep = plotWidth / (months.length - 1);
   const plotBottom = padding.top + plotHeight;
 
-  const maxValue = Math.max(...visibleSeries.flatMap((entry) => entry.values));
+  const plottedSeries = isSingleRubricMode ? visibleExpenseSeries : visibleSeries;
+  if (isSingleRubricMode && !plottedSeries.length) {
+    const expenseLegend = expenseSeries
+      .map((entry) => {
+        const isVisible = !cgdState.outcomeDrilldownHiddenExpenses.has(expenseStateKey(entry.key));
+        const stateClass = isVisible ? "is-active" : "is-inactive";
+        return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-outcome-drilldown-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisible ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</button>`;
+      })
+      .join("");
+
+    host.innerHTML = `
+      <div class='outcome-drilldown-toolbar'>
+        <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-main>Fechar</button>
+      </div>
+      <div class='outcome-evolution-top-series'>${legend}</div>
+      <p class='outcome-evolution-empty'>Nenhuma despesa selecionada. Clica na linha de despesas para voltar a mostrar.</p>
+      <div class='outcome-evolution-top-series'>${expenseLegend}</div>
+    `;
+    return;
+  }
+
+  const maxValue = Math.max(...plottedSeries.flatMap((entry) => entry.values));
   const yMax = maxValue > 0 ? maxValue : 1;
 
   const xFor = (monthIndex) => padding.left + monthIndex * monthStep;
@@ -1052,9 +1102,9 @@ function renderOutcomeEvolutionChart() {
     })
     .join("");
 
-  const lines = visibleSeries
+  const lines = plottedSeries
     .map((entry) => {
-      const isSelected = entry.key === cgdState.outcomeChartSelectedRubricKey;
+      const isSelected = !isSingleRubricMode && entry.key === cgdState.outcomeChartSelectedRubricKey;
       const selectionClass = isSelected ? "is-selected" : "";
       const points = entry.values.map((value, monthIndex) => ({ x: xFor(monthIndex), y: yFor(value), value, monthIndex }));
       const pathData = buildSmoothPathData(points);
@@ -1067,7 +1117,7 @@ function renderOutcomeEvolutionChart() {
         })
         .join("");
       return `
-        <g class='outcome-evolution-series ${selectionClass}' data-outcome-chart-drilldown='${escapeHtml(entry.key)}'>
+        <g class='outcome-evolution-series ${selectionClass}' ${isSingleRubricMode ? "" : `data-outcome-chart-drilldown='${escapeHtml(entry.key)}'`}>
           <path d='${areaPath}' class='outcome-evolution-area' fill='${entry.color}' fill-opacity='0.10' />
           <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round' />
           ${pointsMarkup}
@@ -1076,15 +1126,28 @@ function renderOutcomeEvolutionChart() {
     })
     .join("");
 
-  const drilldownMarkup = buildOutcomeExpenseDrilldownMarkup(selectedRubric);
+  const expenseLegend = isSingleRubricMode
+    ? expenseSeries
+        .map((entry) => {
+          const isVisible = !cgdState.outcomeDrilldownHiddenExpenses.has(expenseStateKey(entry.key));
+          const stateClass = isVisible ? "is-active" : "is-inactive";
+          return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-outcome-drilldown-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisible ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</button>`;
+        })
+        .join("")
+    : "";
+
+  const singleRubricLegendMarkup = isSingleRubricMode && expenseSeries.length
+    ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>`
+    : "";
 
   host.innerHTML = `
     <div class='outcome-drilldown-toolbar'>
       <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-main>Fechar</button>
     </div>
     <div class='outcome-evolution-top-series'>${legend}</div>
+    ${singleRubricLegendMarkup}
     <div class='outcome-evolution-svg-wrap'>
-      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='Grafico de linhas com evolucao das rubricas de outcome'>
+      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${isSingleRubricMode ? "Grafico de linhas com evolucao das despesas da rubrica selecionada" : "Grafico de linhas com evolucao das rubricas de outcome"}'>
         ${gridLines}
         ${monthGridLines}
         ${lines}
@@ -1092,7 +1155,6 @@ function renderOutcomeEvolutionChart() {
       </svg>
       <div class='outcome-evolution-tooltip' aria-hidden='true'></div>
     </div>
-    ${drilldownMarkup}
   `;
 
   bindOutcomeChartHover(host);
