@@ -675,6 +675,15 @@ a {
   filter: drop-shadow(0 0 7px rgba(9, 30, 40, 0.48));
 }
 
+.outcome-evolution-series {
+  cursor: pointer;
+}
+
+.outcome-evolution-series.is-selected .outcome-evolution-line {
+  stroke-width: 3.2;
+  filter: drop-shadow(0 0 10px rgba(185, 220, 238, 0.5));
+}
+
 .outcome-evolution-area {
   pointer-events: none;
 }
@@ -725,6 +734,12 @@ a {
   margin: 0;
   font-size: 0.82rem;
   color: #b6cad5;
+}
+
+.outcome-drilldown {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(176, 210, 226, 0.26);
 }
 
 .panel {
