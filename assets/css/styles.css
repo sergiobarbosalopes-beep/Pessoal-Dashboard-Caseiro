@@ -703,6 +703,16 @@ a {
   r: 3.6;
 }
 
+.outcome-comparison-bar {
+  cursor: pointer;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.outcome-comparison-bar:hover,
+.outcome-comparison-bar:focus {
+  opacity: 0.92;
+}
+
 .outcome-evolution-tooltip {
   position: absolute;
   left: 0;

@@ -13,11 +13,13 @@ const cgdState = {
   notesTableName: null,
   incomeChartVisible: false,
   incomeComparisonChartVisible: false,
+  incomeComparisonHiddenRubrics: new Set(),
   incomeChartHiddenRubrics: new Set(),
   incomeChartSelectedRubricKey: null,
   incomeDrilldownHiddenExpenses: new Set(),
   outcomeChartVisible: false,
   outcomeComparisonChartVisible: false,
+  outcomeComparisonHiddenRubrics: new Set(),
   outcomeChartHiddenRubrics: new Set(),
   outcomeChartSelectedRubricKey: null,
   outcomeDrilldownHiddenExpenses: new Set()
@@ -1475,12 +1477,19 @@ function renderPanels() {
 }
 
 function buildComparisonSeriesForKind(kind) {
+  const palette = kind === "income"
+    ? ["#6ecf9a", "#7cc4ff", "#9ed86b", "#58d2c3", "#8bcf7a", "#5fb3de", "#9edfb7", "#71d0ff", "#77c87f", "#79bdf0"]
+    : ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"];
   const sourceRubrics = kind === "income" ? cgdState.data?.income : cgdState.data?.outcome;
   const rubrics = Array.isArray(sourceRubrics) ? sourceRubrics : [];
-  const valueTotals = emptyValues();
-  const estimatedTotals = emptyValues();
 
-  rubrics.forEach((rubric) => {
+  return rubrics
+    .map((rubric, index) => {
+      const rawId = rubric?.id;
+      const key = Number.isFinite(Number(rawId)) ? `id-${Number(rawId)}` : `idx-${index}`;
+      const valueTotals = emptyValues();
+      const estimatedTotals = emptyValues();
+
     const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
     expenses.forEach((expense) => {
       months.forEach((_, monthIndex) => {
@@ -1491,19 +1500,60 @@ function buildComparisonSeriesForKind(kind) {
         estimatedTotals[monthIndex] += Number.isFinite(rawEstimado) ? rawEstimado : 0;
       });
     });
-  });
 
-  return [
-    { key: "valor", name: "Valor", color: "#76c5ff", values: valueTotals },
-    { key: "estimado", name: "Valor estimado", color: "#f2c46a", values: estimatedTotals }
-  ];
+      return {
+        key,
+        name: rubric?.name || `Rubrica ${index + 1}`,
+        color: palette[index % palette.length],
+        values: valueTotals,
+        estimatedValues: estimatedTotals
+      };
+    })
+    .filter((entry) => entry.values.some((value) => value !== 0) || entry.estimatedValues.some((value) => value !== 0));
 }
 
 function bindComparisonChartHover(host) {
   if (!host) {
     return;
   }
-  bindOutcomeChartHover(host);
+
+  host.querySelectorAll(".outcome-evolution-svg-wrap").forEach((wrap) => {
+    const tooltip = wrap.querySelector(".outcome-evolution-tooltip");
+    if (!tooltip) {
+      return;
+    }
+
+    const hideTooltip = () => {
+      tooltip.classList.remove("is-visible");
+    };
+
+    wrap.addEventListener("pointerleave", hideTooltip);
+
+    wrap.querySelectorAll("[data-comparison-point]").forEach((point) => {
+      const showTooltip = (event) => {
+        const monthName = point.getAttribute("data-month-name") || "";
+        const seriesName = point.getAttribute("data-series-name") || "";
+        const value = point.getAttribute("data-value") || "0.00";
+        const color = point.getAttribute("data-series-color") || "#b8ced9";
+
+        tooltip.innerHTML = `
+          <div class='outcome-evolution-tooltip-month'>${escapeHtml(monthName)}</div>
+          <div class='outcome-evolution-tooltip-row'>
+            <span class='outcome-evolution-tooltip-dot' style='background:${escapeHtml(color)};'></span>
+            <span class='outcome-evolution-tooltip-series'>${escapeHtml(seriesName)}</span>
+            <strong class='outcome-evolution-tooltip-value'>${escapeHtml(value)}</strong>
+          </div>
+        `;
+        tooltip.classList.add("is-visible");
+        positionOutcomeChartTooltip(tooltip, wrap, event);
+      };
+
+      point.addEventListener("pointerenter", showTooltip);
+      point.addEventListener("pointermove", showTooltip);
+      point.addEventListener("focus", (event) => showTooltip(event));
+      point.addEventListener("blur", hideTooltip);
+    });
+  });
 }
 
 function bindComparisonChartInteractions(host, kind) {
@@ -1513,19 +1563,68 @@ function bindComparisonChartInteractions(host, kind) {
 
   host.dataset.comparisonChartBound = "1";
   host.addEventListener("click", (event) => {
+    const hiddenSet = kind === "income" ? cgdState.incomeComparisonHiddenRubrics : cgdState.outcomeComparisonHiddenRubrics;
+
     const closeBtn = event.target.closest("[data-income-comparison-chart-close-main], [data-outcome-comparison-chart-close-main]");
-    if (!closeBtn) {
+    if (closeBtn) {
+      hiddenSet.clear();
+      if (kind === "income") {
+        cgdState.incomeComparisonChartVisible = false;
+      } else {
+        cgdState.outcomeComparisonChartVisible = false;
+      }
+
+      renderPanels();
+      document.dispatchEvent(new Event("cgd:rendered"));
       return;
     }
 
-    if (kind === "income") {
-      cgdState.incomeComparisonChartVisible = false;
-    } else {
-      cgdState.outcomeComparisonChartVisible = false;
+    const toggleBtn = event.target.closest("[data-comparison-chart-toggle]");
+    if (toggleBtn) {
+      const key = String(toggleBtn.getAttribute("data-comparison-chart-toggle") || "").trim();
+      if (!key) {
+        return;
+      }
+
+      if (hiddenSet.has(key)) {
+        hiddenSet.delete(key);
+      } else {
+        hiddenSet.add(key);
+      }
+
+      if (kind === "income") {
+        renderIncomeComparisonChart();
+      } else {
+        renderOutcomeComparisonChart();
+      }
+      return;
     }
 
-    renderPanels();
-    document.dispatchEvent(new Event("cgd:rendered"));
+    const selectAllBtn = event.target.closest("[data-comparison-chart-select-all]");
+    if (selectAllBtn) {
+      hiddenSet.clear();
+      if (kind === "income") {
+        renderIncomeComparisonChart();
+      } else {
+        renderOutcomeComparisonChart();
+      }
+      return;
+    }
+
+    const deselectAllBtn = event.target.closest("[data-comparison-chart-deselect-all]");
+    if (deselectAllBtn) {
+      host.querySelectorAll("[data-comparison-chart-toggle]").forEach((item) => {
+        const key = String(item.getAttribute("data-comparison-chart-toggle") || "").trim();
+        if (key) {
+          hiddenSet.add(key);
+        }
+      });
+      if (kind === "income") {
+        renderIncomeComparisonChart();
+      } else {
+        renderOutcomeComparisonChart();
+      }
+    }
   });
 }
 
@@ -1550,9 +1649,10 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
 
   bindComparisonChartInteractions(host, kind);
 
-  const series = buildComparisonSeriesForKind(kind);
-  const hasData = series.some((entry) => entry.values.some((value) => Number(value) !== 0));
-  if (!hasData) {
+  const hiddenSet = kind === "income" ? cgdState.incomeComparisonHiddenRubrics : cgdState.outcomeComparisonHiddenRubrics;
+  const rubricSeries = buildComparisonSeriesForKind(kind);
+
+  if (!rubricSeries.length) {
     host.innerHTML = `
       <div class='outcome-drilldown-toolbar'>
         <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
@@ -1562,18 +1662,41 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
     return;
   }
 
+  const visibleRubrics = rubricSeries.filter((entry) => !hiddenSet.has(entry.key));
+  const legend = rubricSeries
+    .map((entry) => {
+      const isVisibleRubric = !hiddenSet.has(entry.key);
+      const stateClass = isVisibleRubric ? "is-active" : "is-inactive";
+      return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-comparison-chart-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisibleRubric ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</button>`;
+    })
+    .join("");
+
+  if (!visibleRubrics.length) {
+    host.innerHTML = `
+      <div class='outcome-drilldown-toolbar'>
+        <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
+      </div>
+      <div class='outcome-evolution-controls'>
+        <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-select-all>Selecionar todas</button>
+        <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-deselect-all>Desselecionar todas</button>
+      </div>
+      <p class='outcome-evolution-empty'>Nenhuma rubrica selecionada. Clica na legenda para voltar a mostrar.</p>
+      <div class='outcome-evolution-top-series'>${legend}</div>
+    `;
+    return;
+  }
+
   const chartWidth = 980;
   const chartHeight = 320;
   const padding = { top: 20, right: 18, bottom: 38, left: 54 };
   const plotWidth = chartWidth - padding.left - padding.right;
   const plotHeight = chartHeight - padding.top - padding.bottom;
-  const monthStep = plotWidth / (months.length - 1);
-  const plotBottom = padding.top + plotHeight;
+  const monthBand = plotWidth / months.length;
 
-  const maxValue = Math.max(...series.flatMap((entry) => entry.values));
+  const maxValue = Math.max(...visibleRubrics.flatMap((entry) => [...entry.values, ...entry.estimatedValues]));
   const yMax = maxValue > 0 ? maxValue : 1;
 
-  const xFor = (monthIndex) => padding.left + monthIndex * monthStep;
+  const xFor = (monthIndex) => padding.left + monthIndex * monthBand;
   const yFor = (value) => padding.top + plotHeight - (value / yMax) * plotHeight;
 
   const horizontalGridCount = 12;
@@ -1589,42 +1712,44 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
 
   const monthLabels = months
     .map((month, monthIndex) => {
-      const x = xFor(monthIndex);
+      const x = xFor(monthIndex) + monthBand / 2;
       return `<text x='${x}' y='${chartHeight - 12}' text-anchor='middle' fill='rgba(197,220,231,0.9)' font-size='10'>${escapeHtml(month)}</text>`;
     })
     .join("");
 
   const monthGridLines = months
     .map((_, monthIndex) => {
-      const x = xFor(monthIndex);
+      const x = xFor(monthIndex) + monthBand / 2;
       return `<line x1='${x}' y1='${padding.top}' x2='${x}' y2='${padding.top + plotHeight}' stroke='rgba(176,210,226,0.12)' stroke-width='1' />`;
     })
     .join("");
 
-  const lines = series
-    .map((entry) => {
-      const points = entry.values.map((value, monthIndex) => ({ x: xFor(monthIndex), y: yFor(value), value, monthIndex }));
-      const pathData = buildSmoothPathData(points);
-      const areaPath = `${pathData} L ${points[points.length - 1].x.toFixed(2)} ${plotBottom.toFixed(2)} L ${points[0].x.toFixed(2)} ${plotBottom.toFixed(2)} Z`;
-      const pointsMarkup = entry.values
-        .map((value, monthIndex) => {
-          const cx = xFor(monthIndex);
-          const cy = yFor(value);
-          return `<circle class='outcome-evolution-point' cx='${cx.toFixed(2)}' cy='${cy.toFixed(2)}' r='2.8' fill='${entry.color}' tabindex='0' data-series-name='${escapeHtml(entry.name)}' data-month-name='${escapeHtml(months[monthIndex])}' data-value='${Number(value).toFixed(2)}' data-series-color='${entry.color}'></circle>`;
+  const barPairsPerMonth = Math.max(visibleRubrics.length, 1);
+  const monthInnerPadding = 6;
+  const barSlotWidth = Math.max((monthBand - monthInnerPadding * 2) / (barPairsPerMonth * 2), 2);
+  const barWidth = Math.min(barSlotWidth, 11);
+  const clusterWidth = barPairsPerMonth * 2 * barWidth;
+
+  const bars = months
+    .map((monthName, monthIndex) => {
+      const monthStart = xFor(monthIndex) + monthBand / 2 - clusterWidth / 2;
+      return visibleRubrics
+        .map((rubric, rubricIndex) => {
+          const baseX = monthStart + rubricIndex * 2 * barWidth;
+          const value = Number(rubric.values?.[monthIndex]) || 0;
+          const estimated = Number(rubric.estimatedValues?.[monthIndex]) || 0;
+          const valueY = yFor(value);
+          const estimatedY = yFor(estimated);
+          const valueHeight = Math.max(padding.top + plotHeight - valueY, 1);
+          const estimatedHeight = Math.max(padding.top + plotHeight - estimatedY, 1);
+
+          return `
+            <rect class='outcome-comparison-bar' x='${baseX.toFixed(2)}' y='${valueY.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${valueHeight.toFixed(2)}' fill='${rubric.color}' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${rubric.name} · Valor`)}' data-month-name='${escapeHtml(monthName)}' data-value='${value.toFixed(2)}' data-series-color='${rubric.color}'></rect>
+            <rect class='outcome-comparison-bar outcome-comparison-bar-estimated' x='${(baseX + barWidth).toFixed(2)}' y='${estimatedY.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${estimatedHeight.toFixed(2)}' fill='${rubric.color}' fill-opacity='0.42' stroke='${rubric.color}' stroke-width='0.8' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${rubric.name} · Estimado`)}' data-month-name='${escapeHtml(monthName)}' data-value='${estimated.toFixed(2)}' data-series-color='${rubric.color}'></rect>
+          `;
         })
         .join("");
-      return `
-        <g class='outcome-evolution-series'>
-          <path d='${areaPath}' class='outcome-evolution-area' fill='${entry.color}' fill-opacity='0.08' />
-          <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round' />
-          ${pointsMarkup}
-        </g>
-      `;
     })
-    .join("");
-
-  const legend = series
-    .map((entry) => `<span class='outcome-evolution-legend-item is-active'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</span>`)
     .join("");
 
   const chartLabel = kind === "income"
@@ -1635,12 +1760,16 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
     <div class='outcome-drilldown-toolbar'>
       <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
     </div>
+    <div class='outcome-evolution-controls'>
+      <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-select-all>Selecionar todas</button>
+      <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-deselect-all>Desselecionar todas</button>
+    </div>
     <div class='outcome-evolution-top-series'>${legend}</div>
     <div class='outcome-evolution-svg-wrap'>
       <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${chartLabel}'>
         ${gridLines}
         ${monthGridLines}
-        ${lines}
+        ${bars}
         ${monthLabels}
       </svg>
       <div class='outcome-evolution-tooltip' aria-hidden='true'></div>
@@ -1689,6 +1818,9 @@ window.cgdToggleIncomeChart = () => {
 
 window.cgdToggleIncomeComparisonChart = () => {
   cgdState.incomeComparisonChartVisible = !cgdState.incomeComparisonChartVisible;
+  if (!cgdState.incomeComparisonChartVisible) {
+    cgdState.incomeComparisonHiddenRubrics.clear();
+  }
   renderPanels();
   document.dispatchEvent(new Event("cgd:rendered"));
 
@@ -1723,6 +1855,9 @@ window.cgdToggleOutcomeChart = () => {
 
 window.cgdToggleOutcomeComparisonChart = () => {
   cgdState.outcomeComparisonChartVisible = !cgdState.outcomeComparisonChartVisible;
+  if (!cgdState.outcomeComparisonChartVisible) {
+    cgdState.outcomeComparisonHiddenRubrics.clear();
+  }
   renderPanels();
   document.dispatchEvent(new Event("cgd:rendered"));
 
