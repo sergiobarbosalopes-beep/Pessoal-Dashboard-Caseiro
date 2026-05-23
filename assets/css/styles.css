@@ -696,7 +696,7 @@ a {
 }
 
 .outcome-evolution-series.is-selected .outcome-evolution-line {
-  stroke-width: 3.2;
+  stroke-width: 1.3;
   filter: drop-shadow(0 0 10px rgba(185, 220, 238, 0.5));
 }
 
