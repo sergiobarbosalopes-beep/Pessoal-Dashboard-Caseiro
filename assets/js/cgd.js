@@ -665,6 +665,20 @@ function ensureChartBottomVisible(chartCard, gap = 14) {
   }
 }
 
+function scheduleChartOpenScroll(selector) {
+  if (!selector) {
+    return;
+  }
+
+  // Wait one full paint cycle so hidden cards are laid out before measuring.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const chartCard = document.querySelector(selector);
+      ensureChartBottomVisible(chartCard);
+    });
+  });
+}
+
 function ensurePanelHeadVisible(kind, topGap = 84, bottomGap = 16) {
   const panel = document.querySelector(`.panel.${kind}`);
   const panelHead = panel?.querySelector(".panel-head") || panel;
@@ -1836,10 +1850,7 @@ window.cgdToggleIncomeChart = () => {
   document.dispatchEvent(new Event("cgd:rendered"));
 
   if (cgdState.incomeChartVisible) {
-    requestAnimationFrame(() => {
-      const chartCard = document.querySelector(".income-evolution-card");
-      ensureChartBottomVisible(chartCard);
-    });
+    scheduleChartOpenScroll(".income-evolution-card");
   } else {
     requestAnimationFrame(() => {
       ensurePanelHeadVisible("income");
@@ -1858,10 +1869,7 @@ window.cgdToggleIncomeComparisonChart = () => {
   document.dispatchEvent(new Event("cgd:rendered"));
 
   if (cgdState.incomeComparisonChartVisible) {
-    requestAnimationFrame(() => {
-      const chartCard = document.querySelector(".income-comparison-card");
-      ensureChartBottomVisible(chartCard);
-    });
+    scheduleChartOpenScroll(".income-comparison-card");
   } else {
     requestAnimationFrame(() => {
       ensurePanelHeadVisible("income");
@@ -1881,10 +1889,7 @@ window.cgdToggleOutcomeChart = () => {
   document.dispatchEvent(new Event("cgd:rendered"));
 
   if (cgdState.outcomeChartVisible) {
-    requestAnimationFrame(() => {
-      const chartCard = document.querySelector(".outcome-evolution-card:not(.income-evolution-card)");
-      ensureChartBottomVisible(chartCard);
-    });
+    scheduleChartOpenScroll(".outcome-evolution-card:not(.income-evolution-card):not(.outcome-comparison-card)");
   } else {
     requestAnimationFrame(() => {
       ensurePanelHeadVisible("outcome");
@@ -1903,10 +1908,7 @@ window.cgdToggleOutcomeComparisonChart = () => {
   document.dispatchEvent(new Event("cgd:rendered"));
 
   if (cgdState.outcomeComparisonChartVisible) {
-    requestAnimationFrame(() => {
-      const chartCard = document.querySelector(".outcome-comparison-card");
-      ensureChartBottomVisible(chartCard);
-    });
+    scheduleChartOpenScroll(".outcome-comparison-card");
   } else {
     requestAnimationFrame(() => {
       ensurePanelHeadVisible("outcome");
