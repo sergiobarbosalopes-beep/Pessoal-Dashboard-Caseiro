@@ -1732,31 +1732,6 @@ function bindComparisonChartInteractions(host, kind) {
       return;
     }
 
-    const selectAllBtn = event.target.closest("[data-comparison-chart-select-all]");
-    if (selectAllBtn) {
-      hiddenSet.clear();
-      if (kind === "income") {
-        renderIncomeComparisonChart();
-      } else {
-        renderOutcomeComparisonChart();
-      }
-      return;
-    }
-
-    const deselectAllBtn = event.target.closest("[data-comparison-chart-deselect-all]");
-    if (deselectAllBtn) {
-      host.querySelectorAll("[data-comparison-chart-toggle]").forEach((item) => {
-        const key = String(item.getAttribute("data-comparison-chart-toggle") || "").trim();
-        if (key) {
-          hiddenSet.add(key);
-        }
-      });
-      if (kind === "income") {
-        renderIncomeComparisonChart();
-      } else {
-        renderOutcomeComparisonChart();
-      }
-    }
   });
 }
 
@@ -1831,10 +1806,6 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
       <div class='outcome-drilldown-toolbar'>
         <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
       </div>
-      <div class='outcome-evolution-controls'>
-        <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-select-all>Selecionar todas</button>
-        <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-deselect-all>Desselecionar todas</button>
-      </div>
       <p class='outcome-evolution-empty'>Nenhuma rubrica selecionada. Clica na legenda para voltar a mostrar.</p>
       <div class='outcome-evolution-top-series'>${legend}</div>
     `;
@@ -1846,10 +1817,6 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
       <div class='outcome-drilldown-toolbar'>
         <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
       </div>
-      <div class='outcome-evolution-controls'>
-        <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-select-all>Selecionar todas</button>
-        <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-deselect-all>Desselecionar todas</button>
-      </div>
       <div class='outcome-evolution-top-series'>${legend}</div>
       <p class='outcome-evolution-empty'>Esta rubrica nao tem despesas com valores para comparar.</p>
     `;
@@ -1860,10 +1827,6 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
     host.innerHTML = `
       <div class='outcome-drilldown-toolbar'>
         <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
-      </div>
-      <div class='outcome-evolution-controls'>
-        <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-select-all>Selecionar todas</button>
-        <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-deselect-all>Desselecionar todas</button>
       </div>
       <div class='outcome-evolution-top-series'>${legend}</div>
       <p class='outcome-evolution-empty'>Nenhuma despesa selecionada. Clica na legenda de despesas para voltar a mostrar.</p>
@@ -1953,10 +1916,6 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
   host.innerHTML = `
     <div class='outcome-drilldown-toolbar'>
       <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
-    </div>
-    <div class='outcome-evolution-controls'>
-      <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-select-all>Selecionar todas</button>
-      <button type='button' class='outcome-evolution-control-btn' data-comparison-chart-deselect-all>Desselecionar todas</button>
     </div>
     <div class='outcome-evolution-top-series'>${legend}</div>
     ${singleRubricLegendMarkup}
