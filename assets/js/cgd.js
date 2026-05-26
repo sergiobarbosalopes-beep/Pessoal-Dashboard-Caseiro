@@ -784,6 +784,18 @@ function monthPills(values, editable, labelPrefix, estimatedFlags = [], historyB
     .join("");
 }
 
+function readonlySummaryPills(values, labelPrefix) {
+  return values
+    .map((value, monthIndex) => {
+      const dataMonth = `data-month-col='${monthIndex}' data-totalizer-month='${monthIndex}'`;
+      return `
+      <div class='money-pill readonly income-collapsed-pill' ${dataMonth}>
+        <span aria-label='${labelPrefix} ${months[monthIndex]}'>${money(value)}</span>
+      </div>`;
+    })
+    .join("");
+}
+
 function renderTimeline(year) {
   const timeline = document.getElementById("month-timeline");
   if (!timeline) {
@@ -883,6 +895,18 @@ function renderRubrics(rubrics, kind) {
 function buildPanel(title, kind, rubrics) {
   const panelId = `panel-${kind}`;
   const bodyId = `${panelId}-body`;
+  const totalsByMonth = sumRubricsValuesByMonth(rubrics);
+  const collapsedSummary = kind === "income"
+    ? `
+    <div class='panel-collapsed-summary panel-collapsed-summary-income'>
+      <div class='data-row income-collapsed-total-row'>
+        <div class='desc-cell'>
+          <span class='desc-pill income-collapsed-total-label'>Total Income</span>
+        </div>
+        ${readonlySummaryPills(totalsByMonth, "Total Income")}
+      </div>
+    </div>`
+    : "";
   const showChartAction = kind === "outcome" || kind === "income" || kind === "savings";
   const lineChartVisible = kind === "outcome"
     ? cgdState.outcomeChartVisible
@@ -958,6 +982,7 @@ function buildPanel(title, kind, rubrics) {
     <div class='panel-body' id='${bodyId}'>
       ${renderRubrics(rubrics, kind)}
     </div>
+    ${collapsedSummary}
   </section>
   `;
 }

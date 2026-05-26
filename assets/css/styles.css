@@ -1248,6 +1248,49 @@ a {
   overflow: hidden;
 }
 
+.panel-collapsed-summary {
+  display: none;
+}
+
+.panel-body.is-collapsed + .panel-collapsed-summary {
+  display: block;
+}
+
+.panel-collapsed-summary-income {
+  margin: 4px 8px 10px;
+}
+
+.income-collapsed-total-row {
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(18, 44, 35, 0.48);
+  border: 1px solid rgba(77, 173, 123, 0.24);
+}
+
+.income-collapsed-total-label {
+  background: linear-gradient(135deg, rgba(47, 142, 97, 0.56), rgba(62, 170, 118, 0.5));
+  border-color: rgba(143, 224, 181, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(195, 245, 218, 0.1);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.income-collapsed-pill {
+  padding: 0;
+}
+
+.income-collapsed-pill span {
+  width: 100%;
+  border-radius: inherit;
+  color: #d8ecf5;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 7px 9px;
+  font-size: 0.8rem;
+}
+
 .rubric-body,
 .expense-body {
   overflow: visible;
