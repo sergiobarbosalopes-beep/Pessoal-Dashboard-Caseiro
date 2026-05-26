@@ -606,10 +606,10 @@ function computeRealSeriesForYear(targetYear, contexts) {
     resolving.add(key);
     const previous = previousMonthContext(year, monthIndex);
     const previousResolved = resolveReal(previous.year, previous.monthIndex, depth + 1);
-    const previousContext = yearContexts[previous.year] || defaultRealComputationContext();
-    const income = Number(previousContext.totals?.income?.[previous.monthIndex]) || 0;
-    const savings = Number(previousContext.totals?.savings?.[previous.monthIndex]) || 0;
-    const outcome = Number(previousContext.totals?.outcome?.[previous.monthIndex]) || 0;
+    const currentContext = yearContexts[year] || defaultRealComputationContext();
+    const income = Number(currentContext.totals?.income?.[monthIndex]) || 0;
+    const savings = Number(currentContext.totals?.savings?.[monthIndex]) || 0;
+    const outcome = Number(currentContext.totals?.outcome?.[monthIndex]) || 0;
     const estimatedValue = previousResolved.value + income + savings - outcome;
 
     const estimated = { value: estimatedValue, estimated: true };
@@ -703,9 +703,7 @@ function renderSoberTotalizer() {
   const realSeries = computeRealSeriesForYear(year, cgdState.realComputationContexts);
   const realValues = realSeries.values;
   const realEstimatedFlags = realSeries.estimatedFlags;
-  const incomeTotals = sumAllIncomeRubricsByMonth(cgdState.data?.income);
   const savingsTotals = sumRubricsValuesByMonth(cgdState.data?.savings);
-  const outcomeTotals = sumAllOutcomeRubricsByMonth(cgdState.data?.outcome);
   const savingsRubrics = Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
 
   const savingsRubricRows = savingsRubrics
@@ -725,7 +723,6 @@ function renderSoberTotalizer() {
     <section class='totalizer-shell' aria-label='Totalizador mensal consolidado'>
       <header class='totalizer-head'>
         <h3>Totalizador mensal</h3>
-        <p>Visao consolidada de Real, Income, Savings e Outcome</p>
       </header>
       <div class='totalizer-grid-wrap'>
         <div class='totalizer-grid'>
@@ -734,18 +731,6 @@ function renderSoberTotalizer() {
               <span class='totalizer-row-label'>Real</span>
             </div>
             ${renderTotalizerMonthPills(realValues, { editable: true, inputPrefix: "Real", estimatedFlags: realEstimatedFlags })}
-          </div>
-          <div class='data-row totalizer-row totalizer-row-income'>
-            <div class='desc-cell totalizer-desc-cell'>
-              <span class='totalizer-row-label'>Income</span>
-            </div>
-            ${renderTotalizerMonthPills(incomeTotals)}
-          </div>
-          <div class='data-row totalizer-row totalizer-row-outcome'>
-            <div class='desc-cell totalizer-desc-cell'>
-              <span class='totalizer-row-label'>Outcome</span>
-            </div>
-            ${renderTotalizerMonthPills(outcomeTotals)}
           </div>
           <div class='data-row totalizer-row totalizer-row-savings'>
             <div class='desc-cell totalizer-desc-cell'>
