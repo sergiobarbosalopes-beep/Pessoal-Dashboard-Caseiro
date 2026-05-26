@@ -106,7 +106,7 @@ function normalizeRubricType(value) {
   if (raw === "receita") {
     return "income";
   }
-  if (raw === "poupanca" || raw === "poupancas" || raw === "savings" || raw === "saving") {
+  if (raw === "aprovisionamento" || raw === "aprovisionamentos" || raw === "poupanca" || raw === "poupancas" || raw === "savings" || raw === "saving") {
     return "savings";
   }
   return "outcome";
@@ -2105,7 +2105,7 @@ async function persistRubricOrder(rubricRows) {
           return "Receita";
         }
         if (rubricType === "savings") {
-          return "Poupanca";
+          return "Aprovisionamento";
         }
         return "Despesa";
       })()
@@ -2181,7 +2181,7 @@ async function createRubricaForYear(kind, description) {
   }
 
   const normalizedKind = kind === "income" || kind === "savings" ? kind : "outcome";
-  const rubricaTipo = normalizedKind === "income" ? "Receita" : normalizedKind === "savings" ? "Poupanca" : "Despesa";
+  const rubricaTipo = normalizedKind === "income" ? "Receita" : normalizedKind === "savings" ? "Aprovisionamento" : "Despesa";
   const existing = cgdState.data[normalizedKind] || [];
   const nextSeq = existing.length ? Math.max(...existing.map((item) => parseSeq(item.seq, 0))) + 1 : 1;
   const nextRubricaId = await getNextRubricaId();
