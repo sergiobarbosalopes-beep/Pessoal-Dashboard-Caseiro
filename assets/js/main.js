@@ -572,6 +572,15 @@ function initDelegatedActions() {
       return;
     }
 
+    const savingsChartToggle = event.target.closest("[data-savings-chart-toggle-visibility]");
+    if (savingsChartToggle) {
+      if (window.cgdToggleSavingsChart) {
+        window.cgdToggleSavingsChart();
+      }
+      closeAllMenus();
+      return;
+    }
+
     const outcomeComparisonChartToggle = event.target.closest("[data-outcome-comparison-chart-toggle-visibility]");
     if (outcomeComparisonChartToggle) {
       if (window.cgdToggleOutcomeComparisonChart) {
@@ -585,6 +594,15 @@ function initDelegatedActions() {
     if (incomeComparisonChartToggle) {
       if (window.cgdToggleIncomeComparisonChart) {
         window.cgdToggleIncomeComparisonChart();
+      }
+      closeAllMenus();
+      return;
+    }
+
+    const savingsComparisonChartToggle = event.target.closest("[data-savings-comparison-chart-toggle-visibility]");
+    if (savingsComparisonChartToggle) {
+      if (window.cgdToggleSavingsComparisonChart) {
+        window.cgdToggleSavingsComparisonChart();
       }
       closeAllMenus();
       return;

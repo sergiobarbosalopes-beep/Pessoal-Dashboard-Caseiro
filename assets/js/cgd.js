@@ -19,6 +19,13 @@ const cgdState = {
   incomeChartHiddenRubrics: new Set(),
   incomeChartSelectedRubricKey: null,
   incomeDrilldownHiddenExpenses: new Set(),
+  savingsChartVisible: false,
+  savingsComparisonChartVisible: false,
+  savingsComparisonHiddenRubrics: new Set(),
+  savingsComparisonHiddenExpenses: new Set(),
+  savingsChartHiddenRubrics: new Set(),
+  savingsChartSelectedRubricKey: null,
+  savingsDrilldownHiddenExpenses: new Set(),
   outcomeChartVisible: false,
   outcomeComparisonChartVisible: false,
   outcomeComparisonHiddenRubrics: new Set(),
@@ -570,14 +577,27 @@ function renderRubrics(rubrics, kind) {
 function buildPanel(title, kind, rubrics) {
   const panelId = `panel-${kind}`;
   const bodyId = `${panelId}-body`;
-  const showChartAction = kind === "outcome" || kind === "income";
-  const isOutcome = kind === "outcome";
-  const lineChartVisible = isOutcome ? cgdState.outcomeChartVisible : cgdState.incomeChartVisible;
-  const comparisonChartVisible = isOutcome ? cgdState.outcomeComparisonChartVisible : cgdState.incomeComparisonChartVisible;
-  const lineChartToggleAttr = isOutcome ? "data-outcome-chart-toggle-visibility" : "data-income-chart-toggle-visibility";
-  const comparisonChartToggleAttr = isOutcome
+  const showChartAction = kind === "outcome" || kind === "income" || kind === "savings";
+  const lineChartVisible = kind === "outcome"
+    ? cgdState.outcomeChartVisible
+    : kind === "savings"
+      ? cgdState.savingsChartVisible
+      : cgdState.incomeChartVisible;
+  const comparisonChartVisible = kind === "outcome"
+    ? cgdState.outcomeComparisonChartVisible
+    : kind === "savings"
+      ? cgdState.savingsComparisonChartVisible
+      : cgdState.incomeComparisonChartVisible;
+  const lineChartToggleAttr = kind === "outcome"
+    ? "data-outcome-chart-toggle-visibility"
+    : kind === "savings"
+      ? "data-savings-chart-toggle-visibility"
+      : "data-income-chart-toggle-visibility";
+  const comparisonChartToggleAttr = kind === "outcome"
     ? "data-outcome-comparison-chart-toggle-visibility"
-    : "data-income-comparison-chart-toggle-visibility";
+    : kind === "savings"
+      ? "data-savings-comparison-chart-toggle-visibility"
+      : "data-income-comparison-chart-toggle-visibility";
   const chartAction = showChartAction
     ? `<div class='panel-head-actions'>
         <button
@@ -904,6 +924,39 @@ function buildIncomeRubricSeries() {
     .filter((entry) => entry.values.some((value) => value !== 0));
 }
 
+function buildSavingsRubricSeries() {
+  const palette = ["#70c3ff", "#4da9f2", "#8fd2ff", "#58bde2", "#7ec7ff", "#63b1f5", "#9ad9ff", "#79c6ff", "#5eaef0", "#8ccfff"];
+  const sourceRubrics = Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
+
+  return sourceRubrics
+    .map((rubric, index) => {
+      const rawId = rubric?.id;
+      const key = Number.isFinite(Number(rawId)) ? `id-${Number(rawId)}` : `idx-${index}`;
+      const values = months.map((_, monthIndex) => {
+        const numeric = Number(rubric?.values?.[monthIndex]);
+        return Number.isFinite(numeric) ? numeric : 0;
+      });
+      const expenses = Array.isArray(rubric?.expenses)
+        ? rubric.expenses.map((expense, expenseIndex) => ({
+            key: `expense-${index}-${expenseIndex}-${Number(expense?.id) || 0}`,
+            name: expense?.name || `Despesa ${expenseIndex + 1}`,
+            values: months.map((_, monthIndex) => {
+              const numeric = Number(expense?.values?.[monthIndex]);
+              return Number.isFinite(numeric) ? numeric : 0;
+            })
+          }))
+        : [];
+      return {
+        key,
+        name: rubric?.name || `Rubrica ${index + 1}`,
+        values,
+        color: palette[index % palette.length],
+        expenses
+      };
+    })
+    .filter((entry) => entry.values.some((value) => value !== 0));
+}
+
 function buildOutcomeExpenseSeriesForRubric(rubric) {
   if (!rubric) {
     return [];
@@ -929,6 +982,25 @@ function buildIncomeExpenseSeriesForRubric(rubric) {
   }
 
   const palette = ["#8fdcb3", "#8bc8f5", "#9fdc88", "#7fded2", "#95d889", "#79bfe3", "#abdcc6", "#8fd7ff", "#8bcf96", "#93c4eb"];
+  return (rubric.expenses || [])
+    .map((expense, index) => ({
+      key: expense.key || `expense-${index}`,
+      name: expense.name || `Despesa ${index + 1}`,
+      values: months.map((_, monthIndex) => {
+        const numeric = Number(expense.values?.[monthIndex]);
+        return Number.isFinite(numeric) ? numeric : 0;
+      }),
+      color: palette[index % palette.length]
+    }))
+    .filter((entry) => entry.values.some((value) => value !== 0));
+}
+
+function buildSavingsExpenseSeriesForRubric(rubric) {
+  if (!rubric) {
+    return [];
+  }
+
+  const palette = ["#9edbff", "#8bcfff", "#a6e0ff", "#7fc8f5", "#95d5ff", "#82c6f0", "#abdfff", "#8dd1ff", "#9bd7ff", "#86c9f4"];
   return (rubric.expenses || [])
     .map((expense, index) => ({
       key: expense.key || `expense-${index}`,
@@ -1212,6 +1284,288 @@ function renderIncomeEvolutionChart() {
     ${singleRubricLegendMarkup}
     <div class='outcome-evolution-svg-wrap'>
       <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${isSingleRubricMode ? "Grafico de linhas com evolucao das despesas da rubrica selecionada" : "Grafico de linhas com evolucao das rubricas de income"}'>
+        ${gridLines}
+        ${monthGridLines}
+        ${lines}
+        ${monthLabels}
+      </svg>
+      <div class='outcome-evolution-tooltip' aria-hidden='true'></div>
+    </div>
+  `;
+
+  bindOutcomeChartHover(host);
+}
+
+function bindSavingsChartInteractions(host) {
+  if (!host || host.dataset.chartBoundSavings === "1") {
+    return;
+  }
+
+  host.dataset.chartBoundSavings = "1";
+  host.addEventListener("click", (event) => {
+    const closeMainChartBtn = event.target.closest("[data-savings-chart-close-main]");
+    if (closeMainChartBtn) {
+      cgdState.savingsChartVisible = false;
+      cgdState.savingsChartSelectedRubricKey = null;
+      cgdState.savingsChartHiddenRubrics.clear();
+      renderPanels();
+      document.dispatchEvent(new Event("cgd:rendered"));
+      requestAnimationFrame(() => {
+        ensurePanelHeadVisible("savings");
+      });
+      return;
+    }
+
+    const drilldownToggle = event.target.closest("[data-savings-drilldown-toggle]");
+    if (drilldownToggle) {
+      const expenseKey = String(drilldownToggle.getAttribute("data-savings-drilldown-toggle") || "").trim();
+      const activeRubricKey = cgdState.savingsChartSelectedRubricKey || String(host.dataset.singleSavingsRubricKey || "").trim();
+      if (expenseKey) {
+        const stateKey = `${activeRubricKey}::${expenseKey}`;
+        if (cgdState.savingsDrilldownHiddenExpenses.has(stateKey)) {
+          cgdState.savingsDrilldownHiddenExpenses.delete(stateKey);
+        } else {
+          cgdState.savingsDrilldownHiddenExpenses.add(stateKey);
+        }
+        renderSavingsEvolutionChart();
+      }
+      return;
+    }
+
+    const drilldownTarget = event.target.closest("[data-savings-chart-drilldown]");
+    if (drilldownTarget) {
+      const key = String(drilldownTarget.getAttribute("data-savings-chart-drilldown") || "").trim();
+      const isSameSelectedRubric = cgdState.savingsChartSelectedRubricKey === key;
+
+      if (isSameSelectedRubric) {
+        cgdState.savingsChartSelectedRubricKey = null;
+        cgdState.savingsChartHiddenRubrics.clear();
+      } else {
+        cgdState.savingsChartSelectedRubricKey = key;
+        const allRubricKeys = buildSavingsRubricSeries().map((entry) => entry.key);
+        cgdState.savingsChartHiddenRubrics.clear();
+        allRubricKeys.forEach((rubricKey) => {
+          if (rubricKey !== key) {
+            cgdState.savingsChartHiddenRubrics.add(rubricKey);
+          }
+        });
+      }
+
+      renderSavingsEvolutionChart();
+      return;
+    }
+
+    const toggleBtn = event.target.closest("[data-savings-chart-toggle]");
+    if (toggleBtn) {
+      const key = String(toggleBtn.getAttribute("data-savings-chart-toggle") || "").trim();
+      if (key) {
+        if (cgdState.savingsChartHiddenRubrics.has(key)) {
+          cgdState.savingsChartHiddenRubrics.delete(key);
+        } else {
+          cgdState.savingsChartHiddenRubrics.add(key);
+          if (cgdState.savingsChartSelectedRubricKey === key) {
+            cgdState.savingsChartSelectedRubricKey = null;
+          }
+        }
+        renderSavingsEvolutionChart();
+      }
+      return;
+    }
+
+    const selectAllBtn = event.target.closest("[data-savings-chart-select-all]");
+    if (selectAllBtn) {
+      cgdState.savingsChartHiddenRubrics.clear();
+      renderSavingsEvolutionChart();
+      return;
+    }
+
+    const deselectAllBtn = event.target.closest("[data-savings-chart-deselect-all]");
+    if (deselectAllBtn) {
+      host.querySelectorAll("[data-savings-chart-toggle]").forEach((item) => {
+        const key = String(item.getAttribute("data-savings-chart-toggle") || "").trim();
+        if (key) {
+          cgdState.savingsChartHiddenRubrics.add(key);
+        }
+      });
+      cgdState.savingsChartSelectedRubricKey = null;
+      renderSavingsEvolutionChart();
+    }
+  });
+}
+
+function renderSavingsEvolutionChart() {
+  const host = document.getElementById("savings-evolution-chart");
+  if (!host) {
+    return;
+  }
+
+  const chartCard = host.closest(".savings-evolution-card");
+  if (!cgdState.savingsChartVisible) {
+    if (chartCard) {
+      chartCard.classList.add("outcome-evolution-card-hidden");
+    }
+    host.innerHTML = "";
+    return;
+  }
+
+  if (chartCard) {
+    chartCard.classList.remove("outcome-evolution-card-hidden");
+  }
+
+  bindSavingsChartInteractions(host);
+
+  const series = buildSavingsRubricSeries();
+  const visibleSeries = series.filter((entry) => !cgdState.savingsChartHiddenRubrics.has(entry.key));
+  const singleVisibleRubric = visibleSeries.length === 1 ? visibleSeries[0] : null;
+  host.dataset.singleSavingsRubricKey = singleVisibleRubric ? singleVisibleRubric.key : "";
+
+  const legend = series
+    .map((entry) => {
+      const isVisible = !cgdState.savingsChartHiddenRubrics.has(entry.key);
+      const stateClass = isVisible ? "is-active" : "is-inactive";
+      return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-savings-chart-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisible ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</button>`;
+    })
+    .join("");
+
+  if (!series.length) {
+    host.innerHTML = `
+      <p class='outcome-evolution-empty'>Ainda nao existem valores totalizadores para desenhar a evolucao anual.</p>
+      <div class='outcome-evolution-legend'></div>
+    `;
+    return;
+  }
+
+  if (!visibleSeries.length) {
+    host.innerHTML = `
+      <p class='outcome-evolution-empty'>Nenhuma rubrica selecionada. Clica na legenda para voltar a mostrar.</p>
+      <div class='outcome-evolution-legend'>${legend}</div>
+    `;
+    return;
+  }
+
+  const isSingleRubricMode = Boolean(singleVisibleRubric);
+  const expenseSeries = isSingleRubricMode ? buildSavingsExpenseSeriesForRubric(singleVisibleRubric) : [];
+  const expenseStateKey = (expenseKey) => `${singleVisibleRubric.key}::${expenseKey}`;
+  const visibleExpenseSeries = isSingleRubricMode
+    ? expenseSeries.filter((entry) => !cgdState.savingsDrilldownHiddenExpenses.has(expenseStateKey(entry.key)))
+    : [];
+
+  const chartWidth = 980;
+  const chartHeight = 320;
+  const padding = { top: 20, right: 18, bottom: 38, left: 54 };
+  const plotWidth = chartWidth - padding.left - padding.right;
+  const plotHeight = chartHeight - padding.top - padding.bottom;
+  const monthStep = plotWidth / (months.length - 1);
+  const plotBottom = padding.top + plotHeight;
+
+  const plottedSeries = isSingleRubricMode ? visibleExpenseSeries : visibleSeries;
+  if (isSingleRubricMode && !expenseSeries.length) {
+    host.innerHTML = `
+      <div class='outcome-drilldown-toolbar'>
+        <button type='button' class='outcome-drilldown-close-btn' data-savings-chart-close-main>Fechar</button>
+      </div>
+      <div class='outcome-evolution-top-series'>${legend}</div>
+      <p class='outcome-evolution-empty'>Esta rubrica nao tem despesas com valores ao longo do ano.</p>
+    `;
+    return;
+  }
+
+  if (isSingleRubricMode && !visibleExpenseSeries.length) {
+    host.innerHTML = `
+      <div class='outcome-drilldown-toolbar'>
+        <button type='button' class='outcome-drilldown-close-btn' data-savings-chart-close-main>Fechar</button>
+      </div>
+      <div class='outcome-evolution-top-series'>${legend}</div>
+      <p class='outcome-evolution-empty'>Nenhuma despesa selecionada. Clica na legenda para voltar a mostrar.</p>
+      <div class='outcome-evolution-top-series'>${expenseSeries
+        .map((entry) => {
+          const isVisible = !cgdState.savingsDrilldownHiddenExpenses.has(expenseStateKey(entry.key));
+          const stateClass = isVisible ? "is-active" : "is-inactive";
+          return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-savings-drilldown-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisible ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</button>`;
+        })
+        .join("")}</div>
+    `;
+    return;
+  }
+
+  const maxValue = Math.max(...plottedSeries.flatMap((entry) => entry.values));
+  const yMax = maxValue > 0 ? maxValue : 1;
+
+  const xFor = (monthIndex) => padding.left + monthIndex * monthStep;
+  const yFor = (value) => padding.top + plotHeight - (value / yMax) * plotHeight;
+
+  const horizontalGridCount = 12;
+  const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
+    const ratio = index / horizontalGridCount;
+    const y = padding.top + plotHeight - ratio * plotHeight;
+    const labelValue = yMax * ratio;
+    return `
+      <line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.18)' stroke-width='0.7' />
+      <text x='${padding.left - 8}' y='${y + 4}' text-anchor='end' fill='rgba(197,220,231,0.82)' font-size='9'>${labelValue.toFixed(0)}</text>
+    `;
+  }).join("");
+
+  const monthLabels = months
+    .map((month, monthIndex) => {
+      const x = xFor(monthIndex);
+      return `<text x='${x}' y='${chartHeight - 12}' text-anchor='middle' fill='rgba(197,220,231,0.9)' font-size='10'>${escapeHtml(month)}</text>`;
+    })
+    .join("");
+
+  const monthGridLines = months
+    .map((_, monthIndex) => {
+      const x = xFor(monthIndex);
+      return `<line x1='${x}' y1='${padding.top}' x2='${x}' y2='${padding.top + plotHeight}' stroke='rgba(176,210,226,0.12)' stroke-width='1' />`;
+    })
+    .join("");
+
+  const lines = plottedSeries
+    .map((entry) => {
+      const isSelected = !isSingleRubricMode && entry.key === cgdState.savingsChartSelectedRubricKey;
+      const strokeWidth = isSingleRubricMode ? "0.6" : "1.3";
+      const selectionClass = isSelected ? "is-selected" : "";
+      const points = entry.values.map((value, monthIndex) => ({ x: xFor(monthIndex), y: yFor(value), value, monthIndex }));
+      const pathData = buildSmoothPathData(points);
+      const areaPath = `${pathData} L ${points[points.length - 1].x.toFixed(2)} ${plotBottom.toFixed(2)} L ${points[0].x.toFixed(2)} ${plotBottom.toFixed(2)} Z`;
+      const pointsMarkup = entry.values
+        .map((value, monthIndex) => {
+          const cx = xFor(monthIndex);
+          const cy = yFor(value);
+          return `<circle class='outcome-evolution-point' cx='${cx.toFixed(2)}' cy='${cy.toFixed(2)}' r='2.8' fill='${entry.color}' tabindex='0' data-series-name='${escapeHtml(entry.name)}' data-month-name='${escapeHtml(months[monthIndex])}' data-value='${value.toFixed(2)}' data-series-color='${entry.color}'></circle>`;
+        })
+        .join("");
+      return `
+        <g class='outcome-evolution-series ${selectionClass}' ${isSingleRubricMode ? "" : `data-savings-chart-drilldown='${escapeHtml(entry.key)}'`}>
+          <path d='${areaPath}' class='outcome-evolution-area' fill='${entry.color}' fill-opacity='0.10' />
+          <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='${strokeWidth}' stroke-linecap='round' stroke-linejoin='round' />
+          ${pointsMarkup}
+        </g>
+      `;
+    })
+    .join("");
+
+  const expenseLegend = isSingleRubricMode
+    ? expenseSeries
+        .map((entry) => {
+          const isVisible = !cgdState.savingsDrilldownHiddenExpenses.has(expenseStateKey(entry.key));
+          const stateClass = isVisible ? "is-active" : "is-inactive";
+          return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-savings-drilldown-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisible ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</button>`;
+        })
+        .join("")
+    : "";
+
+  const singleRubricLegendMarkup = isSingleRubricMode && expenseSeries.length
+    ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>`
+    : "";
+
+  host.innerHTML = `
+    <div class='outcome-drilldown-toolbar'>
+      <button type='button' class='outcome-drilldown-close-btn' data-savings-chart-close-main>Fechar</button>
+    </div>
+    <div class='outcome-evolution-top-series'>${legend}</div>
+    ${singleRubricLegendMarkup}
+    <div class='outcome-evolution-svg-wrap'>
+      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${isSingleRubricMode ? "Grafico de linhas com evolucao das despesas da rubrica selecionada" : "Grafico de linhas com evolucao das rubricas de savings"}'>
         ${gridLines}
         ${monthGridLines}
         ${lines}
@@ -1539,6 +1893,12 @@ function renderPanels() {
       <div class='outcome-evolution' id='income-comparison-chart' aria-live='polite'></div>
     </section>
     ${buildPanel("Savings", "savings", cgdState.data.savings)}
+    <section class='outcome-evolution-card savings-evolution-card'>
+      <div class='outcome-evolution' id='savings-evolution-chart' aria-live='polite'></div>
+    </section>
+    <section class='outcome-evolution-card savings-comparison-card'>
+      <div class='outcome-evolution' id='savings-comparison-chart' aria-live='polite'></div>
+    </section>
     ${buildPanel("Outcome", "outcome", cgdState.data.outcome)}
   `;
 
@@ -1546,6 +1906,8 @@ function renderPanels() {
 
   renderIncomeEvolutionChart();
   renderIncomeComparisonChart();
+  renderSavingsEvolutionChart();
+  renderSavingsComparisonChart();
   renderOutcomeEvolutionChart();
   renderOutcomeComparisonChart();
 }
@@ -1553,8 +1915,10 @@ function renderPanels() {
 function buildComparisonSeriesForKind(kind) {
   const palette = kind === "income"
     ? ["#6ecf9a", "#7cc4ff", "#9ed86b", "#58d2c3", "#8bcf7a", "#5fb3de", "#9edfb7", "#71d0ff", "#77c87f", "#79bdf0"]
-    : ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"];
-  const sourceRubrics = kind === "income" ? cgdState.data?.income : cgdState.data?.outcome;
+    : kind === "savings"
+      ? ["#70c3ff", "#4da9f2", "#8fd2ff", "#58bde2", "#7ec7ff", "#63b1f5", "#9ad9ff", "#79c6ff", "#5eaef0", "#8ccfff"]
+      : ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"];
+  const sourceRubrics = kind === "income" ? cgdState.data?.income : kind === "savings" ? cgdState.data?.savings : cgdState.data?.outcome;
   const rubrics = Array.isArray(sourceRubrics) ? sourceRubrics : [];
 
   return rubrics
@@ -1614,7 +1978,9 @@ function buildComparisonExpenseSeriesForRubric(rubric, kind) {
 
   const palette = kind === "income"
     ? ["#8fdcb3", "#8bc8f5", "#9fdc88", "#7fded2", "#95d889", "#79bfe3", "#abdcc6", "#8fd7ff", "#8bcf96", "#93c4eb"]
-    : ["#9ad9ff", "#a9e46f", "#f7c86a", "#f3a47d", "#95c7ff", "#84d56b", "#e8a0b4", "#7acfc6", "#eac17a", "#a6d8b5"];
+    : kind === "savings"
+      ? ["#9edbff", "#8bcfff", "#a6e0ff", "#7fc8f5", "#95d5ff", "#82c6f0", "#abdfff", "#8dd1ff", "#9bd7ff", "#86c9f4"]
+      : ["#9ad9ff", "#a9e46f", "#f7c86a", "#f3a47d", "#95c7ff", "#84d56b", "#e8a0b4", "#7acfc6", "#eac17a", "#a6d8b5"];
 
   const expenses = Array.isArray(rubric.expenses) ? rubric.expenses : [];
   return expenses.map((expense, index) => ({
@@ -1677,15 +2043,25 @@ function bindComparisonChartInteractions(host, kind) {
 
   host.dataset.comparisonChartBound = "1";
   host.addEventListener("click", (event) => {
-    const hiddenSet = kind === "income" ? cgdState.incomeComparisonHiddenRubrics : cgdState.outcomeComparisonHiddenRubrics;
-    const hiddenExpensesSet = kind === "income" ? cgdState.incomeComparisonHiddenExpenses : cgdState.outcomeComparisonHiddenExpenses;
+    const hiddenSet = kind === "income"
+      ? cgdState.incomeComparisonHiddenRubrics
+      : kind === "savings"
+        ? cgdState.savingsComparisonHiddenRubrics
+        : cgdState.outcomeComparisonHiddenRubrics;
+    const hiddenExpensesSet = kind === "income"
+      ? cgdState.incomeComparisonHiddenExpenses
+      : kind === "savings"
+        ? cgdState.savingsComparisonHiddenExpenses
+        : cgdState.outcomeComparisonHiddenExpenses;
 
-    const closeBtn = event.target.closest("[data-income-comparison-chart-close-main], [data-outcome-comparison-chart-close-main]");
+    const closeBtn = event.target.closest("[data-income-comparison-chart-close-main], [data-savings-comparison-chart-close-main], [data-outcome-comparison-chart-close-main]");
     if (closeBtn) {
       hiddenSet.clear();
       hiddenExpensesSet.clear();
       if (kind === "income") {
         cgdState.incomeComparisonChartVisible = false;
+      } else if (kind === "savings") {
+        cgdState.savingsComparisonChartVisible = false;
       } else {
         cgdState.outcomeComparisonChartVisible = false;
       }
@@ -1715,6 +2091,8 @@ function bindComparisonChartInteractions(host, kind) {
 
       if (kind === "income") {
         renderIncomeComparisonChart();
+      } else if (kind === "savings") {
+        renderSavingsComparisonChart();
       } else {
         renderOutcomeComparisonChart();
       }
@@ -1736,6 +2114,8 @@ function bindComparisonChartInteractions(host, kind) {
 
       if (kind === "income") {
         renderIncomeComparisonChart();
+      } else if (kind === "savings") {
+        renderSavingsComparisonChart();
       } else {
         renderOutcomeComparisonChart();
       }
@@ -1766,8 +2146,16 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
 
   bindComparisonChartInteractions(host, kind);
 
-  const hiddenSet = kind === "income" ? cgdState.incomeComparisonHiddenRubrics : cgdState.outcomeComparisonHiddenRubrics;
-  const hiddenExpensesSet = kind === "income" ? cgdState.incomeComparisonHiddenExpenses : cgdState.outcomeComparisonHiddenExpenses;
+  const hiddenSet = kind === "income"
+    ? cgdState.incomeComparisonHiddenRubrics
+    : kind === "savings"
+      ? cgdState.savingsComparisonHiddenRubrics
+      : cgdState.outcomeComparisonHiddenRubrics;
+  const hiddenExpensesSet = kind === "income"
+    ? cgdState.incomeComparisonHiddenExpenses
+    : kind === "savings"
+      ? cgdState.savingsComparisonHiddenExpenses
+      : cgdState.outcomeComparisonHiddenExpenses;
   const rubricSeries = buildComparisonSeriesForKind(kind);
 
   if (!rubricSeries.length) {
@@ -1915,9 +2303,13 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
     ? (isSingleRubricMode
       ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de income selecionada"
       : "Grafico comparativo mensal de valor e valor estimado do income")
-    : (isSingleRubricMode
-      ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de outcome selecionada"
-      : "Grafico comparativo mensal de valor e valor estimado do outcome");
+    : kind === "savings"
+      ? (isSingleRubricMode
+        ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de savings selecionada"
+        : "Grafico comparativo mensal de valor e valor estimado do savings")
+      : (isSingleRubricMode
+        ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de outcome selecionada"
+        : "Grafico comparativo mensal de valor e valor estimado do outcome");
 
   const singleRubricLegendMarkup = isSingleRubricMode && expenseSeries.length
     ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>`
@@ -1961,6 +2353,15 @@ function renderOutcomeComparisonChart() {
   });
 }
 
+function renderSavingsComparisonChart() {
+  renderComparisonChart({
+    hostId: "savings-comparison-chart",
+    kind: "savings",
+    isVisible: cgdState.savingsComparisonChartVisible,
+    closeAttr: "data-savings-comparison-chart-close-main"
+  });
+}
+
 window.cgdToggleIncomeChart = () => {
   cgdState.incomeChartVisible = !cgdState.incomeChartVisible;
   if (!cgdState.incomeChartVisible) {
@@ -1999,6 +2400,46 @@ window.cgdToggleIncomeComparisonChart = () => {
   }
 
   return cgdState.incomeComparisonChartVisible;
+};
+
+window.cgdToggleSavingsChart = () => {
+  cgdState.savingsChartVisible = !cgdState.savingsChartVisible;
+  if (!cgdState.savingsChartVisible) {
+    cgdState.savingsChartSelectedRubricKey = null;
+    cgdState.savingsChartHiddenRubrics.clear();
+  }
+  renderPanels();
+  document.dispatchEvent(new Event("cgd:rendered"));
+
+  if (cgdState.savingsChartVisible) {
+    scheduleChartOpenScroll(".savings-evolution-card");
+  } else {
+    requestAnimationFrame(() => {
+      ensurePanelHeadVisible("savings");
+    });
+  }
+
+  return cgdState.savingsChartVisible;
+};
+
+window.cgdToggleSavingsComparisonChart = () => {
+  cgdState.savingsComparisonChartVisible = !cgdState.savingsComparisonChartVisible;
+  if (!cgdState.savingsComparisonChartVisible) {
+    cgdState.savingsComparisonHiddenRubrics.clear();
+    cgdState.savingsComparisonHiddenExpenses.clear();
+  }
+  renderPanels();
+  document.dispatchEvent(new Event("cgd:rendered"));
+
+  if (cgdState.savingsComparisonChartVisible) {
+    scheduleChartOpenScroll(".savings-comparison-card");
+  } else {
+    requestAnimationFrame(() => {
+      ensurePanelHeadVisible("savings");
+    });
+  }
+
+  return cgdState.savingsComparisonChartVisible;
 };
 
 window.cgdToggleOutcomeChart = () => {
