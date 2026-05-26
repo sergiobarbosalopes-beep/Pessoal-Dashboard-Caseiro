@@ -901,9 +901,9 @@ function buildPanel(title, kind, rubrics) {
     <div class='panel-collapsed-summary panel-collapsed-summary-income'>
       <div class='data-row income-collapsed-total-row'>
         <div class='desc-cell'>
-          <span class='desc-pill income-collapsed-total-label'>Total Income</span>
+          <span class='desc-pill income-collapsed-total-label'>Total</span>
         </div>
-        ${readonlySummaryPills(totalsByMonth, "Total Income")}
+        ${readonlySummaryPills(totalsByMonth, "Total")}
       </div>
     </div>`
     : "";
