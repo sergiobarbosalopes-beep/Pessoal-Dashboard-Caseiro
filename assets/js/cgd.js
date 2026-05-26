@@ -10,7 +10,7 @@ const fallbackMock = {
 const cgdState = {
   selectedYear: new Date().getFullYear(),
   data: fallbackMock,
-  realTotalsByYear: {},
+  realComputationContexts: {},
   expenseColumns: new Set(),
   notesTableName: null,
   incomeChartVisible: false,
@@ -156,6 +156,49 @@ async function fetchExpensesForYear(year) {
   }
 
   return Array.isArray(data) ? data : [];
+}
+
+async function fetchRealValuesForYear(year) {
+  if (!supabaseClient) {
+    return [];
+  }
+
+  const { data, error } = await supabaseClient
+    .from("cgd_real")
+    .select("ano,mes,real")
+    .eq("ano", Number(year))
+    .order("mes", { ascending: true });
+
+  if (error) {
+    if (String(error?.code || "") === "42P01") {
+      return [];
+    }
+    throw error;
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+async function upsertRealValueForMonth({ ano, mes, real }) {
+  if (!supabaseClient) {
+    return false;
+  }
+
+  const payload = {
+    ano: Number(ano),
+    mes: Number(mes),
+    real: real == null ? null : Number(real)
+  };
+
+  const { error } = await supabaseClient
+    .from("cgd_real")
+    .upsert(payload, { onConflict: "ano,mes" });
+
+  if (error) {
+    throw error;
+  }
+
+  return true;
 }
 
 async function fetchExpenseNotesForKey({ ano, rubricaId, despesaId, mes }) {
@@ -455,70 +498,6 @@ function money(value) {
   return Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function loadRealTotalsByYear() {
-  const fallback = {};
-  if (typeof window === "undefined" || !window.localStorage) {
-    return fallback;
-  }
-
-  try {
-    const raw = window.localStorage.getItem("cgd-real-totals-v1");
-    if (!raw) {
-      return fallback;
-    }
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") {
-      return fallback;
-    }
-
-    const normalized = {};
-    Object.entries(parsed).forEach(([yearKey, values]) => {
-      const numericYear = Number(yearKey);
-      if (!Number.isInteger(numericYear) || !Array.isArray(values)) {
-        return;
-      }
-      normalized[numericYear] = months.map((_, monthIndex) => {
-        const numeric = Number(values[monthIndex]);
-        return Number.isFinite(numeric) ? numeric : 0;
-      });
-    });
-    return normalized;
-  } catch (error) {
-    console.warn("Nao foi possivel ler os totalizadores reais em localStorage:", error);
-    return fallback;
-  }
-}
-
-function persistRealTotalsByYear() {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem("cgd-real-totals-v1", JSON.stringify(cgdState.realTotalsByYear || {}));
-  } catch (error) {
-    console.warn("Nao foi possivel guardar os totalizadores reais em localStorage:", error);
-  }
-}
-
-function ensureRealTotalsForYear(year) {
-  const numericYear = Number(year);
-  if (!Number.isInteger(numericYear)) {
-    return emptyValues();
-  }
-
-  if (!Array.isArray(cgdState.realTotalsByYear[numericYear])) {
-    cgdState.realTotalsByYear[numericYear] = emptyValues();
-  }
-
-  cgdState.realTotalsByYear[numericYear] = months.map((_, monthIndex) => {
-    const numeric = Number(cgdState.realTotalsByYear[numericYear][monthIndex]);
-    return Number.isFinite(numeric) ? numeric : 0;
-  });
-
-  return cgdState.realTotalsByYear[numericYear];
-}
-
 function sumRubricsValuesByMonth(rubrics) {
   const source = Array.isArray(rubrics) ? rubrics : [];
   return months.map((_, monthIndex) =>
@@ -552,14 +531,142 @@ function sumAllOutcomeRubricsByMonth(rubrics) {
   );
 }
 
+function parseRealDatabaseValue(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function buildRealValuesFromRows(realRows) {
+  const values = Array.from({ length: 12 }, () => null);
+  const rows = Array.isArray(realRows) ? realRows : [];
+  rows.forEach((row) => {
+    const monthIndex = normalizeMonth(row?.mes);
+    if (monthIndex < 0) {
+      return;
+    }
+    values[monthIndex] = parseRealDatabaseValue(row?.real);
+  });
+  return values;
+}
+
+function buildTotalsForModel(model) {
+  return {
+    income: sumAllIncomeRubricsByMonth(model?.income),
+    savings: sumRubricsValuesByMonth(model?.savings),
+    outcome: sumAllOutcomeRubricsByMonth(model?.outcome)
+  };
+}
+
+function defaultRealComputationContext() {
+  return {
+    dbRealValues: Array.from({ length: 12 }, () => null),
+    totals: {
+      income: emptyValues(),
+      savings: emptyValues(),
+      outcome: emptyValues()
+    }
+  };
+}
+
+function previousMonthContext(year, monthIndex) {
+  if (monthIndex > 0) {
+    return { year: Number(year), monthIndex: monthIndex - 1 };
+  }
+  return { year: Number(year) - 1, monthIndex: 11 };
+}
+
+function computeRealSeriesForYear(targetYear, contexts) {
+  const memo = new Map();
+  const resolving = new Set();
+  const maxDepth = 120;
+  const yearContexts = contexts && typeof contexts === "object" ? contexts : {};
+
+  const keyOf = (year, monthIndex) => `${Number(year)}::${Number(monthIndex)}`;
+
+  const resolveReal = (year, monthIndex, depth = 0) => {
+    const key = keyOf(year, monthIndex);
+    if (memo.has(key)) {
+      return memo.get(key);
+    }
+
+    if (depth > maxDepth || resolving.has(key)) {
+      const fallback = { value: 0, estimated: true };
+      memo.set(key, fallback);
+      return fallback;
+    }
+
+    const context = yearContexts[year] || defaultRealComputationContext();
+    const dbValue = context.dbRealValues?.[monthIndex];
+    if (Number.isFinite(dbValue)) {
+      const direct = { value: Number(dbValue), estimated: false };
+      memo.set(key, direct);
+      return direct;
+    }
+
+    resolving.add(key);
+    const previous = previousMonthContext(year, monthIndex);
+    const previousResolved = resolveReal(previous.year, previous.monthIndex, depth + 1);
+    const previousContext = yearContexts[previous.year] || defaultRealComputationContext();
+    const income = Number(previousContext.totals?.income?.[previous.monthIndex]) || 0;
+    const savings = Number(previousContext.totals?.savings?.[previous.monthIndex]) || 0;
+    const outcome = Number(previousContext.totals?.outcome?.[previous.monthIndex]) || 0;
+    const estimatedValue = previousResolved.value + income + savings - outcome;
+
+    const estimated = { value: estimatedValue, estimated: true };
+    memo.set(key, estimated);
+    resolving.delete(key);
+    return estimated;
+  };
+
+  const resolved = months.map((_, monthIndex) => resolveReal(Number(targetYear), monthIndex));
+  return {
+    values: resolved.map((entry) => entry.value),
+    estimatedFlags: resolved.map((entry) => Boolean(entry.estimated))
+  };
+}
+
+async function fetchYearContextForRealComputation(year) {
+  if (!supabaseClient) {
+    return defaultRealComputationContext();
+  }
+
+  const [rubricsResult, expensesResult, realValuesResult] = await Promise.allSettled([
+    fetchRubricsForYear(year),
+    fetchExpensesForYear(year),
+    fetchRealValuesForYear(year)
+  ]);
+
+  const rubricRows = rubricsResult.status === "fulfilled" ? rubricsResult.value : [];
+  const expenseRows = expensesResult.status === "fulfilled" ? expensesResult.value : [];
+  const realRows = realValuesResult.status === "fulfilled" ? realValuesResult.value : [];
+
+  if (rubricsResult.status === "rejected") {
+    console.error(`Erro a carregar rubricas CGD para ${year}:`, rubricsResult.reason);
+  }
+  if (expensesResult.status === "rejected") {
+    console.error(`Erro a carregar despesas CGD para ${year}:`, expensesResult.reason);
+  }
+  if (realValuesResult.status === "rejected") {
+    console.error(`Erro a carregar reais CGD para ${year}:`, realValuesResult.reason);
+  }
+
+  const model = buildDataModel(rubricRows, expenseRows, new Set());
+  return {
+    dbRealValues: buildRealValuesFromRows(realRows),
+    totals: buildTotalsForModel(model)
+  };
+}
+
 function renderTotalizerMonthPills(values, options = {}) {
   const editable = Boolean(options.editable);
   const inputPrefix = options.inputPrefix || "Totalizador";
+  const estimatedFlags = Array.isArray(options.estimatedFlags) ? options.estimatedFlags : [];
 
   return months
     .map((monthName, monthIndex) => {
       const numericValue = Number(values?.[monthIndex]);
       const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+      const isEstimated = Boolean(estimatedFlags[monthIndex]);
       if (editable) {
         return `
           <div class='money-pill totalizer-month-pill' data-month-col='${monthIndex}' data-totalizer-month='${monthIndex}'>
@@ -567,6 +674,8 @@ function renderTotalizerMonthPills(values, options = {}) {
               data-money
               data-real-total-input='true'
               data-real-total-month='${monthIndex}'
+              data-real-total-estimated='${isEstimated ? "true" : "false"}'
+              class='${isEstimated ? "is-estimated" : ""}'
               type='text'
               value='${money(safeValue)}'
               aria-label='${inputPrefix} ${monthName}'
@@ -591,7 +700,9 @@ function renderSoberTotalizer() {
   }
 
   const year = Number(cgdState.selectedYear);
-  const realValues = ensureRealTotalsForYear(year);
+  const realSeries = computeRealSeriesForYear(year, cgdState.realComputationContexts);
+  const realValues = realSeries.values;
+  const realEstimatedFlags = realSeries.estimatedFlags;
   const incomeTotals = sumAllIncomeRubricsByMonth(cgdState.data?.income);
   const savingsTotals = sumRubricsValuesByMonth(cgdState.data?.savings);
   const outcomeTotals = sumAllOutcomeRubricsByMonth(cgdState.data?.outcome);
@@ -622,13 +733,19 @@ function renderSoberTotalizer() {
             <div class='desc-cell totalizer-desc-cell'>
               <span class='totalizer-row-label'>Real</span>
             </div>
-            ${renderTotalizerMonthPills(realValues, { editable: true, inputPrefix: "Real" })}
+            ${renderTotalizerMonthPills(realValues, { editable: true, inputPrefix: "Real", estimatedFlags: realEstimatedFlags })}
           </div>
           <div class='data-row totalizer-row totalizer-row-income'>
             <div class='desc-cell totalizer-desc-cell'>
               <span class='totalizer-row-label'>Income</span>
             </div>
             ${renderTotalizerMonthPills(incomeTotals)}
+          </div>
+          <div class='data-row totalizer-row totalizer-row-outcome'>
+            <div class='desc-cell totalizer-desc-cell'>
+              <span class='totalizer-row-label'>Outcome</span>
+            </div>
+            ${renderTotalizerMonthPills(outcomeTotals)}
           </div>
           <div class='data-row totalizer-row totalizer-row-savings'>
             <div class='desc-cell totalizer-desc-cell'>
@@ -637,12 +754,6 @@ function renderSoberTotalizer() {
             ${renderTotalizerMonthPills(savingsTotals)}
           </div>
           ${savingsRubricRows}
-          <div class='data-row totalizer-row totalizer-row-outcome'>
-            <div class='desc-cell totalizer-desc-cell'>
-              <span class='totalizer-row-label'>Outcome</span>
-            </div>
-            ${renderTotalizerMonthPills(outcomeTotals)}
-          </div>
         </div>
       </div>
     </section>
@@ -2108,9 +2219,12 @@ function renderPanels() {
 }
 
 function parseMoneyInputValue(value) {
-  const normalized = String(value || "").replace(/\s+/g, "").replace(/,/g, "");
+  const normalized = String(value || "").replace(/\s+/g, "").replace(/,/g, "").trim();
+  if (!normalized) {
+    return null;
+  }
   const numeric = Number(normalized);
-  return Number.isFinite(numeric) ? numeric : 0;
+  return Number.isFinite(numeric) ? numeric : null;
 }
 
 function bindSoberTotalizerInputs() {
@@ -2126,10 +2240,16 @@ function bindSoberTotalizerInputs() {
     }
 
     const year = Number(cgdState.selectedYear);
-    const values = ensureRealTotalsForYear(year);
-    values[monthIndex] = parseMoneyInputValue(input.value);
-    cgdState.realTotalsByYear[year] = values;
-    persistRealTotalsByYear();
+    const realValue = parseMoneyInputValue(input.value);
+    upsertRealValueForMonth({
+      ano: year,
+      mes: monthIndex + 1,
+      real: realValue
+    })
+      .then(() => loadYearData(cgdState.selectedYear))
+      .catch((error) => {
+        console.error("Erro ao guardar valor real em cgd_real:", error);
+      });
   });
 }
 
@@ -2705,7 +2825,6 @@ window.cgdToggleOutcomeComparisonChart = () => {
 
 async function loadYearData(year) {
   cgdState.selectedYear = year;
-  ensureRealTotalsForYear(year);
   const yearLabel = document.querySelector("[data-year-label]");
   if (yearLabel) {
     yearLabel.textContent = String(year);
@@ -2713,6 +2832,11 @@ async function loadYearData(year) {
 
   if (!supabaseClient) {
     cgdState.data = fallbackMock;
+    cgdState.realComputationContexts = {
+      [Number(year)]: defaultRealComputationContext(),
+      [Number(year) - 1]: defaultRealComputationContext(),
+      [Number(year) - 2]: defaultRealComputationContext()
+    };
     renderSoberTotalizer();
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
@@ -2720,10 +2844,11 @@ async function loadYearData(year) {
   }
 
   try {
-    const [rubricsResult, expensesResult, expenseHistoryResult] = await Promise.allSettled([
+    const [rubricsResult, expensesResult, expenseHistoryResult, realValuesResult] = await Promise.allSettled([
       fetchRubricsForYear(year),
       fetchExpensesForYear(year),
-      fetchExpenseHistoryMonthKeysForYear(year)
+      fetchExpenseHistoryMonthKeysForYear(year),
+      fetchRealValuesForYear(year)
     ]);
 
     const rubricRows = rubricsResult.status === "fulfilled" ? rubricsResult.value : [];
@@ -2742,14 +2867,40 @@ async function loadYearData(year) {
       console.error("Erro a carregar historico de notas CGD:", expenseHistoryResult.reason);
     }
 
+    if (realValuesResult.status === "rejected") {
+      console.error("Erro a carregar valores reais CGD:", realValuesResult.reason);
+    }
+
     const expenseHistoryMonthKeys = expenseHistoryResult.status === "fulfilled" ? expenseHistoryResult.value : new Set();
-    cgdState.data = buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys);
+    const realRows = realValuesResult.status === "fulfilled" ? realValuesResult.value : [];
+    const model = buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys);
+    cgdState.data = model;
+
+    const [previousYearContext, twoYearsBackContext] = await Promise.all([
+      fetchYearContextForRealComputation(Number(year) - 1),
+      fetchYearContextForRealComputation(Number(year) - 2)
+    ]);
+
+    cgdState.realComputationContexts = {
+      [Number(year)]: {
+        dbRealValues: buildRealValuesFromRows(realRows),
+        totals: buildTotalsForModel(model)
+      },
+      [Number(year) - 1]: previousYearContext,
+      [Number(year) - 2]: twoYearsBackContext
+    };
+
     renderSoberTotalizer();
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
   } catch (error) {
     console.error("Erro a carregar dados CGD:", error);
     cgdState.data = fallbackMock;
+    cgdState.realComputationContexts = {
+      [Number(year)]: defaultRealComputationContext(),
+      [Number(year) - 1]: defaultRealComputationContext(),
+      [Number(year) - 2]: defaultRealComputationContext()
+    };
     renderSoberTotalizer();
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
@@ -3418,7 +3569,6 @@ window.cgdHandleExpenseReorder = async (row, action) => {
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
-  cgdState.realTotalsByYear = loadRealTotalsByYear();
   bindSoberTotalizerInputs();
   renderTimeline(cgdState.selectedYear);
   await loadYearData(cgdState.selectedYear);

@@ -661,6 +661,11 @@ a {
   color: #ecf6fb;
 }
 
+.totalizer-row-real .money-pill input.is-estimated {
+  font-style: italic;
+  text-decoration: underline;
+}
+
 .totalizer-row .money-pill.readonly {
   justify-content: flex-end;
   padding: 7px 9px;
@@ -678,11 +683,23 @@ a {
   color: #7fd7a8;
 }
 
+.totalizer-row-income .totalizer-row-label {
+  color: #7fd7a8;
+}
+
 .totalizer-row-savings .money-pill.readonly .totalizer-value {
   color: #8ccbf3;
 }
 
+.totalizer-row-savings .totalizer-row-label {
+  color: #8ccbf3;
+}
+
 .totalizer-row-outcome .money-pill.readonly .totalizer-value {
+  color: #f0be78;
+}
+
+.totalizer-row-outcome .totalizer-row-label {
   color: #f0be78;
 }
 
