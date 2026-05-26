@@ -10,6 +10,7 @@ const fallbackMock = {
 const cgdState = {
   selectedYear: new Date().getFullYear(),
   data: fallbackMock,
+  realTotalsByYear: {},
   expenseColumns: new Set(),
   notesTableName: null,
   incomeChartVisible: false,
@@ -452,6 +453,178 @@ function sumByMonth(expenses) {
 
 function money(value) {
   return Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function loadRealTotalsByYear() {
+  const fallback = {};
+  if (typeof window === "undefined" || !window.localStorage) {
+    return fallback;
+  }
+
+  try {
+    const raw = window.localStorage.getItem("cgd-real-totals-v1");
+    if (!raw) {
+      return fallback;
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return fallback;
+    }
+
+    const normalized = {};
+    Object.entries(parsed).forEach(([yearKey, values]) => {
+      const numericYear = Number(yearKey);
+      if (!Number.isInteger(numericYear) || !Array.isArray(values)) {
+        return;
+      }
+      normalized[numericYear] = months.map((_, monthIndex) => {
+        const numeric = Number(values[monthIndex]);
+        return Number.isFinite(numeric) ? numeric : 0;
+      });
+    });
+    return normalized;
+  } catch (error) {
+    console.warn("Nao foi possivel ler os totalizadores reais em localStorage:", error);
+    return fallback;
+  }
+}
+
+function persistRealTotalsByYear() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem("cgd-real-totals-v1", JSON.stringify(cgdState.realTotalsByYear || {}));
+  } catch (error) {
+    console.warn("Nao foi possivel guardar os totalizadores reais em localStorage:", error);
+  }
+}
+
+function ensureRealTotalsForYear(year) {
+  const numericYear = Number(year);
+  if (!Number.isInteger(numericYear)) {
+    return emptyValues();
+  }
+
+  if (!Array.isArray(cgdState.realTotalsByYear[numericYear])) {
+    cgdState.realTotalsByYear[numericYear] = emptyValues();
+  }
+
+  cgdState.realTotalsByYear[numericYear] = months.map((_, monthIndex) => {
+    const numeric = Number(cgdState.realTotalsByYear[numericYear][monthIndex]);
+    return Number.isFinite(numeric) ? numeric : 0;
+  });
+
+  return cgdState.realTotalsByYear[numericYear];
+}
+
+function sumRubricsValuesByMonth(rubrics) {
+  const source = Array.isArray(rubrics) ? rubrics : [];
+  return months.map((_, monthIndex) =>
+    source.reduce((acc, rubric) => {
+      const rubricValues = Array.isArray(rubric?.values) ? rubric.values : emptyValues();
+      const value = Number(rubricValues[monthIndex]);
+      return acc + (Number.isFinite(value) ? value : 0);
+    }, 0)
+  );
+}
+
+function renderTotalizerMonthPills(values, options = {}) {
+  const editable = Boolean(options.editable);
+  const inputPrefix = options.inputPrefix || "Totalizador";
+
+  return months
+    .map((monthName, monthIndex) => {
+      const numericValue = Number(values?.[monthIndex]);
+      const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+      if (editable) {
+        return `
+          <div class='money-pill totalizer-month-pill' data-month-col='${monthIndex}' data-totalizer-month='${monthIndex}'>
+            <input
+              data-money
+              data-real-total-input='true'
+              data-real-total-month='${monthIndex}'
+              type='text'
+              value='${money(safeValue)}'
+              aria-label='${inputPrefix} ${monthName}'
+            />
+          </div>
+        `;
+      }
+
+      return `
+        <div class='money-pill totalizer-month-pill readonly' data-month-col='${monthIndex}' data-totalizer-month='${monthIndex}'>
+          <span class='totalizer-value'>${money(safeValue)}</span>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function renderSoberTotalizer() {
+  const host = document.getElementById("cgd-totalizer");
+  if (!host) {
+    return;
+  }
+
+  const year = Number(cgdState.selectedYear);
+  const realValues = ensureRealTotalsForYear(year);
+  const incomeTotals = sumRubricsValuesByMonth(cgdState.data?.income);
+  const savingsTotals = sumRubricsValuesByMonth(cgdState.data?.savings);
+  const outcomeTotals = sumRubricsValuesByMonth(cgdState.data?.outcome);
+  const savingsRubrics = Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
+
+  const savingsRubricRows = savingsRubrics
+    .map((rubric) => {
+      return `
+        <div class='data-row totalizer-row totalizer-row-savings-rubric'>
+          <div class='desc-cell totalizer-desc-cell'>
+            <span class='totalizer-row-label'>${escapeHtml(rubric?.name || "Savings")}</span>
+          </div>
+          ${renderTotalizerMonthPills(rubric?.values || emptyValues())}
+        </div>
+      `;
+    })
+    .join("");
+
+  host.innerHTML = `
+    <section class='totalizer-shell' aria-label='Totalizador mensal consolidado'>
+      <header class='totalizer-head'>
+        <h3>Totalizador mensal</h3>
+        <p>Visao consolidada de Real, Income, Savings e Outcome</p>
+      </header>
+      <div class='totalizer-grid-wrap'>
+        <div class='totalizer-grid'>
+          <div class='data-row totalizer-row totalizer-row-real'>
+            <div class='desc-cell totalizer-desc-cell'>
+              <span class='totalizer-row-label'>Real</span>
+            </div>
+            ${renderTotalizerMonthPills(realValues, { editable: true, inputPrefix: "Real" })}
+          </div>
+          <div class='data-row totalizer-row totalizer-row-income'>
+            <div class='desc-cell totalizer-desc-cell'>
+              <span class='totalizer-row-label'>Income</span>
+            </div>
+            ${renderTotalizerMonthPills(incomeTotals)}
+          </div>
+          <div class='data-row totalizer-row totalizer-row-savings'>
+            <div class='desc-cell totalizer-desc-cell'>
+              <span class='totalizer-row-label'>Savings</span>
+            </div>
+            ${renderTotalizerMonthPills(savingsTotals)}
+          </div>
+          ${savingsRubricRows}
+          <div class='data-row totalizer-row totalizer-row-outcome'>
+            <div class='desc-cell totalizer-desc-cell'>
+              <span class='totalizer-row-label'>Outcome</span>
+            </div>
+            ${renderTotalizerMonthPills(outcomeTotals)}
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
 }
 
 function monthPills(values, editable, labelPrefix, estimatedFlags = [], historyByMonth = [], detailMeta = null) {
@@ -1912,6 +2085,32 @@ function renderPanels() {
   renderOutcomeComparisonChart();
 }
 
+function parseMoneyInputValue(value) {
+  const normalized = String(value || "").replace(/\s+/g, "").replace(/,/g, "");
+  const numeric = Number(normalized);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function bindSoberTotalizerInputs() {
+  document.addEventListener("focusout", (event) => {
+    const input = event.target.closest("input[data-real-total-input='true']");
+    if (!input) {
+      return;
+    }
+
+    const monthIndex = Number(input.getAttribute("data-real-total-month"));
+    if (!Number.isInteger(monthIndex) || monthIndex < 0 || monthIndex > 11) {
+      return;
+    }
+
+    const year = Number(cgdState.selectedYear);
+    const values = ensureRealTotalsForYear(year);
+    values[monthIndex] = parseMoneyInputValue(input.value);
+    cgdState.realTotalsByYear[year] = values;
+    persistRealTotalsByYear();
+  });
+}
+
 function buildComparisonSeriesForKind(kind) {
   const palette = kind === "income"
     ? ["#6ecf9a", "#7cc4ff", "#9ed86b", "#58d2c3", "#8bcf7a", "#5fb3de", "#9edfb7", "#71d0ff", "#77c87f", "#79bdf0"]
@@ -2484,6 +2683,7 @@ window.cgdToggleOutcomeComparisonChart = () => {
 
 async function loadYearData(year) {
   cgdState.selectedYear = year;
+  ensureRealTotalsForYear(year);
   const yearLabel = document.querySelector("[data-year-label]");
   if (yearLabel) {
     yearLabel.textContent = String(year);
@@ -2491,6 +2691,7 @@ async function loadYearData(year) {
 
   if (!supabaseClient) {
     cgdState.data = fallbackMock;
+    renderSoberTotalizer();
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
     return;
@@ -2521,11 +2722,13 @@ async function loadYearData(year) {
 
     const expenseHistoryMonthKeys = expenseHistoryResult.status === "fulfilled" ? expenseHistoryResult.value : new Set();
     cgdState.data = buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys);
+    renderSoberTotalizer();
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
   } catch (error) {
     console.error("Erro a carregar dados CGD:", error);
     cgdState.data = fallbackMock;
+    renderSoberTotalizer();
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
   }
@@ -3193,6 +3396,8 @@ window.cgdHandleExpenseReorder = async (row, action) => {
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
+  cgdState.realTotalsByYear = loadRealTotalsByYear();
+  bindSoberTotalizerInputs();
   renderTimeline(cgdState.selectedYear);
   await loadYearData(cgdState.selectedYear);
 

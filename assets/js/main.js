@@ -463,6 +463,9 @@ function highlightMonth(monthIndex) {
   document.querySelectorAll(`.data-row.expense [data-month-col='${monthIndex}']`).forEach((pill) => {
     pill.classList.add("active");
   });
+  document.querySelectorAll(`[data-totalizer-month='${monthIndex}']`).forEach((pill) => {
+    pill.classList.add("active");
+  });
 
   document.querySelectorAll("article.rubric").forEach((rubric) => {
     const rubricBody = rubric.querySelector(":scope > .rubric-body");

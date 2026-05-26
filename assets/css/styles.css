@@ -592,6 +592,116 @@ a {
   color: #fff;
 }
 
+.sober-totalizer-card {
+  border-color: rgba(155, 184, 199, 0.25);
+  background: linear-gradient(180deg, rgba(13, 25, 33, 0.94), rgba(13, 24, 31, 0.92));
+  box-shadow: 0 14px 28px rgba(3, 9, 13, 0.44);
+}
+
+.totalizer-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.totalizer-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 2px 0;
+}
+
+.totalizer-head h3 {
+  margin: 0;
+  font-size: 0.86rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #d6e7f0;
+}
+
+.totalizer-head p {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #93aebc;
+}
+
+.totalizer-grid-wrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.totalizer-grid {
+  display: grid;
+  gap: 5px;
+  min-width: 920px;
+}
+
+.totalizer-row {
+  border: 1px solid rgba(162, 189, 201, 0.2);
+  background: rgba(15, 30, 39, 0.82);
+}
+
+.totalizer-row .money-pill {
+  background: rgba(12, 27, 35, 0.74);
+  border: 1px solid rgba(150, 179, 193, 0.13);
+}
+
+.totalizer-row .money-pill input {
+  font-size: 0.74rem;
+  color: #dcebf2;
+}
+
+.totalizer-row .money-pill.readonly {
+  justify-content: flex-end;
+  padding: 7px 9px;
+}
+
+.totalizer-row .money-pill.readonly .totalizer-value {
+  width: 100%;
+  text-align: right;
+  font-weight: 700;
+  font-size: 0.74rem;
+  color: #d2e3ed;
+}
+
+.totalizer-row .money-pill.active {
+  border-color: rgba(168, 212, 230, 0.66);
+  box-shadow: 0 0 0 1px rgba(168, 212, 230, 0.26);
+}
+
+.totalizer-desc-cell {
+  gap: 6px;
+}
+
+.totalizer-row-label {
+  width: 100%;
+  border: 1px solid rgba(160, 189, 201, 0.2);
+  border-radius: var(--radius-pill);
+  background: rgba(17, 35, 45, 0.8);
+  color: #d8e8f1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 8px 10px;
+}
+
+.totalizer-row-real .totalizer-row-label {
+  border-color: rgba(186, 210, 221, 0.42);
+  background: rgba(22, 43, 55, 0.86);
+  color: #ecf6fb;
+}
+
+.totalizer-row-savings-rubric .totalizer-row-label {
+  font-size: 0.68rem;
+  text-transform: none;
+  letter-spacing: 0.03em;
+  color: #bfd4df;
+  background: rgba(15, 30, 39, 0.74);
+  border-color: rgba(151, 181, 195, 0.16);
+  padding-left: 16px;
+}
+
 .panel-stack {
   display: grid;
   gap: 12px;
