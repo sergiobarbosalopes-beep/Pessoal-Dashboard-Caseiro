@@ -651,6 +651,16 @@ a {
   color: #dcebf2;
 }
 
+.totalizer-row-real .money-pill {
+  padding: 8px 10px;
+}
+
+.totalizer-row-real .money-pill input {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #ecf6fb;
+}
+
 .totalizer-row .money-pill.readonly {
   justify-content: flex-end;
   padding: 7px 9px;
