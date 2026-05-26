@@ -925,7 +925,7 @@ function buildIncomeRubricSeries() {
 }
 
 function buildSavingsRubricSeries() {
-  const palette = ["#70c3ff", "#4da9f2", "#8fd2ff", "#58bde2", "#7ec7ff", "#63b1f5", "#9ad9ff", "#79c6ff", "#5eaef0", "#8ccfff"];
+  const palette = ["#70c3ff", "#5fc8b6", "#f2c46a", "#7cc4ff", "#84d56b", "#f08b5f", "#58d2c3", "#9ad9ff", "#9ed86b", "#a9e46f"];
   const sourceRubrics = Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
 
   return sourceRubrics
@@ -1000,7 +1000,7 @@ function buildSavingsExpenseSeriesForRubric(rubric) {
     return [];
   }
 
-  const palette = ["#9edbff", "#8bcfff", "#a6e0ff", "#7fc8f5", "#95d5ff", "#82c6f0", "#abdfff", "#8dd1ff", "#9bd7ff", "#86c9f4"];
+  const palette = ["#9ad9ff", "#a9e46f", "#f7c86a", "#7acfc6", "#95c7ff", "#e8a0b4", "#84d56b", "#eac17a", "#8fdcb3", "#8bc8f5"];
   return (rubric.expenses || [])
     .map((expense, index) => ({
       key: expense.key || `expense-${index}`,
@@ -1916,7 +1916,7 @@ function buildComparisonSeriesForKind(kind) {
   const palette = kind === "income"
     ? ["#6ecf9a", "#7cc4ff", "#9ed86b", "#58d2c3", "#8bcf7a", "#5fb3de", "#9edfb7", "#71d0ff", "#77c87f", "#79bdf0"]
     : kind === "savings"
-      ? ["#70c3ff", "#4da9f2", "#8fd2ff", "#58bde2", "#7ec7ff", "#63b1f5", "#9ad9ff", "#79c6ff", "#5eaef0", "#8ccfff"]
+      ? ["#70c3ff", "#5fc8b6", "#f2c46a", "#7cc4ff", "#84d56b", "#f08b5f", "#58d2c3", "#9ad9ff", "#9ed86b", "#a9e46f"]
       : ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"];
   const sourceRubrics = kind === "income" ? cgdState.data?.income : kind === "savings" ? cgdState.data?.savings : cgdState.data?.outcome;
   const rubrics = Array.isArray(sourceRubrics) ? sourceRubrics : [];
@@ -1979,7 +1979,7 @@ function buildComparisonExpenseSeriesForRubric(rubric, kind) {
   const palette = kind === "income"
     ? ["#8fdcb3", "#8bc8f5", "#9fdc88", "#7fded2", "#95d889", "#79bfe3", "#abdcc6", "#8fd7ff", "#8bcf96", "#93c4eb"]
     : kind === "savings"
-      ? ["#9edbff", "#8bcfff", "#a6e0ff", "#7fc8f5", "#95d5ff", "#82c6f0", "#abdfff", "#8dd1ff", "#9bd7ff", "#86c9f4"]
+      ? ["#9ad9ff", "#a9e46f", "#f7c86a", "#7acfc6", "#95c7ff", "#e8a0b4", "#84d56b", "#eac17a", "#8fdcb3", "#8bc8f5"]
       : ["#9ad9ff", "#a9e46f", "#f7c86a", "#f3a47d", "#95c7ff", "#84d56b", "#e8a0b4", "#7acfc6", "#eac17a", "#a6d8b5"];
 
   const expenses = Array.isArray(rubric.expenses) ? rubric.expenses : [];
