@@ -2492,6 +2492,14 @@ window.cgdCreateRubric = async (kind) => {
     return true;
   } catch (error) {
     console.error("Erro ao criar rubrica:", error);
+    const code = String(error?.code || "").trim();
+    const message = String(error?.message || "").toLowerCase();
+    const isSavingsConstraintError =
+      kind === "savings" && code === "23514" && (message.includes("rubrica_tipo") || message.includes("check constraint"));
+
+    if (isSavingsConstraintError) {
+      window.alert("Nao foi possivel criar a rubrica em Savings porque a base de dados ainda nao permite rubrica_tipo = Aprovisionamento. Aplica a migration que atualiza a check constraint da tabela cgd_rubrica.");
+    }
     return false;
   }
 };
