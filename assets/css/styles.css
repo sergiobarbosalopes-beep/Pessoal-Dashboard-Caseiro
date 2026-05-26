@@ -741,6 +741,10 @@ a {
   padding-left: 16px;
 }
 
+.totalizer-row-savings-rubric .money-pill.readonly .totalizer-value {
+  font-size: 0.62rem;
+}
+
 .panel-stack {
   display: grid;
   gap: 12px;
@@ -1640,10 +1644,6 @@ a {
 
 .rubric-head .money-pill input {
   color: #96a2aa;
-}
-
-.panel.savings .rubric-head .money-pill input {
-  font-size: 0.62rem;
 }
 
 .money-pill.readonly {
