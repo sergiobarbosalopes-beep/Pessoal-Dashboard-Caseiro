@@ -269,7 +269,8 @@ function initExpenseModal() {
     const rubricaId = Number(fieldBtn.getAttribute("data-rubrica-id"));
     const despesaId = Number(fieldBtn.getAttribute("data-expense-id"));
     const monthIndex = Number(fieldBtn.getAttribute("data-month-index"));
-    const kind = fieldBtn.getAttribute("data-expense-kind") === "income" ? "income" : "outcome";
+    const rawKind = fieldBtn.getAttribute("data-expense-kind");
+    const kind = rawKind === "income" || rawKind === "savings" ? rawKind : "outcome";
     const selectedMonth = Number(document.querySelector(".month-tile.active")?.getAttribute("data-month"));
     const readonly = monthIndex !== selectedMonth;
 

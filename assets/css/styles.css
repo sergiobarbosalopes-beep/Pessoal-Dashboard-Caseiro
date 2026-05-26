@@ -883,6 +883,11 @@ a {
   background: linear-gradient(180deg, rgba(42, 111, 82, 0.42), rgba(58, 141, 102, 0.36) 42%, rgba(93, 182, 132, 0.3) 78%, rgba(121, 207, 157, 0.24));
 }
 
+.panel.savings {
+  --rubric-accent: #0066b3;
+  background: linear-gradient(180deg, rgba(7, 72, 129, 0.48), rgba(0, 102, 179, 0.4) 40%, rgba(33, 128, 197, 0.34) 72%, rgba(78, 162, 222, 0.26));
+}
+
 .panel.outcome {
   --rubric-accent: #b6843a;
   background: linear-gradient(180deg, rgba(142, 103, 48, 0.42), rgba(182, 132, 58, 0.36) 38%, rgba(216, 161, 73, 0.3) 70%, rgba(239, 190, 99, 0.24));
@@ -974,6 +979,12 @@ a {
 
 .panel.income .panel-menu-trigger {
   background: linear-gradient(135deg, rgba(47, 142, 97, 0.52), rgba(62, 170, 118, 0.48));
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.panel.savings .panel-menu-trigger {
+  background: linear-gradient(135deg, rgba(0, 102, 179, 0.6), rgba(33, 128, 197, 0.54));
   border-color: transparent;
   box-shadow: none;
 }
@@ -1166,6 +1177,12 @@ a {
   box-shadow: inset 0 0 0 1px rgba(195, 245, 218, 0.1);
 }
 
+.panel.savings .rubric-title {
+  background: linear-gradient(135deg, rgba(0, 102, 179, 0.62), rgba(33, 128, 197, 0.56));
+  border-color: rgba(156, 212, 246, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(205, 234, 252, 0.14);
+}
+
 .panel.outcome .rubric-title {
   background: linear-gradient(135deg, rgba(182, 132, 58, 0.54), rgba(214, 159, 68, 0.5));
   border-color: rgba(242, 206, 132, 0.3);
@@ -1299,6 +1316,11 @@ a {
 .panel.income .expense-menu-trigger[aria-expanded="true"] {
   border-color: rgba(47, 142, 97, 0.9);
   box-shadow: inset 0 0 0 1px rgba(200, 245, 221, 0.22), 0 0 0 2px rgba(47, 142, 97, 0.28), 0 0 16px rgba(47, 142, 97, 0.22);
+}
+
+.panel.savings .expense-menu-trigger[aria-expanded="true"] {
+  border-color: rgba(0, 102, 179, 0.92);
+  box-shadow: inset 0 0 0 1px rgba(206, 234, 251, 0.24), 0 0 0 2px rgba(0, 102, 179, 0.3), 0 0 16px rgba(0, 102, 179, 0.24);
 }
 
 .expense-sort-actions {
@@ -1510,6 +1532,10 @@ a {
   background: rgba(47, 142, 97, 0.95);
 }
 
+.panel.savings .money-pill.readonly button.has-history-note::after {
+  background: rgba(0, 102, 179, 0.95);
+}
+
 .money-pill button .estimated-value {
   font-style: italic;
   text-decoration: underline;
@@ -1527,6 +1553,11 @@ a {
 .panel.income .money-pill.active {
   border-color: rgba(47, 142, 97, 0.98);
   box-shadow: 0 0 0 2px rgba(47, 142, 97, 0.58), 0 0 26px rgba(47, 142, 97, 0.46);
+}
+
+.panel.savings .money-pill.active {
+  border-color: rgba(0, 102, 179, 0.95);
+  box-shadow: 0 0 0 2px rgba(0, 102, 179, 0.56), 0 0 24px rgba(0, 102, 179, 0.44);
 }
 
 .panel.outcome .money-pill.active {
@@ -1649,6 +1680,12 @@ a {
   box-shadow: 0 0 0 2px rgba(47, 142, 97, 0.58), 0 0 26px rgba(47, 142, 97, 0.46);
 }
 
+.expense-detail-modal[data-expense-modal-kind="savings"] .expense-month-indicator {
+  border-color: rgba(0, 102, 179, 0.45);
+  background: rgba(0, 102, 179, 0.16);
+  box-shadow: 0 0 0 2px rgba(0, 102, 179, 0.54), 0 0 24px rgba(0, 102, 179, 0.42);
+}
+
 .expense-detail-modal[data-expense-modal-kind="outcome"] .expense-month-indicator {
   border-color: rgba(213, 171, 70, 0.45);
   background: rgba(213, 171, 70, 0.16);
@@ -1684,6 +1721,10 @@ a {
 
 .expense-detail-modal[data-expense-modal-kind="income"] {
   border: 1px solid rgba(47, 142, 97, 0.45);
+}
+
+.expense-detail-modal[data-expense-modal-kind="savings"] {
+  border: 1px solid rgba(0, 102, 179, 0.45);
 }
 
 .expense-detail-modal[data-expense-modal-kind="outcome"] {

@@ -3,6 +3,7 @@ const emptyValues = () => Array.from({ length: 12 }, () => 0);
 
 const fallbackMock = {
   income: [],
+  savings: [],
   outcome: []
 };
 
@@ -97,9 +98,16 @@ function parseBoolean(value) {
 }
 
 function normalizeRubricType(value) {
-  const raw = String(value || "").trim().toLowerCase();
+  const raw = String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
   if (raw === "receita") {
     return "income";
+  }
+  if (raw === "poupanca" || raw === "poupancas" || raw === "savings" || raw === "saving") {
+    return "savings";
   }
   return "outcome";
 }
@@ -418,6 +426,7 @@ function buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys = new S
   const allRubrics = Array.from(rubricsByKey.values()).sort((a, b) => a.seq - b.seq || a.name.localeCompare(b.name));
   return {
     income: allRubrics.filter((rubric) => rubric.type === "income"),
+    savings: allRubrics.filter((rubric) => rubric.type === "savings"),
     outcome: allRubrics.filter((rubric) => rubric.type === "outcome")
   };
 }
@@ -1529,6 +1538,7 @@ function renderPanels() {
     <section class='outcome-evolution-card income-comparison-card'>
       <div class='outcome-evolution' id='income-comparison-chart' aria-live='polite'></div>
     </section>
+    ${buildPanel("Savings", "savings", cgdState.data.savings)}
     ${buildPanel("Outcome", "outcome", cgdState.data.outcome)}
   `;
 
@@ -2089,7 +2099,16 @@ async function persistRubricOrder(rubricRows) {
     .map((row, index) => ({
       id: Number(row.getAttribute("data-rubrica-id")),
       seq: index + 1,
-      tipo: row.getAttribute("data-rubrica-tipo") === "income" ? "receita" : "despesa"
+      tipo: (() => {
+        const rubricType = row.getAttribute("data-rubrica-tipo");
+        if (rubricType === "income") {
+          return "Receita";
+        }
+        if (rubricType === "savings") {
+          return "Poupanca";
+        }
+        return "Despesa";
+      })()
     }))
     .filter((item) => Number.isFinite(item.id));
 
@@ -2161,8 +2180,8 @@ async function createRubricaForYear(kind, description) {
     return;
   }
 
-  const normalizedKind = kind === "income" ? "income" : "outcome";
-  const rubricaTipo = normalizedKind === "income" ? "Receita" : "Despesa";
+  const normalizedKind = kind === "income" || kind === "savings" ? kind : "outcome";
+  const rubricaTipo = normalizedKind === "income" ? "Receita" : normalizedKind === "savings" ? "Poupanca" : "Despesa";
   const existing = cgdState.data[normalizedKind] || [];
   const nextSeq = existing.length ? Math.max(...existing.map((item) => parseSeq(item.seq, 0))) + 1 : 1;
   const nextRubricaId = await getNextRubricaId();
@@ -2202,8 +2221,16 @@ async function createDespesaForRubrica(rubricaId, description) {
     return;
   }
 
-  const rubricType = cgdState.data.income.some((rubric) => Number(rubric.id) === rubricaId) ? "income" : "outcome";
-  const sourceRubrics = rubricType === "income" ? cgdState.data.income : cgdState.data.outcome;
+  const rubricType = cgdState.data.income.some((rubric) => Number(rubric.id) === rubricaId)
+    ? "income"
+    : cgdState.data.savings.some((rubric) => Number(rubric.id) === rubricaId)
+      ? "savings"
+      : "outcome";
+  const sourceRubrics = rubricType === "income"
+    ? cgdState.data.income
+    : rubricType === "savings"
+      ? cgdState.data.savings
+      : cgdState.data.outcome;
   const rubric = sourceRubrics.find((item) => Number(item.id) === rubricaId);
   const existingExpenses = rubric?.expenses || [];
   const nextSeq = existingExpenses.length ? Math.max(...existingExpenses.map((item) => parseSeq(item.seq, 0))) + 1 : 1;
@@ -2386,7 +2413,7 @@ async function deleteRubricaForYear(rubricaId) {
 }
 
 function findExpenseRecord(rubricaId, despesaId) {
-  const allRubrics = [...(cgdState.data.income || []), ...(cgdState.data.outcome || [])];
+  const allRubrics = [...(cgdState.data.income || []), ...(cgdState.data.savings || []), ...(cgdState.data.outcome || [])];
   for (const rubric of allRubrics) {
     if (Number(rubric.id) !== Number(rubricaId)) {
       continue;
@@ -2448,8 +2475,9 @@ function resolveExpenseUpdatePayload(detail) {
 window.cgdLoadYearData = loadYearData;
 
 window.cgdCreateRubric = async (kind) => {
+  const sectionLabel = kind === "income" ? "Income" : kind === "savings" ? "Savings" : "Outcome";
   const description = await requestEntityDescription({
-    title: `Adicionar rubrica ${kind === "income" ? "Income" : "Outcome"}`,
+    title: `Adicionar rubrica ${sectionLabel}`,
     subtitle: "Indica o descritivo da nova rubrica para o ano selecionado.",
     label: "Descricao da rubrica",
     promptText: "Descricao da nova rubrica"
