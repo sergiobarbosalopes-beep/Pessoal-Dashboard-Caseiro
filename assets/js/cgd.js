@@ -896,12 +896,13 @@ function buildPanel(title, kind, rubrics) {
   const panelId = `panel-${kind}`;
   const bodyId = `${panelId}-body`;
   const totalsByMonth = sumRubricsValuesByMonth(rubrics);
-  const collapsedSummary = kind === "income"
+  const hasCollapsedSummary = kind === "income" || kind === "savings" || kind === "outcome";
+  const collapsedSummary = hasCollapsedSummary
     ? `
-    <div class='panel-collapsed-summary panel-collapsed-summary-income'>
-      <div class='data-row income-collapsed-total-row'>
+    <div class='panel-collapsed-summary panel-collapsed-summary-${kind}'>
+      <div class='data-row collapsed-total-row collapsed-total-row-${kind}'>
         <div class='desc-cell'>
-          <span class='desc-pill income-collapsed-total-label'>Total</span>
+          <span class='desc-pill collapsed-total-label collapsed-total-label-${kind}'>Total</span>
         </div>
         ${readonlySummaryPills(totalsByMonth, "Total")}
       </div>
