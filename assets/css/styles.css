@@ -217,6 +217,14 @@ a {
   padding: 14px;
 }
 
+.temporal-nav-card {
+  position: sticky;
+  top: 84px;
+  z-index: 24;
+  background: rgba(11, 28, 39, 0.9);
+  backdrop-filter: blur(10px);
+}
+
 .card h2,
 .card h3 {
   margin: 0 0 6px;
@@ -2402,6 +2410,10 @@ a {
     border-radius: 18px;
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .temporal-nav-card {
+    top: 118px;
   }
 
   .menu {
