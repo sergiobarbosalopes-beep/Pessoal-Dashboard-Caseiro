@@ -530,6 +530,28 @@ function sumRubricsValuesByMonth(rubrics) {
   );
 }
 
+function sumAllIncomeRubricsByMonth(rubrics) {
+  const source = Array.isArray(rubrics) ? rubrics : [];
+  return months.map((_, monthIndex) =>
+    source.reduce((acc, rubric) => {
+      const rubricValues = Array.isArray(rubric?.values) ? rubric.values : emptyValues();
+      const monthValue = Number(rubricValues[monthIndex]);
+      return acc + (Number.isFinite(monthValue) ? monthValue : 0);
+    }, 0)
+  );
+}
+
+function sumAllOutcomeRubricsByMonth(rubrics) {
+  const source = Array.isArray(rubrics) ? rubrics : [];
+  return months.map((_, monthIndex) =>
+    source.reduce((acc, rubric) => {
+      const rubricValues = Array.isArray(rubric?.values) ? rubric.values : emptyValues();
+      const monthValue = Number(rubricValues[monthIndex]);
+      return acc + (Number.isFinite(monthValue) ? monthValue : 0);
+    }, 0)
+  );
+}
+
 function renderTotalizerMonthPills(values, options = {}) {
   const editable = Boolean(options.editable);
   const inputPrefix = options.inputPrefix || "Totalizador";
@@ -570,9 +592,9 @@ function renderSoberTotalizer() {
 
   const year = Number(cgdState.selectedYear);
   const realValues = ensureRealTotalsForYear(year);
-  const incomeTotals = sumRubricsValuesByMonth(cgdState.data?.income);
+  const incomeTotals = sumAllIncomeRubricsByMonth(cgdState.data?.income);
   const savingsTotals = sumRubricsValuesByMonth(cgdState.data?.savings);
-  const outcomeTotals = sumRubricsValuesByMonth(cgdState.data?.outcome);
+  const outcomeTotals = sumAllOutcomeRubricsByMonth(cgdState.data?.outcome);
   const savingsRubrics = Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
 
   const savingsRubricRows = savingsRubrics
