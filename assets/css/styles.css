@@ -674,6 +674,18 @@ a {
   color: #d2e3ed;
 }
 
+.totalizer-row-income .money-pill.readonly .totalizer-value {
+  color: #7fd7a8;
+}
+
+.totalizer-row-savings .money-pill.readonly .totalizer-value {
+  color: #8ccbf3;
+}
+
+.totalizer-row-outcome .money-pill.readonly .totalizer-value {
+  color: #f0be78;
+}
+
 .totalizer-row .money-pill.active {
   border-color: rgba(168, 212, 230, 0.66);
   box-shadow: 0 0 0 1px rgba(168, 212, 230, 0.26);
