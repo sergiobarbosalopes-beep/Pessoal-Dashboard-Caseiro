@@ -2876,19 +2876,32 @@ async function loadYearData(year) {
     const model = buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys);
     cgdState.data = model;
 
-    const [previousYearContext, twoYearsBackContext] = await Promise.all([
-      fetchYearContextForRealComputation(Number(year) - 1),
-      fetchYearContextForRealComputation(Number(year) - 2)
-    ]);
+    // Never let totalizer context errors hide main rubric/expense panels.
+    try {
+      const [previousYearContext, twoYearsBackContext] = await Promise.all([
+        fetchYearContextForRealComputation(Number(year) - 1),
+        fetchYearContextForRealComputation(Number(year) - 2)
+      ]);
 
-    cgdState.realComputationContexts = {
-      [Number(year)]: {
-        dbRealValues: buildRealValuesFromRows(realRows),
-        totals: buildTotalsForModel(model)
-      },
-      [Number(year) - 1]: previousYearContext,
-      [Number(year) - 2]: twoYearsBackContext
-    };
+      cgdState.realComputationContexts = {
+        [Number(year)]: {
+          dbRealValues: buildRealValuesFromRows(realRows),
+          totals: buildTotalsForModel(model)
+        },
+        [Number(year) - 1]: previousYearContext,
+        [Number(year) - 2]: twoYearsBackContext
+      };
+    } catch (realContextError) {
+      console.error("Erro a preparar contexto real do totalizador:", realContextError);
+      cgdState.realComputationContexts = {
+        [Number(year)]: {
+          dbRealValues: buildRealValuesFromRows(realRows),
+          totals: buildTotalsForModel(model)
+        },
+        [Number(year) - 1]: defaultRealComputationContext(),
+        [Number(year) - 2]: defaultRealComputationContext()
+      };
+    }
 
     renderSoberTotalizer();
     renderPanels();
