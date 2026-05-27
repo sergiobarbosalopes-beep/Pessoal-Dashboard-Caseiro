@@ -719,6 +719,14 @@ a {
   color: #8ccbf3;
 }
 
+.totalizer-row-available .money-pill.readonly .totalizer-value {
+  color: #7fd7a8;
+}
+
+.totalizer-row-available .totalizer-row-label {
+  color: #7fd7a8;
+}
+
 .totalizer-row-outcome .money-pill.readonly .totalizer-value {
   color: #f0be78;
 }

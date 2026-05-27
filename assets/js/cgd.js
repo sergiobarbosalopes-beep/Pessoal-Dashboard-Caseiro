@@ -839,6 +839,11 @@ function renderSoberTotalizer() {
   const realValues = realSeries.values;
   const realEstimatedFlags = realSeries.estimatedFlags;
   const savingsTotals = computeSavingsSeriesForYear(year, cgdState.realComputationContexts);
+  const availableTotals = months.map((_, monthIndex) => {
+    const real = Number(realValues?.[monthIndex]) || 0;
+    const savings = Number(savingsTotals?.[monthIndex]) || 0;
+    return real - savings;
+  });
   const savingsRubrics = Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
 
   const savingsRubricRows = savingsRubrics
@@ -868,6 +873,12 @@ function renderSoberTotalizer() {
               <span class='totalizer-row-label'>Real</span>
             </div>
             ${renderTotalizerMonthPills(realValues, { editable: true, inputPrefix: "Real", estimatedFlags: realEstimatedFlags })}
+          </div>
+          <div class='data-row totalizer-row totalizer-row-available'>
+            <div class='desc-cell totalizer-desc-cell'>
+              <span class='totalizer-row-label'>Disponivel</span>
+            </div>
+            ${renderTotalizerMonthPills(availableTotals)}
           </div>
           <div class='data-row totalizer-row totalizer-row-savings'>
             <div class='desc-cell totalizer-desc-cell'>
