@@ -1837,6 +1837,14 @@ a {
   line-height: 1.1 !important;
 }
 
+.rubric-head .money-pill.rubric-total-cell input,
+.rubric-head .money-pill.rubric-total-cell button,
+.rubric-head .money-pill.rubric-total-cell button span,
+.rubric-head .money-pill.rubric-total-cell > span {
+  font-size: 0.68rem !important;
+  line-height: 1.1 !important;
+}
+
 .money-pill.readonly {
   padding: 0;
 }

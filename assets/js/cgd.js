@@ -988,13 +988,15 @@ function monthPills(values, editable, labelPrefix, estimatedFlags = [], historyB
   return values
     .map((value, monthIndex) => {
       const dataMonth = `data-month-col='${monthIndex}'`;
+      const isRubricTotalCell = /\stotal$/i.test(String(labelPrefix || ""));
+      const rubricTotalClass = isRubricTotalCell ? " rubric-total-cell" : "";
       if (editable) {
         const numericValue = Number(value);
         const displayValue = Number.isFinite(numericValue) && !isZeroMoneyDisplayValue(numericValue) ? money(numericValue) : "";
         return `
-        <div class='money-pill' ${dataMonth}>
-          <input data-money type='text' value='${displayValue}' aria-label='${labelPrefix} ${months[monthIndex]}' />
-        </div>`;
+          <div class='money-pill${rubricTotalClass}' ${dataMonth}>
+            <input data-money class='${isRubricTotalCell ? "rubric-total-input" : ""}' type='text' value='${displayValue}' aria-label='${labelPrefix} ${months[monthIndex]}' />
+          </div>`;
       }
       const detailAttrs = detailMeta
         ? `data-rubrica-id='${detailMeta.rubricaId ?? detailMeta.rubricId ?? ""}' data-expense-id='${detailMeta.expenseId ?? ""}' data-month-index='${monthIndex}' data-expense-kind='${detailMeta.kind || "outcome"}'`
@@ -1007,16 +1009,16 @@ function monthPills(values, editable, labelPrefix, estimatedFlags = [], historyB
       const estimatedClass = hasDisplayValue && estimatedFlags[monthIndex] ? "estimated-value" : "";
       if (!isInteractiveReadonly) {
         return `
-      <div class='money-pill readonly' ${dataMonth}>
-        <span class='${estimatedClass}'>${displayValue}</span>
-      </div>`;
+          <div class='money-pill readonly${rubricTotalClass}' ${dataMonth}>
+            <span class='${estimatedClass}'>${displayValue}</span>
+          </div>`;
       }
       return `
-      <div class='money-pill readonly' ${dataMonth}>
-        <button type='button' class='${historyClass}' data-expense-field='${labelPrefix} - ${months[monthIndex]}' ${detailAttrs}>
-          <span class='${estimatedClass}'>${displayValue}</span>
-        </button>
-      </div>`;
+          <div class='money-pill readonly${rubricTotalClass}' ${dataMonth}>
+            <button type='button' class='${historyClass}${isRubricTotalCell ? " rubric-total-btn" : ""}' data-expense-field='${labelPrefix} - ${months[monthIndex]}' ${detailAttrs}>
+              <span class='${estimatedClass}'>${displayValue}</span>
+            </button>
+          </div>`;
     })
     .join("");
 }
