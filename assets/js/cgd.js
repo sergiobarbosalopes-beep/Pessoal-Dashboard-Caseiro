@@ -641,6 +641,49 @@ function computeSavingsSeriesForYear(targetYear, contexts) {
   return months.map((_, monthIndex) => resolveSavings(Number(targetYear), monthIndex));
 }
 
+function computeSavingsRubricSeriesForYear(targetYear, rubricId, contexts) {
+  const memo = new Map();
+  const resolving = new Set();
+  const maxDepth = 120;
+  const yearContexts = contexts && typeof contexts === "object" ? contexts : {};
+  const normalizedRubricId = rubricId == null ? "" : String(rubricId);
+
+  const keyOf = (year, monthIndex) => `${Number(year)}::${Number(monthIndex)}`;
+  const rubricRawAt = (year, monthIndex) => {
+    const context = yearContexts[Number(year)] || defaultRealComputationContext();
+    const rubricsById =
+      context?.savingsRubricsById && typeof context.savingsRubricsById === "object"
+        ? context.savingsRubricsById
+        : {};
+    const values = rubricsById[normalizedRubricId];
+    return Number(values?.[monthIndex]) || 0;
+  };
+
+  const resolveSavingsRubric = (year, monthIndex, depth = 0) => {
+    const key = keyOf(year, monthIndex);
+    if (memo.has(key)) {
+      return memo.get(key);
+    }
+
+    if (depth > maxDepth || resolving.has(key)) {
+      memo.set(key, 0);
+      return 0;
+    }
+
+    resolving.add(key);
+    const previous = previousMonthContext(year, monthIndex);
+    const previousAccumulated = resolveSavingsRubric(previous.year, previous.monthIndex, depth + 1);
+    const previousRubricValue = rubricRawAt(previous.year, previous.monthIndex);
+    const resolved = previousAccumulated + previousRubricValue;
+
+    memo.set(key, resolved);
+    resolving.delete(key);
+    return resolved;
+  };
+
+  return months.map((_, monthIndex) => resolveSavingsRubric(Number(targetYear), monthIndex));
+}
+
 function computeRealSeriesForYear(targetYear, contexts) {
   const memo = new Map();
   const resolving = new Set();
@@ -778,7 +821,6 @@ function renderSoberTotalizer() {
   }
 
   const year = Number(cgdState.selectedYear);
-  const yearContexts = cgdState.realComputationContexts && typeof cgdState.realComputationContexts === "object" ? cgdState.realComputationContexts : {};
   const realSeries = computeRealSeriesForYear(year, cgdState.realComputationContexts);
   const realValues = realSeries.values;
   const realEstimatedFlags = realSeries.estimatedFlags;
@@ -787,28 +829,14 @@ function renderSoberTotalizer() {
 
   const savingsRubricRows = savingsRubrics
     .map((rubric) => {
-      const shiftedValues = months.map((_, monthIndex) => {
-        const previous = previousMonthContext(year, monthIndex);
-        if (previous.year === year) {
-          return Number(rubric?.values?.[previous.monthIndex]) || 0;
-        }
-
-        const previousYearContext = yearContexts[previous.year] || defaultRealComputationContext();
-        const previousYearRubricsById =
-          previousYearContext?.savingsRubricsById && typeof previousYearContext.savingsRubricsById === "object"
-            ? previousYearContext.savingsRubricsById
-            : {};
-        const rubricIdKey = rubric?.id == null ? "" : String(rubric.id);
-        const previousYearValues = previousYearRubricsById[rubricIdKey];
-        return Number(previousYearValues?.[previous.monthIndex]) || 0;
-      });
+      const rubricTotals = computeSavingsRubricSeriesForYear(year, rubric?.id, cgdState.realComputationContexts);
 
       return `
         <div class='data-row totalizer-row totalizer-row-savings-rubric'>
           <div class='desc-cell totalizer-desc-cell'>
             <span class='totalizer-row-label'>${escapeHtml(rubric?.name || "Savings")}</span>
           </div>
-          ${renderTotalizerMonthPills(shiftedValues)}
+          ${renderTotalizerMonthPills(rubricTotals)}
         </div>
       `;
     })
