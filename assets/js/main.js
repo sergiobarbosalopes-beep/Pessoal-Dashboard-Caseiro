@@ -68,6 +68,8 @@ function initExpenseModal() {
     valorEstimado: 0,
     totalizador: false
   };
+  let editedValorField = false;
+  let editedValorEstimadoField = false;
 
   const toNumber = (value) => {
     const normalized = String(value || "").replace(/\s+/g, "").replace(/,/g, "");
@@ -111,6 +113,8 @@ function initExpenseModal() {
       currentValor !== initialModalValues.valor
       || currentValorEstimado !== initialModalValues.valorEstimado
       || currentTotalizador !== initialModalValues.totalizador
+      || editedValorField
+      || editedValorEstimadoField
     );
   };
 
@@ -200,12 +204,15 @@ function initExpenseModal() {
     historyTableBody.innerHTML = rowsHtml;
   };
 
-  const enforceExpenseNumericInput = (input) => {
+  const enforceExpenseNumericInput = (input, options = {}) => {
     if (!input) {
       return;
     }
 
     input.addEventListener("input", () => {
+      if (typeof options.onEdit === "function") {
+        options.onEdit();
+      }
       const cursorPosition = input.selectionStart;
       input.value = sanitizeDecimalInputValue(input.value);
       if (typeof cursorPosition === "number") {
@@ -217,6 +224,9 @@ function initExpenseModal() {
     });
 
     input.addEventListener("blur", () => {
+      if (typeof options.onEdit === "function") {
+        options.onEdit();
+      }
       const sanitized = sanitizeDecimalInputValue(input.value);
       if (!sanitized) {
         input.value = "";
@@ -235,7 +245,17 @@ function initExpenseModal() {
     });
   };
 
-  [inputValor, inputValorEstimado, inputAdd, inputSubtract].forEach(enforceExpenseNumericInput);
+  enforceExpenseNumericInput(inputValor, {
+    onEdit: () => {
+      editedValorField = true;
+    }
+  });
+  enforceExpenseNumericInput(inputValorEstimado, {
+    onEdit: () => {
+      editedValorEstimadoField = true;
+    }
+  });
+  [inputAdd, inputSubtract].forEach((input) => enforceExpenseNumericInput(input));
 
   checkTotalizador?.addEventListener("change", () => {
     updateNotesVisibility();
@@ -339,6 +359,8 @@ function initExpenseModal() {
       valorEstimado: toNumber(inputValorEstimado?.value),
       totalizador: Boolean(checkTotalizador?.checked)
     };
+    editedValorField = false;
+    editedValorEstimadoField = false;
 
     updateNotesVisibility();
     syncFieldLocks();
@@ -443,7 +465,12 @@ function initExpenseModal() {
     const valorChanged = !registerAdjustment && currentValor !== initialModalValues.valor;
     const valorEstimadoChanged = currentValorEstimado !== initialModalValues.valorEstimado;
     const totalizadorChanged = currentTotalizador !== initialModalValues.totalizador;
-    const registerValueChangeNote = valorChanged || valorEstimadoChanged || totalizadorChanged;
+    const registerValueChangeNote =
+      valorChanged
+      || valorEstimadoChanged
+      || totalizadorChanged
+      || editedValorField
+      || editedValorEstimadoField;
 
     let noteEntryValue = 0;
     if (registerAdjustment) {
