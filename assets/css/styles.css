@@ -633,35 +633,6 @@ a {
   color: #93aebc;
 }
 
-.totalizer-head-actions {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-}
-
-.totalizer-calc-btn {
-  border: 1px solid rgba(176, 210, 226, 0.3);
-  border-radius: 10px;
-  background: rgba(16, 45, 58, 0.9);
-  color: #d8ecf5;
-  font-size: 0.74rem;
-  font-weight: 700;
-  padding: 6px 10px;
-  cursor: pointer;
-  transition: transform 140ms ease, background-color 140ms ease, border-color 140ms ease;
-}
-
-.totalizer-calc-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  background: rgba(25, 61, 76, 0.95);
-  border-color: rgba(176, 210, 226, 0.5);
-}
-
-.totalizer-calc-btn:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-
 .totalizer-grid-wrap {
   overflow-x: auto;
   overflow-y: hidden;
