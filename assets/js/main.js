@@ -333,7 +333,12 @@ function initExpenseModal() {
       : null;
 
     if (inputValor) {
-      inputValor.value = Number(detail?.valor || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const valorForInput = detail?.valorInputValue;
+      if (valorForInput == null || !Number.isFinite(Number(valorForInput))) {
+        inputValor.value = "";
+      } else {
+        inputValor.value = Number(valorForInput).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
     }
     if (inputValorEstimado) {
       inputValorEstimado.value = Number(detail?.valorEstimado || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

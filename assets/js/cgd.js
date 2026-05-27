@@ -454,11 +454,12 @@ function buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys = new S
       const rawNota = row.nota ?? row.notas ?? "";
       expense.values[monthIndex] = parseExpenseValue(row, expense.values[monthIndex]);
       expense.estimatedFlags[monthIndex] = isEstimatedExpenseValue(row);
+      const normalizedNote = rawNota == null ? "" : String(rawNota);
       expense.monthData[monthIndex] = {
-        valor: Number.isFinite(rawValor) ? rawValor : 0,
+        valor: Number.isFinite(rawValor) ? rawValor : null,
         valorEstimado: Number.isFinite(rawValorEstimado) ? rawValorEstimado : 0,
         totalizador: parseBoolean(row.totalizador),
-        nota: rawNota == null ? "" : String(rawNota)
+        nota: normalizedNote
       };
     }
   });
@@ -3566,17 +3567,30 @@ window.cgdGetExpenseDetail = ({ rubricaId, despesaId, monthIndex }) => {
   }
 
   const monthDetail = found.expense.monthData?.[index] || {
-    valor: 0,
+    valor: null,
     valorEstimado: 0,
     totalizador: false,
     nota: ""
   };
 
+  const noteText = monthDetail.nota == null ? "" : String(monthDetail.nota);
+  const hasNote = noteText.trim().length > 0;
+  const rawValor = Number(monthDetail.valor);
+  const hasValor = Number.isFinite(rawValor);
+  const normalizedValor = hasValor ? rawValor : null;
+  const normalizedValorEstimado = Number(monthDetail.valorEstimado);
+  const safeValorEstimado = Number.isFinite(normalizedValorEstimado) ? normalizedValorEstimado : 0;
+
+  const valorInputValue = hasValor
+    ? normalizedValor
+    : (!hasNote && safeValorEstimado !== 0 ? safeValorEstimado : null);
+
   return {
-    valor: Number(monthDetail.valor) || 0,
-    valorEstimado: Number(monthDetail.valorEstimado) || 0,
+    valor: normalizedValor,
+    valorInputValue,
+    valorEstimado: safeValorEstimado,
     totalizador: Boolean(monthDetail.totalizador),
-    nota: monthDetail.nota || ""
+    nota: noteText
   };
 };
 
