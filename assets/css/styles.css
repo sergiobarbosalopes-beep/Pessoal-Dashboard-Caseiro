@@ -1778,15 +1778,7 @@ a {
   border-radius: var(--radius-pill);
   background: #163445;
   display: flex;
-    gap: 2px;
-  }
-
-  .month-tile-label {
-    font-size: 0.72rem;
-  }
-
-  .month-tile-number {
-    font-size: 0.68rem;
+  gap: 2px;
   align-items: center;
   justify-content: flex-end;
   padding: 7px 9px;
@@ -1795,10 +1787,6 @@ a {
 }
 
 .money-pill input {
-
-  .year-nav [data-year-label] {
-    min-width: 62px;
-  }
   border: 0;
   outline: none;
   width: 100%;
