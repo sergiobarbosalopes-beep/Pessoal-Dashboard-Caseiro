@@ -1360,6 +1360,20 @@ a {
   padding-bottom: 6px;
 }
 
+.panel-balance-summary .chev-static {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  transform: none;
+  opacity: 0.8;
+}
+
+.panel-balance-summary .chev-static:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 .panel-balance-summary .panel-title {
   width: 100%;
 }
@@ -1372,6 +1386,10 @@ a {
 
 .panel-collapsed-summary-balance {
   margin-top: 0;
+}
+
+.panel-balance-summary .panel-collapsed-summary {
+  display: block;
 }
 
 .income-collapsed-pill,

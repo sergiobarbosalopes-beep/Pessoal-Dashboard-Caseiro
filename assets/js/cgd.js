@@ -947,9 +947,11 @@ function buildBalanceSummaryPanel() {
   <section class='panel panel-balance-summary balance'>
     <header class='panel-head'>
       <div class='panel-title'>
+        <span class='chev chev-static' aria-hidden='true'>•</span>
         <span class='desc-pill panel-balance-title'>Balance</span>
       </div>
     </header>
+    <div class='panel-body is-collapsed' id='panel-balance-body'></div>
     <div class='panel-collapsed-summary panel-collapsed-summary-balance'>
       <div class='data-row collapsed-total-row collapsed-total-row-balance'>
         <div class='desc-cell'>
