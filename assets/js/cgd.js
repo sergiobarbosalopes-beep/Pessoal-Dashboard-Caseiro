@@ -3569,16 +3569,20 @@ function resolveSelectedExpenseKey({ rubricaId, despesaId, monthIndex }) {
   };
 }
 
-function resolveExpenseUpdatePayload(detail) {
+function resolveExpenseUpdatePayload(detail, options = {}) {
+  const estimatedMode = Boolean(options?.estimatedMode);
   const payload = {
-    valor: detail.valor,
     totalizador: detail.totalizador
   };
 
-  if (cgdState.expenseColumns.has("valor_estimado")) {
-    payload.valor_estimado = detail.valorEstimado;
-  } else if (cgdState.expenseColumns.has("valor_Estimado")) {
-    payload.valor_Estimado = detail.valorEstimado;
+  if (estimatedMode) {
+    if (cgdState.expenseColumns.has("valor_estimado")) {
+      payload.valor_estimado = detail.valorEstimado;
+    } else if (cgdState.expenseColumns.has("valor_Estimado")) {
+      payload.valor_Estimado = detail.valorEstimado;
+    }
+  } else {
+    payload.valor = detail.valor;
   }
 
   if (cgdState.expenseColumns.has("nota")) {
@@ -3770,6 +3774,7 @@ window.cgdSaveExpenseDetail = async ({
   monthIndex,
   valor,
   valorEstimado,
+  estimatedMode,
   totalizador,
   nota,
   applyToEndYear,
@@ -3798,7 +3803,8 @@ window.cgdSaveExpenseDetail = async ({
     nota: nota == null ? "" : String(nota)
   };
 
-  const payload = resolveExpenseUpdatePayload(detail);
+  const estimatedToggleOn = Boolean(estimatedMode);
+  const payload = resolveExpenseUpdatePayload(detail, { estimatedMode: estimatedToggleOn });
   const targetMonths = applyToEndYear
     ? Array.from({ length: 13 - startMonth }, (_, index) => startMonth + index)
     : [startMonth];
@@ -3823,10 +3829,13 @@ window.cgdSaveExpenseDetail = async ({
 
   const numericAdjustment = Number(adjustmentValue);
   const normalizedNoteEntryValue = Number(noteEntryValue);
-  const adjustmentNote = String(nota == null ? "" : nota).trim();
+  const rawAdjustmentNote = String(nota == null ? "" : nota).trim();
+  const adjustmentNote = estimatedToggleOn
+    ? (rawAdjustmentNote ? `(Est) ${rawAdjustmentNote}` : "(Est)")
+    : rawAdjustmentNote;
   const shouldRegisterAdjustment = Boolean(registerAdjustment) && Number.isFinite(numericAdjustment) && numericAdjustment !== 0;
   const shouldRegisterValueChangeNote = Boolean(registerValueChangeNote);
-  const shouldCreateNote = shouldRegisterAdjustment || (adjustmentNote.length > 0 && shouldRegisterValueChangeNote);
+  const shouldCreateNote = shouldRegisterAdjustment || shouldRegisterValueChangeNote;
 
   if (shouldCreateNote) {
     const valueForNote = shouldRegisterAdjustment

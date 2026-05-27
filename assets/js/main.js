@@ -58,6 +58,7 @@ function initExpenseModal() {
   const notesSection = modal.querySelector("[data-expense-notes-section]");
   const historyTableBody = modal.querySelector("[data-expense-history-body]");
   const historyEmpty = modal.querySelector("[data-expense-history-empty]");
+  const checkEstimated = modal.querySelector("[data-expense-estimated]");
   const checkTotalizador = modal.querySelector("[data-expense-totalizador]");
   const checkApplyEndYear = modal.querySelector("[data-expense-apply-end-year]");
   const saveBtn = modal.querySelector("[data-expense-save]");
@@ -172,8 +173,9 @@ function initExpenseModal() {
 
     const lockOtherFields = hasAddValue || hasSubtractValue;
     applyFieldDisabledState(inputValor, lockOtherFields);
-    applyFieldDisabledState(inputValorEstimado, lockOtherFields);
+    applyFieldDisabledState(inputValorEstimado, true);
     applyFieldDisabledState(inputNotes, false);
+    applyFieldDisabledState(checkEstimated, false);
     applyFieldDisabledState(checkTotalizador, lockOtherFields);
     applyFieldDisabledState(checkApplyEndYear, lockOtherFields);
   };
@@ -262,12 +264,17 @@ function initExpenseModal() {
       editedValorField = true;
     }
   });
-  enforceExpenseNumericInput(inputValorEstimado, {
-    onEdit: () => {
-      editedValorEstimadoField = true;
-    }
-  });
   [inputAdd, inputSubtract].forEach((input) => enforceExpenseNumericInput(input));
+
+  if (inputValorEstimado) {
+    inputValorEstimado.readOnly = true;
+    inputValorEstimado.setAttribute("aria-readonly", "true");
+  }
+
+  checkEstimated?.addEventListener("change", () => {
+    updateNotesVisibility();
+    syncFieldLocks();
+  });
 
   checkTotalizador?.addEventListener("change", () => {
     updateNotesVisibility();
@@ -277,7 +284,7 @@ function initExpenseModal() {
   const applyReadonlyState = (readonly) => {
     isModalReadonly = readonly;
     clearLockedFieldIndicators();
-    [inputValor, inputValorEstimado, inputAdd, inputSubtract, inputNotes, checkTotalizador, checkApplyEndYear].forEach((element) => {
+    [inputValor, inputValorEstimado, inputAdd, inputSubtract, inputNotes, checkEstimated, checkTotalizador, checkApplyEndYear].forEach((element) => {
       if (element) {
         element.disabled = readonly;
       }
@@ -294,15 +301,20 @@ function initExpenseModal() {
     }
   };
 
-  const applyAdjustments = () => {
-    if (!inputValor || !inputAdd || !inputSubtract) {
+  const applyAdjustments = (useEstimatedMode) => {
+    if (!inputValor || !inputValorEstimado || !inputAdd || !inputSubtract) {
       return;
     }
-    const baseValue = toNumber(inputValor.value);
+    const targetInput = useEstimatedMode ? inputValorEstimado : inputValor;
+    const baseValue = toNumber(targetInput.value);
     const plusValue = toNumber(inputAdd.value);
     const minusValue = toNumber(inputSubtract.value);
     const result = baseValue + plusValue - minusValue;
-    inputValor.value = result.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (isZeroMoneyDisplayValue(result)) {
+      targetInput.value = "";
+    } else {
+      targetInput.value = result.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
     inputAdd.value = "";
     inputSubtract.value = "";
     updateNotesVisibility();
@@ -369,6 +381,9 @@ function initExpenseModal() {
     }
     if (checkApplyEndYear) {
       checkApplyEndYear.checked = false;
+    }
+    if (checkEstimated) {
+      checkEstimated.checked = false;
     }
     if (inputAdd) {
       inputAdd.value = "";
@@ -480,20 +495,20 @@ function initExpenseModal() {
 
     const currentValor = toNumber(inputValor?.value);
     const currentValorEstimado = toNumber(inputValorEstimado?.value);
+    const estimatedMode = Boolean(checkEstimated?.checked);
     const currentTotalizador = Boolean(checkTotalizador?.checked);
     const plusValue = toNumber(inputAdd?.value);
     const minusValue = toNumber(inputSubtract?.value);
     const adjustmentValue = plusValue - minusValue;
     const registerAdjustment = plusValue !== 0 || minusValue !== 0;
-    const valorChanged = !registerAdjustment && currentValor !== initialModalValues.valor;
-    const valorEstimadoChanged = currentValorEstimado !== initialModalValues.valorEstimado;
+    const valorChanged = !registerAdjustment && !estimatedMode && currentValor !== initialModalValues.valor;
+    const valorEstimadoChanged = !registerAdjustment && estimatedMode && currentValor !== initialModalValues.valorEstimado;
     const totalizadorChanged = currentTotalizador !== initialModalValues.totalizador;
     const registerValueChangeNote =
       valorChanged
       || valorEstimadoChanged
       || totalizadorChanged
-      || editedValorField
-      || editedValorEstimadoField;
+      || editedValorField;
 
     let noteEntryValue = 0;
     if (registerAdjustment) {
@@ -501,17 +516,29 @@ function initExpenseModal() {
     } else if (valorChanged || totalizadorChanged) {
       noteEntryValue = currentValor;
     } else if (valorEstimadoChanged) {
-      noteEntryValue = currentValorEstimado;
+      noteEntryValue = currentValor;
     }
 
-    applyAdjustments();
+    if (registerAdjustment) {
+      applyAdjustments(estimatedMode);
+    }
+
+    const valueInputAfterAdjustments = toNumber(inputValor?.value);
+    const estimatedInputAfterAdjustments = toNumber(inputValorEstimado?.value);
+    const finalValor = estimatedMode && !registerAdjustment
+      ? initialModalValues.valor
+      : valueInputAfterAdjustments;
+    const finalValorEstimado = estimatedMode && !registerAdjustment
+      ? valueInputAfterAdjustments
+      : estimatedInputAfterAdjustments;
 
     const success = await window.cgdSaveExpenseDetail({
       rubricaId: activeContext.rubricaId,
       despesaId: activeContext.despesaId,
       monthIndex: activeContext.monthIndex,
-      valor: toNumber(inputValor?.value),
-      valorEstimado: toNumber(inputValorEstimado?.value),
+      valor: finalValor,
+      valorEstimado: finalValorEstimado,
+      estimatedMode,
       totalizador: Boolean(checkTotalizador?.checked),
       applyToEndYear: Boolean(checkApplyEndYear?.checked),
       nota: inputNotes?.value || "",
@@ -526,7 +553,7 @@ function initExpenseModal() {
     }
   };
 
-  const submitOnEnterInputs = [inputValor, inputValorEstimado, inputAdd, inputSubtract, inputNotes];
+  const submitOnEnterInputs = [inputValor, inputAdd, inputSubtract, inputNotes];
   submitOnEnterInputs.forEach((input) => {
     input?.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") {
