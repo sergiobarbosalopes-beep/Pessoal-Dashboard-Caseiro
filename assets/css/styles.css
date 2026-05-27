@@ -628,10 +628,10 @@ a {
 }
 
 .month-tile:not(.active):hover {
-  background: linear-gradient(135deg, rgba(0, 102, 179, 0.42), rgba(47, 142, 97, 0.3));
+  background: linear-gradient(135deg, rgba(0, 79, 143, 0.44), rgba(0, 102, 179, 0.4) 55%, rgba(10, 120, 200, 0.34));
   border-color: rgba(176, 220, 243, 0.56);
   color: #eef8ff;
-  box-shadow: 0 0 0 1px rgba(176, 220, 243, 0.28), 0 0 18px rgba(87, 170, 216, 0.34), 0 10px 20px rgba(3, 18, 30, 0.36);
+  box-shadow: 0 0 0 1px rgba(176, 220, 243, 0.28), 0 0 18px rgba(56, 142, 196, 0.34), 0 10px 20px rgba(3, 18, 30, 0.36);
 }
 
 .month-tile.active {
