@@ -601,9 +601,13 @@ a {
 }
 
 .sober-totalizer-card {
-  border-color: rgba(155, 184, 199, 0.25);
+  border-color: rgba(172, 204, 221, 0.34);
   background: linear-gradient(180deg, rgba(13, 25, 33, 0.94), rgba(13, 24, 31, 0.92));
-  box-shadow: 0 14px 28px rgba(3, 9, 13, 0.44);
+  box-shadow:
+    0 0 0 1px rgba(167, 208, 228, 0.18),
+    0 0 22px rgba(92, 169, 209, 0.22),
+    0 0 44px rgba(64, 132, 167, 0.18),
+    0 14px 28px rgba(3, 9, 13, 0.44);
 }
 
 .totalizer-shell {
