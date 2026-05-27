@@ -2292,6 +2292,14 @@ function normalizeBoundedRealInputValue(value) {
   return Math.round(clamped * 100) / 100;
 }
 
+function isPastMonthOfCurrentYear(year, monthIndex) {
+  const selectedYear = Number(year);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  return selectedYear === currentYear && Number(monthIndex) < currentMonth;
+}
+
 function syncRealTotalizerEditableMonth(monthIndex) {
   const activeMonth = Number(monthIndex);
   const validActiveMonth = Number.isInteger(activeMonth) && activeMonth >= 0 && activeMonth <= 11
@@ -2714,17 +2722,18 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
       const x = xFor(monthIndex) + monthBand / 2;
       return `<line x1='${x}' y1='${padding.top}' x2='${x}' y2='${padding.top + plotHeight}' stroke='rgba(176,210,226,0.12)' stroke-width='1' />`;
     })
-    .join("");
+      const isPastCurrentYear = isPastMonthOfCurrentYear(cgdState.selectedYear, monthIndex);
+      const monthPillClasses = `money-pill totalizer-month-pill${editable ? "" : " readonly"}${isPastCurrentYear ? " is-past-current-year" : ""}`;
 
   const barPairsPerMonth = Math.max(plottedSeries.length, 1);
-  const monthInnerPadding = 6;
+          <div class='${monthPillClasses}' data-month-col='${monthIndex}' data-totalizer-month='${monthIndex}'>
   const barSlotWidth = Math.max((monthBand - monthInnerPadding * 2) / (barPairsPerMonth * 2), 2);
   const barWidth = Math.min(barSlotWidth, 11);
   const clusterWidth = barPairsPerMonth * 2 * barWidth;
 
   const bars = months
     .map((monthName, monthIndex) => {
-      const monthStart = xFor(monthIndex) + monthBand / 2 - clusterWidth / 2;
+              class='${isEstimated ? "is-estimated " : ""}${isPastCurrentYear ? "is-past-current-year" : ""}'
       return plottedSeries
         .map((entry, entryIndex) => {
           const baseX = monthStart + entryIndex * 2 * barWidth;
@@ -2734,7 +2743,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
           const estimatedY = yFor(estimated);
           const valueHeight = Math.max(padding.top + plotHeight - valueY, 1);
           const estimatedHeight = Math.max(padding.top + plotHeight - estimatedY, 1);
-
+        <div class='${monthPillClasses}' data-month-col='${monthIndex}' data-totalizer-month='${monthIndex}'>
           return `
             <rect class='outcome-comparison-bar' x='${baseX.toFixed(2)}' y='${valueY.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${valueHeight.toFixed(2)}' fill='${entry.color}' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} · Valor`)}' data-month-name='${escapeHtml(monthName)}' data-value='${value.toFixed(2)}' data-series-color='${entry.color}'></rect>
             <rect class='outcome-comparison-bar outcome-comparison-bar-estimated' x='${(baseX + barWidth).toFixed(2)}' y='${estimatedY.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${estimatedHeight.toFixed(2)}' fill='${entry.color}' fill-opacity='0.42' stroke='${entry.color}' stroke-width='0.8' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} · Estimado`)}' data-month-name='${escapeHtml(monthName)}' data-value='${estimated.toFixed(2)}' data-series-color='${entry.color}'></rect>
