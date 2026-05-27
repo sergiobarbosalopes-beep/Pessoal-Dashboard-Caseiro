@@ -1828,21 +1828,29 @@ a {
 .panel.income .rubric-head .money-pill.readonly button span,
 .panel.savings .rubric-head .money-pill.readonly button span,
 .panel.outcome .rubric-head .money-pill.readonly button span {
-  font-size: 0.68rem !important;
+  font-size: 0.72rem !important;
   line-height: 1.1 !important;
+  color: #96a2aa !important;
 }
 
 .rubric-head .money-pill input.rubric-total-input {
-  font-size: 0.68rem !important;
+  font-size: 0.72rem !important;
   line-height: 1.1 !important;
+  color: #96a2aa !important;
 }
 
 .rubric-head .money-pill.rubric-total-cell input,
 .rubric-head .money-pill.rubric-total-cell button,
 .rubric-head .money-pill.rubric-total-cell button span,
 .rubric-head .money-pill.rubric-total-cell > span {
-  font-size: 0.68rem !important;
+  font-size: 0.72rem !important;
   line-height: 1.1 !important;
+  color: #96a2aa !important;
+}
+
+.rubric-head .money-pill.rubric-total-cell button {
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .money-pill.readonly {
