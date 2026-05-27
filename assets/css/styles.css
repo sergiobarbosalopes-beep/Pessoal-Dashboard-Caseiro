@@ -1454,7 +1454,7 @@ a {
 }
 
 .rubric-head {
-  padding: 2px 4px;
+  padding: 4px;
   border-bottom: 1px solid rgba(17, 34, 43, 0.1);
   position: relative;
   overflow: visible;
@@ -1467,7 +1467,7 @@ a {
 }
 
 .rubric-head .money-pill {
-  padding: 5px 8px;
+  padding: 7px 9px;
 }
 
 .rubric-head .money-pill input {
