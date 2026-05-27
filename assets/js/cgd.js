@@ -674,6 +674,7 @@ function renderTotalizerMonthPills(values, options = {}) {
               data-money
               data-real-total-input='true'
               data-real-total-month='${monthIndex}'
+              data-last-valid='${money(safeValue)}'
               data-real-total-estimated='${isEstimated ? "true" : "false"}'
               class='${isEstimated ? "is-estimated" : ""}'
               type='text'
@@ -2238,10 +2239,50 @@ function parseMoneyInputValue(value) {
   return Number.isFinite(numeric) ? numeric : null;
 }
 
+function normalizeBoundedRealInputValue(value) {
+  const parsed = parseMoneyInputValue(value);
+  if (parsed === null) {
+    return null;
+  }
+
+  const clamped = Math.max(-999999.99, Math.min(999999.99, parsed));
+  return Math.round(clamped * 100) / 100;
+}
+
+function syncRealTotalizerEditableMonth(monthIndex) {
+  const activeMonth = Number(monthIndex);
+  const validActiveMonth = Number.isInteger(activeMonth) && activeMonth >= 0 && activeMonth <= 11
+    ? activeMonth
+    : Number(document.querySelector(".month-tile.active")?.getAttribute("data-month"));
+
+  document.querySelectorAll("input[data-real-total-input='true']").forEach((input) => {
+    const inputMonth = Number(input.getAttribute("data-real-total-month"));
+    const editable = Number.isInteger(validActiveMonth) && inputMonth === validActiveMonth;
+    input.readOnly = !editable;
+    input.classList.toggle("is-locked", !editable);
+    input.setAttribute("aria-readonly", String(!editable));
+    input.tabIndex = editable ? 0 : -1;
+  });
+}
+
 function bindSoberTotalizerInputs() {
+  document.addEventListener("input", (event) => {
+    const input = event.target.closest("input[data-real-total-input='true']");
+    if (!input || input.readOnly) {
+      return;
+    }
+
+    const normalized = String(input.value || "")
+      .replace(/[^0-9,\.-]/g, "")
+      .replace(/(?!^)-/g, "");
+    if (normalized !== input.value) {
+      input.value = normalized;
+    }
+  });
+
   document.addEventListener("focusout", (event) => {
     const input = event.target.closest("input[data-real-total-input='true']");
-    if (!input) {
+    if (!input || input.readOnly) {
       return;
     }
 
@@ -2251,7 +2292,16 @@ function bindSoberTotalizerInputs() {
     }
 
     const year = Number(cgdState.selectedYear);
-    const realValue = parseMoneyInputValue(input.value);
+    const lastValidValue = input.getAttribute("data-last-valid") || "";
+    const realValue = normalizeBoundedRealInputValue(input.value);
+    if (realValue === null && String(input.value || "").trim() !== "") {
+      input.value = lastValidValue || money(0);
+      return;
+    }
+
+    input.value = realValue == null ? "" : money(realValue);
+    input.setAttribute("data-last-valid", input.value);
+
     upsertRealValueForMonth({
       ano: year,
       mes: monthIndex + 1,
@@ -3314,6 +3364,7 @@ function resolveExpenseUpdatePayload(detail) {
 }
 
 window.cgdLoadYearData = loadYearData;
+window.cgdSyncRealTotalizerEditableMonth = syncRealTotalizerEditableMonth;
 
 window.cgdCreateRubric = async (kind) => {
   const sectionLabel = kind === "income" ? "Income" : kind === "savings" ? "Savings" : "Outcome";

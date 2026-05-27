@@ -670,8 +670,14 @@ a {
 }
 
 .totalizer-row-real .money-pill input.is-estimated {
+  font-size: inherit;
   font-style: italic;
   text-decoration: underline;
+}
+
+.totalizer-row-real .money-pill input.is-locked {
+  opacity: 0.9;
+  cursor: default;
 }
 
 .totalizer-row .money-pill.readonly {

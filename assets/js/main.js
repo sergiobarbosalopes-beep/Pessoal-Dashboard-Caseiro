@@ -477,6 +477,10 @@ function highlightMonth(monthIndex) {
     const rubricMonthPill = rubric.querySelector(`.rubric-head [data-month-col='${monthIndex}']`);
     rubricMonthPill?.classList.add("active");
   });
+
+  if (typeof window.cgdSyncRealTotalizerEditableMonth === "function") {
+    window.cgdSyncRealTotalizerEditableMonth(monthIndex);
+  }
 }
 
 function syncExpensePastMonthsState() {
