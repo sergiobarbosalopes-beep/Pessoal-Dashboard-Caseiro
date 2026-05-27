@@ -1772,6 +1772,15 @@ a {
   font-size: 0.8rem;
 }
 
+.data-row.expense .money-pill.readonly button {
+  min-height: 30px;
+}
+
+.data-row.expense .money-pill.readonly button span {
+  display: inline-block;
+  min-height: 1em;
+}
+
 .money-pill.readonly button.has-history-note {
   position: relative;
 }
