@@ -575,13 +575,56 @@ function previousMonthContext(year, monthIndex) {
   return { year: Number(year) - 1, monthIndex: 11 };
 }
 
-function computeRealSeriesForYear(targetYear, contexts) {
+function computeSavingsSeriesForYear(targetYear, contexts) {
   const memo = new Map();
   const resolving = new Set();
   const maxDepth = 120;
   const yearContexts = contexts && typeof contexts === "object" ? contexts : {};
 
   const keyOf = (year, monthIndex) => `${Number(year)}::${Number(monthIndex)}`;
+
+  const resolveSavings = (year, monthIndex, depth = 0) => {
+    const key = keyOf(year, monthIndex);
+    if (memo.has(key)) {
+      return memo.get(key);
+    }
+
+    if (depth > maxDepth || resolving.has(key)) {
+      memo.set(key, 0);
+      return 0;
+    }
+
+    resolving.add(key);
+    const previous = previousMonthContext(year, monthIndex);
+    const previousSavings = resolveSavings(previous.year, previous.monthIndex, depth + 1);
+    const previousContext = yearContexts[previous.year] || defaultRealComputationContext();
+    const previousSavingsRubricsTotal = Number(previousContext.totals?.savings?.[previous.monthIndex]) || 0;
+    const resolved = previousSavings + previousSavingsRubricsTotal;
+
+    memo.set(key, resolved);
+    resolving.delete(key);
+    return resolved;
+  };
+
+  return months.map((_, monthIndex) => resolveSavings(Number(targetYear), monthIndex));
+}
+
+function computeRealSeriesForYear(targetYear, contexts) {
+  const memo = new Map();
+  const resolving = new Set();
+  const maxDepth = 120;
+  const yearContexts = contexts && typeof contexts === "object" ? contexts : {};
+  const savingsSeriesCache = new Map();
+
+  const keyOf = (year, monthIndex) => `${Number(year)}::${Number(monthIndex)}`;
+  const savingsTotalAt = (year, monthIndex) => {
+    const normalizedYear = Number(year);
+    if (!savingsSeriesCache.has(normalizedYear)) {
+      savingsSeriesCache.set(normalizedYear, computeSavingsSeriesForYear(normalizedYear, yearContexts));
+    }
+    const series = savingsSeriesCache.get(normalizedYear) || emptyValues();
+    return Number(series?.[monthIndex]) || 0;
+  };
 
   const resolveReal = (year, monthIndex, depth = 0) => {
     const key = keyOf(year, monthIndex);
@@ -608,7 +651,7 @@ function computeRealSeriesForYear(targetYear, contexts) {
     const previousResolved = resolveReal(previous.year, previous.monthIndex, depth + 1);
     const currentContext = yearContexts[year] || defaultRealComputationContext();
     const income = Number(currentContext.totals?.income?.[monthIndex]) || 0;
-    const savings = Number(currentContext.totals?.savings?.[monthIndex]) || 0;
+    const savings = savingsTotalAt(year, monthIndex);
     const outcome = Number(currentContext.totals?.outcome?.[monthIndex]) || 0;
     const estimatedValue = previousResolved.value + income + savings - outcome;
 
@@ -704,7 +747,7 @@ function renderSoberTotalizer() {
   const realSeries = computeRealSeriesForYear(year, cgdState.realComputationContexts);
   const realValues = realSeries.values;
   const realEstimatedFlags = realSeries.estimatedFlags;
-  const savingsTotals = sumRubricsValuesByMonth(cgdState.data?.savings);
+  const savingsTotals = computeSavingsSeriesForYear(year, cgdState.realComputationContexts);
   const savingsRubrics = Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
 
   const savingsRubricRows = savingsRubrics
