@@ -61,6 +61,7 @@ function initExpenseModal() {
   const checkEstimated = modal.querySelector("[data-expense-estimated]");
   const checkTotalizador = modal.querySelector("[data-expense-totalizador]");
   const checkApplyEndYear = modal.querySelector("[data-expense-apply-end-year]");
+  const zeroBtn = modal.querySelector("[data-expense-zero]");
   const saveBtn = modal.querySelector("[data-expense-save]");
   const closeModal = () => modal.classList.remove("show");
   let isModalReadonly = false;
@@ -292,6 +293,10 @@ function initExpenseModal() {
     if (saveBtn) {
       saveBtn.disabled = readonly;
       saveBtn.style.display = readonly ? "none" : "inline-flex";
+    }
+    if (zeroBtn) {
+      zeroBtn.disabled = readonly;
+      zeroBtn.style.display = readonly ? "none" : "inline-flex";
     }
     if (modalCard) {
       modalCard.setAttribute("data-expense-modal-readonly", String(readonly));
@@ -568,6 +573,34 @@ function initExpenseModal() {
   });
 
   saveBtn?.addEventListener("click", handleSave);
+
+  zeroBtn?.addEventListener("click", async () => {
+    if (!activeContext || !window.cgdZeroExpenseDetail || zeroBtn.disabled) {
+      return;
+    }
+
+    const originalLabel = zeroBtn.textContent;
+    zeroBtn.disabled = true;
+    zeroBtn.textContent = "A zerar...";
+
+    try {
+      const success = await window.cgdZeroExpenseDetail({
+        rubricaId: activeContext.rubricaId,
+        despesaId: activeContext.despesaId,
+        monthIndex: activeContext.monthIndex
+      });
+
+      if (success) {
+        closeModal();
+        return;
+      }
+    } catch (error) {
+      console.error("Erro ao zerar despesa:", error);
+    }
+
+    zeroBtn.disabled = false;
+    zeroBtn.textContent = originalLabel;
+  });
 }
 
 function highlightMonth(monthIndex) {

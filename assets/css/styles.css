@@ -1978,6 +1978,21 @@ a {
   justify-content: flex-end;
 }
 
+.expense-detail-modal .modal-actions [data-expense-zero] {
+  margin-right: auto;
+}
+
+.ghost-btn.ghost-btn-danger {
+  border-color: rgba(210, 78, 78, 0.48);
+  background: rgba(76, 24, 24, 0.78);
+  color: #ffdede;
+}
+
+.ghost-btn.ghost-btn-danger:hover {
+  border-color: rgba(226, 102, 102, 0.72);
+  background: rgba(98, 30, 30, 0.88);
+}
+
 .expense-modal-title-row {
   display: flex;
   align-items: center;

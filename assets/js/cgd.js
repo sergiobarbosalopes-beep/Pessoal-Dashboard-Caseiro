@@ -71,6 +71,10 @@ function parseMoneyField(record, fallback = 0) {
 
 function parseExpenseValue(record, fallback = 0, options = {}) {
   const hasHistoryForMonth = Boolean(options?.hasHistoryForMonth);
+  const isZerado = parseBoolean(record.zerado);
+  if (isZerado) {
+    return null;
+  }
   const valor = Number(record.valor);
   const valorEstimado = Number(record.valor_estimado ?? record.valor_Estimado);
 
@@ -85,6 +89,9 @@ function parseExpenseValue(record, fallback = 0, options = {}) {
 }
 
 function isEstimatedExpenseValue(record) {
+  if (parseBoolean(record.zerado)) {
+    return false;
+  }
   const valor = Number(record.valor);
   const valorEstimado = Number(record.valor_estimado ?? record.valor_Estimado);
   return Number.isFinite(valor) && valor === 0 && Number.isFinite(valorEstimado) && valorEstimado !== 0;
@@ -3575,6 +3582,10 @@ function resolveExpenseUpdatePayload(detail, options = {}) {
     totalizador: detail.totalizador
   };
 
+  if (cgdState.expenseColumns.has("zerado")) {
+    payload.zerado = false;
+  }
+
   if (estimatedMode) {
     if (cgdState.expenseColumns.has("valor_estimado")) {
       payload.valor_estimado = detail.valorEstimado;
@@ -3857,6 +3868,33 @@ window.cgdSaveExpenseDetail = async ({
       )
     );
   }
+
+  await loadYearData(cgdState.selectedYear);
+  return true;
+};
+
+window.cgdZeroExpenseDetail = async ({ rubricaId, despesaId, monthIndex }) => {
+  if (!supabaseClient) {
+    return false;
+  }
+
+  const selectedKey = resolveSelectedExpenseKey({ rubricaId, despesaId, monthIndex });
+  if (!selectedKey) {
+    return false;
+  }
+
+  const payload = { valor: null };
+  if (cgdState.expenseColumns.has("zerado")) {
+    payload.zerado = true;
+  }
+
+  await supabaseClient
+    .from("cgd_despesa")
+    .update(payload)
+    .eq("ano", selectedKey.ano)
+    .eq("rubrica_id", selectedKey.rubricaId)
+    .eq("despesa_id", selectedKey.despesaId)
+    .eq("mes", selectedKey.mes);
 
   await loadYearData(cgdState.selectedYear);
   return true;
