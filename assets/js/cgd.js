@@ -3753,7 +3753,7 @@ window.cgdSaveExpenseDetail = async ({
   const adjustmentNote = String(nota == null ? "" : nota).trim();
   const shouldRegisterAdjustment = Boolean(registerAdjustment) && Number.isFinite(numericAdjustment) && numericAdjustment !== 0;
   const shouldRegisterValueChangeNote = Boolean(registerValueChangeNote);
-  const shouldCreateNote = adjustmentNote.length > 0 && (shouldRegisterAdjustment || shouldRegisterValueChangeNote);
+  const shouldCreateNote = shouldRegisterAdjustment || (adjustmentNote.length > 0 && shouldRegisterValueChangeNote);
 
   if (shouldCreateNote) {
     const valueForNote = shouldRegisterAdjustment
