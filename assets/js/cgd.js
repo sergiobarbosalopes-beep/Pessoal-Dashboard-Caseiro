@@ -557,9 +557,22 @@ function buildTotalsForModel(model) {
   };
 }
 
+function buildSavingsRubricsById(model) {
+  const savingsRubrics = Array.isArray(model?.savings) ? model.savings : [];
+  return savingsRubrics.reduce((acc, rubric) => {
+    const rubricId = rubric?.id;
+    if (rubricId == null) {
+      return acc;
+    }
+    acc[String(rubricId)] = Array.isArray(rubric?.values) ? rubric.values.slice(0, 12) : emptyValues();
+    return acc;
+  }, {});
+}
+
 function defaultRealComputationContext() {
   return {
     dbRealValues: Array.from({ length: 12 }, () => null),
+    savingsRubricsById: {},
     totals: {
       income: emptyValues(),
       savings: emptyValues(),
@@ -697,6 +710,7 @@ async function fetchYearContextForRealComputation(year) {
   const model = buildDataModel(rubricRows, expenseRows, new Set());
   return {
     dbRealValues: buildRealValuesFromRows(realRows),
+    savingsRubricsById: buildSavingsRubricsById(model),
     totals: buildTotalsForModel(model)
   };
 }
@@ -745,6 +759,7 @@ function renderSoberTotalizer() {
   }
 
   const year = Number(cgdState.selectedYear);
+  const yearContexts = cgdState.realComputationContexts && typeof cgdState.realComputationContexts === "object" ? cgdState.realComputationContexts : {};
   const realSeries = computeRealSeriesForYear(year, cgdState.realComputationContexts);
   const realValues = realSeries.values;
   const realEstimatedFlags = realSeries.estimatedFlags;
@@ -753,12 +768,28 @@ function renderSoberTotalizer() {
 
   const savingsRubricRows = savingsRubrics
     .map((rubric) => {
+      const shiftedValues = months.map((_, monthIndex) => {
+        const previous = previousMonthContext(year, monthIndex);
+        if (previous.year === year) {
+          return Number(rubric?.values?.[previous.monthIndex]) || 0;
+        }
+
+        const previousYearContext = yearContexts[previous.year] || defaultRealComputationContext();
+        const previousYearRubricsById =
+          previousYearContext?.savingsRubricsById && typeof previousYearContext.savingsRubricsById === "object"
+            ? previousYearContext.savingsRubricsById
+            : {};
+        const rubricIdKey = rubric?.id == null ? "" : String(rubric.id);
+        const previousYearValues = previousYearRubricsById[rubricIdKey];
+        return Number(previousYearValues?.[previous.monthIndex]) || 0;
+      });
+
       return `
         <div class='data-row totalizer-row totalizer-row-savings-rubric'>
           <div class='desc-cell totalizer-desc-cell'>
             <span class='totalizer-row-label'>${escapeHtml(rubric?.name || "Savings")}</span>
           </div>
-          ${renderTotalizerMonthPills(rubric?.values || emptyValues())}
+          ${renderTotalizerMonthPills(shiftedValues)}
         </div>
       `;
     })
@@ -2999,6 +3030,7 @@ async function loadYearData(year) {
       cgdState.realComputationContexts = {
         [Number(year)]: {
           dbRealValues: buildRealValuesFromRows(realRows),
+          savingsRubricsById: buildSavingsRubricsById(model),
           totals: buildTotalsForModel(model)
         },
         [Number(year) - 1]: previousYearContext,
@@ -3009,6 +3041,7 @@ async function loadYearData(year) {
       cgdState.realComputationContexts = {
         [Number(year)]: {
           dbRealValues: buildRealValuesFromRows(realRows),
+          savingsRubricsById: buildSavingsRubricsById(model),
           totals: buildTotalsForModel(model)
         },
         [Number(year) - 1]: defaultRealComputationContext(),
