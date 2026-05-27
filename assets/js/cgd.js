@@ -703,16 +703,15 @@ function computeRealSeriesForYear(targetYear, contexts) {
   const resolving = new Set();
   const maxDepth = 120;
   const yearContexts = contexts && typeof contexts === "object" ? contexts : {};
-  const savingsSeriesCache = new Map();
 
   const keyOf = (year, monthIndex) => `${Number(year)}::${Number(monthIndex)}`;
-  const savingsTotalAt = (year, monthIndex) => {
+  const balanceTotalAt = (year, monthIndex) => {
     const normalizedYear = Number(year);
-    if (!savingsSeriesCache.has(normalizedYear)) {
-      savingsSeriesCache.set(normalizedYear, computeSavingsSeriesForYear(normalizedYear, yearContexts));
-    }
-    const series = savingsSeriesCache.get(normalizedYear) || emptyValues();
-    return Number(series?.[monthIndex]) || 0;
+    const context = yearContexts[normalizedYear] || defaultRealComputationContext();
+    const income = Number(context.totals?.income?.[monthIndex]) || 0;
+    const savings = Number(context.totals?.savings?.[monthIndex]) || 0;
+    const outcome = Number(context.totals?.outcome?.[monthIndex]) || 0;
+    return income + savings - outcome;
   };
 
   const resolveReal = (year, monthIndex, depth = 0) => {
@@ -738,11 +737,8 @@ function computeRealSeriesForYear(targetYear, contexts) {
     resolving.add(key);
     const previous = previousMonthContext(year, monthIndex);
     const previousResolved = resolveReal(previous.year, previous.monthIndex, depth + 1);
-    const previousContext = yearContexts[previous.year] || defaultRealComputationContext();
-    const previousSavingsAccumulated = savingsTotalAt(previous.year, previous.monthIndex);
-    const previousIncome = Number(previousContext.totals?.income?.[previous.monthIndex]) || 0;
-    const previousOutcome = Number(previousContext.totals?.outcome?.[previous.monthIndex]) || 0;
-    const estimatedValue = previousResolved.value + previousIncome + previousSavingsAccumulated - previousOutcome;
+    const previousBalance = balanceTotalAt(previous.year, previous.monthIndex);
+    const estimatedValue = previousResolved.value + previousBalance;
 
     const estimated = { value: estimatedValue, estimated: true };
     memo.set(key, estimated);
@@ -934,6 +930,21 @@ function readonlySummaryPills(values, labelPrefix) {
     .join("");
 }
 
+function readonlyBalanceSummaryPills(values, labelPrefix) {
+  return values
+    .map((value, monthIndex) => {
+      const numericValue = Number(value);
+      const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+      const signClass = safeValue > 0 ? "balance-value-positive" : safeValue < 0 ? "balance-value-negative" : "balance-value-neutral";
+      const dataMonth = `data-month-col='${monthIndex}' data-totalizer-month='${monthIndex}'`;
+      return `
+      <div class='money-pill readonly income-collapsed-pill' ${dataMonth}>
+        <span class='${signClass}' aria-label='${labelPrefix} ${months[monthIndex]}'>${money(safeValue)}</span>
+      </div>`;
+    })
+    .join("");
+}
+
 function buildBalancePanel() {
   const incomeTotals = sumRubricsValuesByMonth(cgdState.data?.income || []);
   const savingsTotals = sumRubricsValuesByMonth(cgdState.data?.savings || []);
@@ -958,7 +969,7 @@ function buildBalancePanel() {
         <div class='desc-cell'>
           <span class='desc-pill collapsed-total-label collapsed-total-label-balance'>Total</span>
         </div>
-        ${readonlySummaryPills(balanceTotals, "Total Balance")}
+        ${readonlyBalanceSummaryPills(balanceTotals, "Total Balance")}
       </div>
     </div>
   </section>

@@ -1192,6 +1192,11 @@ a {
 }
 
 .panel.balance .panel-balance-title {
+  font-size: 1.14rem;
+  font-weight: 900;
+  line-height: 1.1;
+  border-radius: 10px;
+  border: 1px solid rgba(214, 228, 237, 0.24);
   background: linear-gradient(135deg, rgba(120, 36, 36, 0.7), rgba(148, 48, 48, 0.62));
   border-color: rgba(211, 119, 119, 0.32);
   color: #ffe0e0;
@@ -1397,6 +1402,18 @@ a {
   justify-content: flex-end;
   padding: 7px 9px;
   font-size: 0.72rem;
+}
+
+.collapsed-total-row-balance .money-pill.readonly span.balance-value-positive {
+  color: #8ff0a9;
+}
+
+.collapsed-total-row-balance .money-pill.readonly span.balance-value-negative {
+  color: #ff9a9a;
+}
+
+.collapsed-total-row-balance .money-pill.readonly span.balance-value-neutral {
+  color: #d8ecf5;
 }
 
 .rubric-body,
