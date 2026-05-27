@@ -601,12 +601,14 @@ a {
 }
 
 .sober-totalizer-card {
-  border-color: rgba(172, 204, 221, 0.34);
+  border-color: rgba(186, 220, 238, 0.42);
   background: linear-gradient(180deg, rgba(13, 25, 33, 0.94), rgba(13, 24, 31, 0.92));
+  margin-top: 18px;
   box-shadow:
-    0 0 0 1px rgba(167, 208, 228, 0.18),
-    0 0 22px rgba(92, 169, 209, 0.22),
-    0 0 44px rgba(64, 132, 167, 0.18),
+    0 0 0 1px rgba(179, 219, 238, 0.24),
+    0 0 30px rgba(104, 186, 229, 0.34),
+    0 0 62px rgba(82, 162, 201, 0.27),
+    0 0 92px rgba(56, 120, 153, 0.2),
     0 14px 28px rgba(3, 9, 13, 0.44);
 }
 
