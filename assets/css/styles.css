@@ -1835,8 +1835,11 @@ a {
 
 .rubric-head .money-pill input.rubric-total-input {
   font-size: 0.72rem !important;
-  line-height: 1.1 !important;
+  line-height: 1.4 !important;
   color: #96a2aa !important;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
 }
 
 .rubric-head .money-pill.rubric-total-cell input,
@@ -1844,13 +1847,14 @@ a {
 .rubric-head .money-pill.rubric-total-cell button span,
 .rubric-head .money-pill.rubric-total-cell > span {
   font-size: 0.72rem !important;
-  line-height: 1.1 !important;
+  line-height: 1.4 !important;
   color: #96a2aa !important;
 }
 
 .rubric-head .money-pill.rubric-total-cell button {
   align-items: center;
   justify-content: flex-end;
+  min-height: 30px;
 }
 
 .money-pill.readonly {
