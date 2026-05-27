@@ -1272,6 +1272,32 @@ function buildSmoothPathData(points) {
   return path;
 }
 
+function computeChartVerticalScale(values, { top, height }) {
+  const numericValues = (Array.isArray(values) ? values : [])
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value));
+
+  const minRaw = numericValues.length ? Math.min(...numericValues) : 0;
+  const maxRaw = numericValues.length ? Math.max(...numericValues) : 0;
+  const minValue = Math.min(minRaw, 0);
+  const maxValue = Math.max(maxRaw, 0);
+  const range = maxValue - minValue || 1;
+
+  const yFor = (value) => {
+    const numericValue = Number(value);
+    const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+    return top + ((maxValue - safeValue) / range) * height;
+  };
+
+  return {
+    minValue,
+    maxValue,
+    range,
+    yFor,
+    zeroY: yFor(0)
+  };
+}
+
 function ensureChartBottomVisible(chartCard, gap = 14) {
   if (!chartCard) {
     return;
@@ -1789,17 +1815,17 @@ function renderIncomeEvolutionChart() {
     return;
   }
 
-  const maxValue = Math.max(...plottedSeries.flatMap((entry) => entry.values));
-  const yMax = maxValue > 0 ? maxValue : 1;
-
+  const allValues = plottedSeries.flatMap((entry) => entry.values);
+  const verticalScale = computeChartVerticalScale(allValues, { top: padding.top, height: plotHeight });
   const xFor = (monthIndex) => padding.left + monthIndex * monthStep;
-  const yFor = (value) => padding.top + plotHeight - (value / yMax) * plotHeight;
+  const yFor = verticalScale.yFor;
+  const plotBaselineY = verticalScale.zeroY;
 
   const horizontalGridCount = 12;
   const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
     const ratio = index / horizontalGridCount;
-    const y = padding.top + plotHeight - ratio * plotHeight;
-    const labelValue = yMax * ratio;
+    const y = padding.top + ratio * plotHeight;
+    const labelValue = verticalScale.maxValue - ratio * (verticalScale.maxValue - verticalScale.minValue);
     return `
       <line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.18)' stroke-width='0.7' />
       <text x='${padding.left - 8}' y='${y + 4}' text-anchor='end' fill='rgba(197,220,231,0.82)' font-size='9'>${labelValue.toFixed(0)}</text>
@@ -1827,7 +1853,7 @@ function renderIncomeEvolutionChart() {
       const selectionClass = isSelected ? "is-selected" : "";
       const points = entry.values.map((value, monthIndex) => ({ x: xFor(monthIndex), y: yFor(value), value, monthIndex }));
       const pathData = buildSmoothPathData(points);
-      const areaPath = `${pathData} L ${points[points.length - 1].x.toFixed(2)} ${plotBottom.toFixed(2)} L ${points[0].x.toFixed(2)} ${plotBottom.toFixed(2)} Z`;
+      const areaPath = `${pathData} L ${points[points.length - 1].x.toFixed(2)} ${plotBaselineY.toFixed(2)} L ${points[0].x.toFixed(2)} ${plotBaselineY.toFixed(2)} Z`;
       const pointsMarkup = entry.values
         .map((value, monthIndex) => {
           const cx = xFor(monthIndex);
@@ -2071,17 +2097,17 @@ function renderSavingsEvolutionChart() {
     return;
   }
 
-  const maxValue = Math.max(...plottedSeries.flatMap((entry) => entry.values));
-  const yMax = maxValue > 0 ? maxValue : 1;
-
+  const allValues = plottedSeries.flatMap((entry) => entry.values);
+  const verticalScale = computeChartVerticalScale(allValues, { top: padding.top, height: plotHeight });
   const xFor = (monthIndex) => padding.left + monthIndex * monthStep;
-  const yFor = (value) => padding.top + plotHeight - (value / yMax) * plotHeight;
+  const yFor = verticalScale.yFor;
+  const plotBaselineY = verticalScale.zeroY;
 
   const horizontalGridCount = 12;
   const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
     const ratio = index / horizontalGridCount;
-    const y = padding.top + plotHeight - ratio * plotHeight;
-    const labelValue = yMax * ratio;
+    const y = padding.top + ratio * plotHeight;
+    const labelValue = verticalScale.maxValue - ratio * (verticalScale.maxValue - verticalScale.minValue);
     return `
       <line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.18)' stroke-width='0.7' />
       <text x='${padding.left - 8}' y='${y + 4}' text-anchor='end' fill='rgba(197,220,231,0.82)' font-size='9'>${labelValue.toFixed(0)}</text>
@@ -2109,7 +2135,7 @@ function renderSavingsEvolutionChart() {
       const selectionClass = isSelected ? "is-selected" : "";
       const points = entry.values.map((value, monthIndex) => ({ x: xFor(monthIndex), y: yFor(value), value, monthIndex }));
       const pathData = buildSmoothPathData(points);
-      const areaPath = `${pathData} L ${points[points.length - 1].x.toFixed(2)} ${plotBottom.toFixed(2)} L ${points[0].x.toFixed(2)} ${plotBottom.toFixed(2)} Z`;
+      const areaPath = `${pathData} L ${points[points.length - 1].x.toFixed(2)} ${plotBaselineY.toFixed(2)} L ${points[0].x.toFixed(2)} ${plotBaselineY.toFixed(2)} Z`;
       const pointsMarkup = entry.values
         .map((value, monthIndex) => {
           const cx = xFor(monthIndex);
@@ -2369,17 +2395,17 @@ function renderOutcomeEvolutionChart() {
     `;
     return;
   }
-  const maxValue = Math.max(...plottedSeries.flatMap((entry) => entry.values));
-  const yMax = maxValue > 0 ? maxValue : 1;
-
+  const allValues = plottedSeries.flatMap((entry) => entry.values);
+  const verticalScale = computeChartVerticalScale(allValues, { top: padding.top, height: plotHeight });
   const xFor = (monthIndex) => padding.left + monthIndex * monthStep;
-  const yFor = (value) => padding.top + plotHeight - (value / yMax) * plotHeight;
+  const yFor = verticalScale.yFor;
+  const plotBaselineY = verticalScale.zeroY;
 
   const horizontalGridCount = 12;
   const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
     const ratio = index / horizontalGridCount;
-    const y = padding.top + plotHeight - ratio * plotHeight;
-    const labelValue = yMax * ratio;
+    const y = padding.top + ratio * plotHeight;
+    const labelValue = verticalScale.maxValue - ratio * (verticalScale.maxValue - verticalScale.minValue);
     return `
       <line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.18)' stroke-width='0.7' />
       <text x='${padding.left - 8}' y='${y + 4}' text-anchor='end' fill='rgba(197,220,231,0.82)' font-size='9'>${labelValue.toFixed(0)}</text>
@@ -2407,7 +2433,7 @@ function renderOutcomeEvolutionChart() {
       const selectionClass = isSelected ? "is-selected" : "";
       const points = entry.values.map((value, monthIndex) => ({ x: xFor(monthIndex), y: yFor(value), value, monthIndex }));
       const pathData = buildSmoothPathData(points);
-      const areaPath = `${pathData} L ${points[points.length - 1].x.toFixed(2)} ${plotBottom.toFixed(2)} L ${points[0].x.toFixed(2)} ${plotBottom.toFixed(2)} Z`;
+      const areaPath = `${pathData} L ${points[points.length - 1].x.toFixed(2)} ${plotBaselineY.toFixed(2)} L ${points[0].x.toFixed(2)} ${plotBaselineY.toFixed(2)} Z`;
       const pointsMarkup = entry.values
         .map((value, monthIndex) => {
           const cx = xFor(monthIndex);
@@ -2922,17 +2948,17 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
   const plotHeight = chartHeight - padding.top - padding.bottom;
   const monthBand = plotWidth / months.length;
 
-  const maxValue = Math.max(...plottedSeries.flatMap((entry) => [...entry.values, ...entry.estimatedValues]));
-  const yMax = maxValue > 0 ? maxValue : 1;
-
+  const allValues = plottedSeries.flatMap((entry) => [...entry.values, ...entry.estimatedValues]);
+  const verticalScale = computeChartVerticalScale(allValues, { top: padding.top, height: plotHeight });
   const xFor = (monthIndex) => padding.left + monthIndex * monthBand;
-  const yFor = (value) => padding.top + plotHeight - (value / yMax) * plotHeight;
+  const yFor = verticalScale.yFor;
+  const zeroY = verticalScale.zeroY;
 
   const horizontalGridCount = 12;
   const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
     const ratio = index / horizontalGridCount;
-    const y = padding.top + plotHeight - ratio * plotHeight;
-    const labelValue = yMax * ratio;
+    const y = padding.top + ratio * plotHeight;
+    const labelValue = verticalScale.maxValue - ratio * (verticalScale.maxValue - verticalScale.minValue);
     return `
       <line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.18)' stroke-width='0.7' />
       <text x='${padding.left - 8}' y='${y + 4}' text-anchor='end' fill='rgba(197,220,231,0.82)' font-size='9'>${labelValue.toFixed(0)}</text>
@@ -2970,11 +2996,13 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
           const estimated = Number(entry.estimatedValues?.[monthIndex]) || 0;
           const valueY = yFor(value);
           const estimatedY = yFor(estimated);
-          const valueHeight = Math.max(padding.top + plotHeight - valueY, 1);
-          const estimatedHeight = Math.max(padding.top + plotHeight - estimatedY, 1);
+          const valueTop = Math.min(valueY, zeroY);
+          const estimatedTop = Math.min(estimatedY, zeroY);
+          const valueHeight = Math.max(Math.abs(valueY - zeroY), 1);
+          const estimatedHeight = Math.max(Math.abs(estimatedY - zeroY), 1);
           return `
-            <rect class='outcome-comparison-bar' x='${baseX.toFixed(2)}' y='${valueY.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${valueHeight.toFixed(2)}' fill='${entry.color}' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} ┬À Valor`)}' data-month-name='${escapeHtml(monthName)}' data-value='${value.toFixed(2)}' data-series-color='${entry.color}'></rect>
-            <rect class='outcome-comparison-bar outcome-comparison-bar-estimated' x='${(baseX + barWidth).toFixed(2)}' y='${estimatedY.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${estimatedHeight.toFixed(2)}' fill='${entry.color}' fill-opacity='0.42' stroke='${entry.color}' stroke-width='0.8' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} ┬À Estimado`)}' data-month-name='${escapeHtml(monthName)}' data-value='${estimated.toFixed(2)}' data-series-color='${entry.color}'></rect>
+            <rect class='outcome-comparison-bar' x='${baseX.toFixed(2)}' y='${valueTop.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${valueHeight.toFixed(2)}' fill='${entry.color}' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} ┬À Valor`)}' data-month-name='${escapeHtml(monthName)}' data-value='${value.toFixed(2)}' data-series-color='${entry.color}'></rect>
+            <rect class='outcome-comparison-bar outcome-comparison-bar-estimated' x='${(baseX + barWidth).toFixed(2)}' y='${estimatedTop.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${estimatedHeight.toFixed(2)}' fill='${entry.color}' fill-opacity='0.42' stroke='${entry.color}' stroke-width='0.8' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} ┬À Estimado`)}' data-month-name='${escapeHtml(monthName)}' data-value='${estimated.toFixed(2)}' data-series-color='${entry.color}'></rect>
           `;
         })
         .join("");
@@ -3154,7 +3182,7 @@ window.cgdToggleOutcomeComparisonChart = () => {
   document.dispatchEvent(new Event("cgd:rendered"));
 
   if (cgdState.outcomeComparisonChartVisible) {
-    scheduleChartOpenScroll(".outcome-comparison-card");
+    scheduleChartOpenScroll(".outcome-comparison-card-main");
   } else {
     requestAnimationFrame(() => {
       ensurePanelHeadVisible("outcome");
