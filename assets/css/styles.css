@@ -767,7 +767,7 @@ a {
   font-size: 0.68rem;
   text-transform: none;
   letter-spacing: 0.03em;
-  color: #bfd4df;
+  color: #96a2aa;
   background: rgba(15, 30, 39, 0.74);
   border-color: rgba(151, 181, 195, 0.16);
   padding-left: 16px;
@@ -775,6 +775,7 @@ a {
 
 .totalizer-row-savings-rubric .money-pill.readonly .totalizer-value {
   font-size: 0.62rem;
+  color: #96a2aa;
 }
 
 .panel-stack {
