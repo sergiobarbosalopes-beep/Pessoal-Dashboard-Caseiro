@@ -3016,7 +3016,15 @@ async function loadYearData(year) {
       };
     }
 
-    renderSoberTotalizer();
+    try {
+      renderSoberTotalizer();
+    } catch (totalizerError) {
+      console.error("Erro a renderizar totalizador CGD:", totalizerError);
+      const totalizerHost = document.getElementById("cgd-totalizer");
+      if (totalizerHost) {
+        totalizerHost.innerHTML = "";
+      }
+    }
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
   } catch (error) {
@@ -3027,7 +3035,15 @@ async function loadYearData(year) {
       [Number(year) - 1]: defaultRealComputationContext(),
       [Number(year) - 2]: defaultRealComputationContext()
     };
-    renderSoberTotalizer();
+    try {
+      renderSoberTotalizer();
+    } catch (totalizerError) {
+      console.error("Erro a renderizar totalizador CGD em fallback:", totalizerError);
+      const totalizerHost = document.getElementById("cgd-totalizer");
+      if (totalizerHost) {
+        totalizerHost.innerHTML = "";
+      }
+    }
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
   }
