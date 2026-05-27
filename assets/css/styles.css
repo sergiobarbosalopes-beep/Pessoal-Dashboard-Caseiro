@@ -1802,6 +1802,13 @@ a {
   color: #96a2aa;
 }
 
+.rubric-head .money-pill input,
+.rubric-head .money-pill.readonly button,
+.rubric-head .money-pill.readonly button span {
+  font-size: 0.76rem;
+  line-height: 1.1;
+}
+
 .money-pill.readonly {
   padding: 0;
 }
