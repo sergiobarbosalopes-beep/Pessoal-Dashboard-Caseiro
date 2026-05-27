@@ -1822,6 +1822,11 @@ a {
   line-height: 1.1;
 }
 
+.rubric-head .money-pill input.rubric-total-input {
+  font-size: 0.68rem !important;
+  line-height: 1.1 !important;
+}
+
 .money-pill.readonly {
   padding: 0;
 }

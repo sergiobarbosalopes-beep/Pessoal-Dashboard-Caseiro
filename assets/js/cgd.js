@@ -3,14 +3,12 @@ const emptyValues = () => Array.from({ length: 12 }, () => 0);
 
 const fallbackMock = {
   income: [],
-  savings: [],
   outcome: []
 };
 
 const cgdState = {
   selectedYear: new Date().getFullYear(),
   data: fallbackMock,
-  realComputationContexts: {},
   expenseColumns: new Set(),
   notesTableName: null,
   incomeChartVisible: false,
@@ -20,13 +18,6 @@ const cgdState = {
   incomeChartHiddenRubrics: new Set(),
   incomeChartSelectedRubricKey: null,
   incomeDrilldownHiddenExpenses: new Set(),
-  savingsChartVisible: false,
-  savingsComparisonChartVisible: false,
-  savingsComparisonHiddenRubrics: new Set(),
-  savingsComparisonHiddenExpenses: new Set(),
-  savingsChartHiddenRubrics: new Set(),
-  savingsChartSelectedRubricKey: null,
-  savingsDrilldownHiddenExpenses: new Set(),
   outcomeChartVisible: false,
   outcomeComparisonChartVisible: false,
   outcomeComparisonHiddenRubrics: new Set(),
@@ -69,24 +60,11 @@ function parseMoneyField(record, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
-function parseExpenseValue(record, fallback = 0, options = {}) {
-  const isZerado = parseBoolean(record.zerado);
-  if (isZerado) {
-    return null;
-  }
-  const rawValor = record?.valor;
-  const rawValorEstimado = record?.valor_estimado ?? record?.valor_Estimado;
-  const hasValorRaw = rawValor !== null && rawValor !== undefined && String(rawValor).trim() !== "";
-  const hasValorEstimado = rawValorEstimado !== null && rawValorEstimado !== undefined && String(rawValorEstimado).trim() !== "";
-  const valor = Number(rawValor);
-  const valorEstimado = Number(rawValorEstimado);
-  const hasValor = hasValorRaw && Number.isFinite(valor) && valor !== 0;
+function parseExpenseValue(record, fallback = 0) {
+  const valor = Number(record.valor);
+  const valorEstimado = Number(record.valor_estimado ?? record.valor_Estimado);
 
-  if (hasValor) {
-    return valor;
-  }
-
-  if (hasValorEstimado && Number.isFinite(valorEstimado)) {
+  if (Number.isFinite(valor) && valor === 0 && Number.isFinite(valorEstimado) && valorEstimado !== 0) {
     return valorEstimado;
   }
 
@@ -94,17 +72,9 @@ function parseExpenseValue(record, fallback = 0, options = {}) {
 }
 
 function isEstimatedExpenseValue(record) {
-  if (parseBoolean(record.zerado)) {
-    return false;
-  }
-  const rawValor = record?.valor;
-  const rawValorEstimado = record?.valor_estimado ?? record?.valor_Estimado;
-  const hasValorRaw = rawValor !== null && rawValor !== undefined && String(rawValor).trim() !== "";
-  const hasValorEstimado = rawValorEstimado !== null && rawValorEstimado !== undefined && String(rawValorEstimado).trim() !== "";
-  const valor = Number(rawValor);
-  const valorEstimado = Number(rawValorEstimado);
-  const hasValor = hasValorRaw && Number.isFinite(valor) && valor !== 0;
-  return !hasValor && hasValorEstimado && Number.isFinite(valorEstimado) && valorEstimado !== 0;
+  const valor = Number(record.valor);
+  const valorEstimado = Number(record.valor_estimado ?? record.valor_Estimado);
+  return Number.isFinite(valor) && valor === 0 && Number.isFinite(valorEstimado) && valorEstimado !== 0;
 }
 
 function parseSeq(value, fallback = 999999) {
@@ -127,16 +97,9 @@ function parseBoolean(value) {
 }
 
 function normalizeRubricType(value) {
-  const raw = String(value || "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+  const raw = String(value || "").trim().toLowerCase();
   if (raw === "receita") {
     return "income";
-  }
-  if (raw === "aprovisionamento" || raw === "aprovisionamentos" || raw === "poupanca" || raw === "poupancas" || raw === "savings" || raw === "saving") {
-    return "savings";
   }
   return "outcome";
 }
@@ -177,49 +140,6 @@ async function fetchExpensesForYear(year) {
   }
 
   return Array.isArray(data) ? data : [];
-}
-
-async function fetchRealValuesForYear(year) {
-  if (!supabaseClient) {
-    return [];
-  }
-
-  const { data, error } = await supabaseClient
-    .from("cgd_real")
-    .select("ano,mes,real")
-    .eq("ano", Number(year))
-    .order("mes", { ascending: true });
-
-  if (error) {
-    if (String(error?.code || "") === "42P01") {
-      return [];
-    }
-    throw error;
-  }
-
-  return Array.isArray(data) ? data : [];
-}
-
-async function upsertRealValueForMonth({ ano, mes, real }) {
-  if (!supabaseClient) {
-    return false;
-  }
-
-  const payload = {
-    ano: Number(ano),
-    mes: Number(mes),
-    real: real == null ? null : Number(real)
-  };
-
-  const { error } = await supabaseClient
-    .from("cgd_real")
-    .upsert(payload, { onConflict: "ano,mes" });
-
-  if (error) {
-    throw error;
-  }
-
-  return true;
 }
 
 async function fetchExpenseNotesForKey({ ano, rubricaId, despesaId, mes }) {
@@ -267,49 +187,35 @@ async function fetchExpenseHistoryMonthKeysForYear(year) {
     return new Set();
   }
 
-  const queryByYear = (tableName, noteColumn) =>
+  const queryByYear = (tableName) =>
     supabaseClient
       .from(tableName)
-      .select(`rubrica_id,despesa_id,mes,${noteColumn}`)
+      .select("rubrica_id,despesa_id,mes")
       .eq("ano", Number(year));
 
-  const fetchRowsWithNoteColumn = async (tableName) => {
-    const primary = await queryByYear(tableName, "nota");
-    if (!primary.error) {
-      return { rows: Array.isArray(primary.data) ? primary.data : [], noteColumn: "nota" };
-    }
-
-    const fallback = await queryByYear(tableName, "notas");
-    if (!fallback.error) {
-      return { rows: Array.isArray(fallback.data) ? fallback.data : [], noteColumn: "notas" };
-    }
-
-    throw primary.error;
-  };
-
-  const buildHistorySet = (rows, noteColumn) =>
-    new Set(
-      (Array.isArray(rows) ? rows : [])
-        .filter((row) => String(row?.[noteColumn] ?? "").trim().length > 0)
+  const preferredTable = cgdState.notesTableName || "cgd_despesa_notas";
+  const { data: primaryData, error: primaryError } = await queryByYear(preferredTable);
+  if (!primaryError) {
+    cgdState.notesTableName = preferredTable;
+    return new Set(
+      (Array.isArray(primaryData) ? primaryData : [])
         .map((row) => buildExpenseHistoryMonthKey(row.rubrica_id, row.despesa_id, row.mes))
         .filter((key) => !key.includes("NaN"))
     );
-
-  const preferredTable = cgdState.notesTableName || "cgd_despesa_notas";
-  try {
-    const preferredResult = await fetchRowsWithNoteColumn(preferredTable);
-    cgdState.notesTableName = preferredTable;
-    return buildHistorySet(preferredResult.rows, preferredResult.noteColumn);
-  } catch (primaryError) {
-    const fallbackTable = preferredTable === "cgd_despesa_notas" ? "cgd_despesas_notas" : "cgd_despesa_notas";
-    try {
-      const fallbackResult = await fetchRowsWithNoteColumn(fallbackTable);
-      cgdState.notesTableName = fallbackTable;
-      return buildHistorySet(fallbackResult.rows, fallbackResult.noteColumn);
-    } catch (fallbackError) {
-      throw primaryError;
-    }
   }
+
+  const fallbackTable = preferredTable === "cgd_despesa_notas" ? "cgd_despesas_notas" : "cgd_despesa_notas";
+  const { data: fallbackData, error: fallbackError } = await queryByYear(fallbackTable);
+  if (fallbackError) {
+    throw primaryError;
+  }
+
+  cgdState.notesTableName = fallbackTable;
+  return new Set(
+    (Array.isArray(fallbackData) ? fallbackData : [])
+      .map((row) => buildExpenseHistoryMonthKey(row.rubrica_id, row.despesa_id, row.mes))
+      .filter((key) => !key.includes("NaN"))
+  );
 }
 
 async function createExpenseNoteEntry({ ano, rubricaId, despesaId, mes, valor, nota }) {
@@ -472,12 +378,10 @@ function buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys = new S
         values: emptyValues(),
         estimatedFlags: Array.from({ length: 12 }, () => false),
         monthData: Array.from({ length: 12 }, () => ({
-          valor: null,
+          valor: 0,
           valorEstimado: 0,
           totalizador: false,
-          nota: "",
-          estimatedByFallback: false,
-          hasHistoryNote: false
+          nota: ""
         }))
       });
     }
@@ -485,25 +389,17 @@ function buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys = new S
     const expense = expenseMap.get(expenseKey);
     expense.seq = Math.min(expense.seq, parseSeq(row.despesa_seq, expense.seq));
     if (monthIndex >= 0) {
-      const hasHistoryForMonth = expenseHistoryMonthKeys.has(buildExpenseHistoryMonthKey(row.rubrica_id, row.despesa_id, row.mes));
-      expense.historyByMonth[monthIndex] = hasHistoryForMonth;
-      const rawValorValue = row.valor;
-      const rawValorEstimadoValue = row.valor_estimado ?? row.valor_Estimado;
-      const rawValor = Number(rawValorValue);
-      const rawValorEstimado = Number(rawValorEstimadoValue);
+      expense.historyByMonth[monthIndex] = expenseHistoryMonthKeys.has(buildExpenseHistoryMonthKey(row.rubrica_id, row.despesa_id, row.mes));
+      const rawValor = Number(row.valor);
+      const rawValorEstimado = Number(row.valor_estimado ?? row.valor_Estimado);
       const rawNota = row.nota ?? row.notas ?? "";
-      const isEstimatedFallback = isEstimatedExpenseValue(row);
-      expense.values[monthIndex] = parseExpenseValue(row, expense.values[monthIndex], { hasHistoryForMonth });
-      expense.estimatedFlags[monthIndex] = isEstimatedFallback;
-      const normalizedNote = rawNota == null ? "" : String(rawNota);
+      expense.values[monthIndex] = parseExpenseValue(row, expense.values[monthIndex]);
+      expense.estimatedFlags[monthIndex] = isEstimatedExpenseValue(row);
       expense.monthData[monthIndex] = {
-        valor: rawValorValue == null || String(rawValorValue).trim() === "" || !Number.isFinite(rawValor) ? null : rawValor,
-        valorEstimado: rawValorEstimadoValue == null || String(rawValorEstimadoValue).trim() === "" || !Number.isFinite(rawValorEstimado) ? 0 : rawValorEstimado,
+        valor: Number.isFinite(rawValor) ? rawValor : 0,
+        valorEstimado: Number.isFinite(rawValorEstimado) ? rawValorEstimado : 0,
         totalizador: parseBoolean(row.totalizador),
-        nota: normalizedNote,
-        zerado: parseBoolean(row.zerado),
-        estimatedByFallback: isEstimatedFallback,
-        hasHistoryNote: hasHistoryForMonth
+        nota: rawNota == null ? "" : String(rawNota)
       };
     }
   });
@@ -522,7 +418,6 @@ function buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys = new S
   const allRubrics = Array.from(rubricsByKey.values()).sort((a, b) => a.seq - b.seq || a.name.localeCompare(b.name));
   return {
     income: allRubrics.filter((rubric) => rubric.type === "income"),
-    savings: allRubrics.filter((rubric) => rubric.type === "savings"),
     outcome: allRubrics.filter((rubric) => rubric.type === "outcome")
   };
 }
@@ -543,540 +438,29 @@ function money(value) {
   return Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function isZeroMoneyDisplayValue(value) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) {
-    return true;
-  }
-  return Math.round(numeric * 100) === 0;
-}
-
-function sumRubricsValuesByMonth(rubrics) {
-  const source = Array.isArray(rubrics) ? rubrics : [];
-  return months.map((_, monthIndex) =>
-    source.reduce((acc, rubric) => {
-      const rubricValues = Array.isArray(rubric?.values) ? rubric.values : emptyValues();
-      const value = Number(rubricValues[monthIndex]);
-      return acc + (Number.isFinite(value) ? value : 0);
-    }, 0)
-  );
-}
-
-function sumAllIncomeRubricsByMonth(rubrics) {
-  const source = Array.isArray(rubrics) ? rubrics : [];
-  return months.map((_, monthIndex) =>
-    source.reduce((acc, rubric) => {
-      const rubricValues = Array.isArray(rubric?.values) ? rubric.values : emptyValues();
-      const monthValue = Number(rubricValues[monthIndex]);
-      return acc + (Number.isFinite(monthValue) ? monthValue : 0);
-    }, 0)
-  );
-}
-
-function sumAllOutcomeRubricsByMonth(rubrics) {
-  const source = Array.isArray(rubrics) ? rubrics : [];
-  return months.map((_, monthIndex) =>
-    source.reduce((acc, rubric) => {
-      const rubricValues = Array.isArray(rubric?.values) ? rubric.values : emptyValues();
-      const monthValue = Number(rubricValues[monthIndex]);
-      return acc + (Number.isFinite(monthValue) ? monthValue : 0);
-    }, 0)
-  );
-}
-
-function parseRealDatabaseValue(value) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : null;
-}
-
-function buildRealValuesFromRows(realRows) {
-  const values = Array.from({ length: 12 }, () => null);
-  const rows = Array.isArray(realRows) ? realRows : [];
-  rows.forEach((row) => {
-    const monthIndex = normalizeMonth(row?.mes);
-    if (monthIndex < 0) {
-      return;
-    }
-    values[monthIndex] = parseRealDatabaseValue(row?.real);
-  });
-  return values;
-}
-
-function buildTotalsForModel(model) {
-  return {
-    income: sumAllIncomeRubricsByMonth(model?.income),
-    savings: sumRubricsValuesByMonth(model?.savings),
-    outcome: sumAllOutcomeRubricsByMonth(model?.outcome)
-  };
-}
-
-function buildSavingsRubricsById(model) {
-  const savingsRubrics = Array.isArray(model?.savings) ? model.savings : [];
-  return savingsRubrics.reduce((acc, rubric) => {
-    const rubricId = rubric?.id;
-    if (rubricId == null) {
-      return acc;
-    }
-    acc[String(rubricId)] = Array.isArray(rubric?.values) ? rubric.values.slice(0, 12) : emptyValues();
-    return acc;
-  }, {});
-}
-
-function defaultRealComputationContext() {
-  return {
-    dbRealValues: Array.from({ length: 12 }, () => null),
-    savingsRubricsById: {},
-    totals: {
-      income: emptyValues(),
-      savings: emptyValues(),
-      outcome: emptyValues()
-    }
-  };
-}
-
-function previousMonthContext(year, monthIndex) {
-  if (monthIndex > 0) {
-    return { year: Number(year), monthIndex: monthIndex - 1 };
-  }
-  return { year: Number(year) - 1, monthIndex: 11 };
-}
-
-function computeSavingsSeriesForYear(targetYear, contexts) {
-  const memo = new Map();
-  const resolving = new Set();
-  const maxDepth = 120;
-  const yearContexts = contexts && typeof contexts === "object" ? contexts : {};
-
-  const keyOf = (year, monthIndex) => `${Number(year)}::${Number(monthIndex)}`;
-
-  const resolveSavings = (year, monthIndex, depth = 0) => {
-    const key = keyOf(year, monthIndex);
-    if (memo.has(key)) {
-      return memo.get(key);
-    }
-
-    if (depth > maxDepth || resolving.has(key)) {
-      memo.set(key, 0);
-      return 0;
-    }
-
-    resolving.add(key);
-    const previous = previousMonthContext(year, monthIndex);
-    const previousSavings = resolveSavings(previous.year, previous.monthIndex, depth + 1);
-    const previousContext = yearContexts[previous.year] || defaultRealComputationContext();
-    const previousSavingsRubricsTotal = Number(previousContext.totals?.savings?.[previous.monthIndex]) || 0;
-    const resolved = previousSavings + previousSavingsRubricsTotal;
-
-    memo.set(key, resolved);
-    resolving.delete(key);
-    return resolved;
-  };
-
-  return months.map((_, monthIndex) => resolveSavings(Number(targetYear), monthIndex));
-}
-
-function computeSavingsRubricSeriesForYear(targetYear, rubricId, contexts) {
-  const memo = new Map();
-  const resolving = new Set();
-  const maxDepth = 120;
-  const yearContexts = contexts && typeof contexts === "object" ? contexts : {};
-  const normalizedRubricId = rubricId == null ? "" : String(rubricId);
-
-  const keyOf = (year, monthIndex) => `${Number(year)}::${Number(monthIndex)}`;
-  const rubricRawAt = (year, monthIndex) => {
-    const context = yearContexts[Number(year)] || defaultRealComputationContext();
-    const rubricsById =
-      context?.savingsRubricsById && typeof context.savingsRubricsById === "object"
-        ? context.savingsRubricsById
-        : {};
-    const values = rubricsById[normalizedRubricId];
-    return Number(values?.[monthIndex]) || 0;
-  };
-
-  const resolveSavingsRubric = (year, monthIndex, depth = 0) => {
-    const key = keyOf(year, monthIndex);
-    if (memo.has(key)) {
-      return memo.get(key);
-    }
-
-    if (depth > maxDepth || resolving.has(key)) {
-      memo.set(key, 0);
-      return 0;
-    }
-
-    resolving.add(key);
-    const previous = previousMonthContext(year, monthIndex);
-    const previousAccumulated = resolveSavingsRubric(previous.year, previous.monthIndex, depth + 1);
-    const previousRubricValue = rubricRawAt(previous.year, previous.monthIndex);
-    const resolved = previousAccumulated + previousRubricValue;
-
-    memo.set(key, resolved);
-    resolving.delete(key);
-    return resolved;
-  };
-
-  return months.map((_, monthIndex) => resolveSavingsRubric(Number(targetYear), monthIndex));
-}
-
-function computeRealSeriesForYear(targetYear, contexts) {
-  const memo = new Map();
-  const resolving = new Set();
-  const maxDepth = 120;
-  const yearContexts = contexts && typeof contexts === "object" ? contexts : {};
-
-  const keyOf = (year, monthIndex) => `${Number(year)}::${Number(monthIndex)}`;
-  const balanceTotalAt = (year, monthIndex) => {
-    const normalizedYear = Number(year);
-    const context = yearContexts[normalizedYear] || defaultRealComputationContext();
-    const income = Number(context.totals?.income?.[monthIndex]) || 0;
-    const savings = Number(context.totals?.savings?.[monthIndex]) || 0;
-    const outcome = Number(context.totals?.outcome?.[monthIndex]) || 0;
-    return income + savings - outcome;
-  };
-
-  const resolveReal = (year, monthIndex, depth = 0) => {
-    const key = keyOf(year, monthIndex);
-    if (memo.has(key)) {
-      return memo.get(key);
-    }
-
-    if (depth > maxDepth || resolving.has(key)) {
-      const fallback = { value: 0, estimated: true };
-      memo.set(key, fallback);
-      return fallback;
-    }
-
-    const context = yearContexts[year] || defaultRealComputationContext();
-    const dbValue = context.dbRealValues?.[monthIndex];
-    if (Number.isFinite(dbValue)) {
-      const direct = { value: Number(dbValue), estimated: false };
-      memo.set(key, direct);
-      return direct;
-    }
-
-    resolving.add(key);
-    const previous = previousMonthContext(year, monthIndex);
-    const previousResolved = resolveReal(previous.year, previous.monthIndex, depth + 1);
-    const previousBalance = balanceTotalAt(previous.year, previous.monthIndex);
-    const estimatedValue = previousResolved.value + previousBalance;
-
-    const estimated = { value: estimatedValue, estimated: true };
-    memo.set(key, estimated);
-    resolving.delete(key);
-    return estimated;
-  };
-
-  const resolved = months.map((_, monthIndex) => resolveReal(Number(targetYear), monthIndex));
-  return {
-    values: resolved.map((entry) => entry.value),
-    estimatedFlags: resolved.map((entry) => Boolean(entry.estimated))
-  };
-}
-
-function buildRealComputationContextsForFutureMonths(year, startMonthIndex, contexts) {
-  const normalizedYear = Number(year);
-  const normalizedStartMonth = Number(startMonthIndex);
-  const sourceContexts = contexts && typeof contexts === "object" ? contexts : {};
-  const currentYearContext = sourceContexts[normalizedYear] || defaultRealComputationContext();
-  const dbRealValues = Array.isArray(currentYearContext.dbRealValues)
-    ? currentYearContext.dbRealValues.slice(0, 12)
-    : Array.from({ length: 12 }, () => null);
-
-  for (let monthIndex = normalizedStartMonth + 1; monthIndex <= 11; monthIndex += 1) {
-    dbRealValues[monthIndex] = null;
-  }
-
-  return {
-    ...sourceContexts,
-    [normalizedYear]: {
-      ...currentYearContext,
-      dbRealValues
-    }
-  };
-}
-
-async function recalculateFutureRealTotalizerMonths({ year, startMonthIndex }) {
-  if (!supabaseClient) {
-    return 0;
-  }
-
-  const normalizedYear = Number(year);
-  const normalizedStartMonth = Number(startMonthIndex);
-  if (!Number.isInteger(normalizedYear) || !Number.isInteger(normalizedStartMonth) || normalizedStartMonth < 0 || normalizedStartMonth >= 11) {
-    return 0;
-  }
-
-  const calculationContexts = buildRealComputationContextsForFutureMonths(
-    normalizedYear,
-    normalizedStartMonth,
-    cgdState.realComputationContexts
-  );
-  const realSeries = computeRealSeriesForYear(normalizedYear, calculationContexts);
-  const updates = [];
-
-  for (let monthIndex = normalizedStartMonth + 1; monthIndex <= 11; monthIndex += 1) {
-    const computed = Number(realSeries.values?.[monthIndex]);
-    if (!Number.isFinite(computed)) {
-      continue;
-    }
-
-    updates.push(
-      upsertRealValueForMonth({
-        ano: normalizedYear,
-        mes: monthIndex + 1,
-        real: Math.round(computed * 100) / 100
-      })
-    );
-  }
-
-  if (!updates.length) {
-    return 0;
-  }
-
-  await Promise.all(updates);
-  return updates.length;
-}
-
-async function refreshYearDataAndFutureTotalizerFromMonth(startMonthIndex) {
-  await loadYearData(cgdState.selectedYear);
-  const updatedMonths = await recalculateFutureRealTotalizerMonths({
-    year: cgdState.selectedYear,
-    startMonthIndex
-  });
-
-  if (updatedMonths > 0) {
-    await loadYearData(cgdState.selectedYear);
-  }
-}
-
-async function fetchYearContextForRealComputation(year) {
-  if (!supabaseClient) {
-    return defaultRealComputationContext();
-  }
-
-  const [rubricsResult, expensesResult, realValuesResult] = await Promise.allSettled([
-    fetchRubricsForYear(year),
-    fetchExpensesForYear(year),
-    fetchRealValuesForYear(year)
-  ]);
-
-  const rubricRows = rubricsResult.status === "fulfilled" ? rubricsResult.value : [];
-  const expenseRows = expensesResult.status === "fulfilled" ? expensesResult.value : [];
-  const realRows = realValuesResult.status === "fulfilled" ? realValuesResult.value : [];
-
-  if (rubricsResult.status === "rejected") {
-    console.error(`Erro a carregar rubricas CGD para ${year}:`, rubricsResult.reason);
-  }
-  if (expensesResult.status === "rejected") {
-    console.error(`Erro a carregar despesas CGD para ${year}:`, expensesResult.reason);
-  }
-  if (realValuesResult.status === "rejected") {
-    console.error(`Erro a carregar reais CGD para ${year}:`, realValuesResult.reason);
-  }
-
-  const model = buildDataModel(rubricRows, expenseRows, new Set());
-  return {
-    dbRealValues: buildRealValuesFromRows(realRows),
-    savingsRubricsById: buildSavingsRubricsById(model),
-    totals: buildTotalsForModel(model)
-  };
-}
-
-function renderTotalizerMonthPills(values, options = {}) {
-  const editable = Boolean(options.editable);
-  const inputPrefix = options.inputPrefix || "Totalizador";
-  const estimatedFlags = Array.isArray(options.estimatedFlags) ? options.estimatedFlags : [];
-
-  return months
-    .map((monthName, monthIndex) => {
-      const numericValue = Number(values?.[monthIndex]);
-      const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
-      const isEstimated = Boolean(estimatedFlags[monthIndex]);
-      if (editable) {
-        return `
-          <div class='money-pill totalizer-month-pill' data-month-col='${monthIndex}' data-totalizer-month='${monthIndex}'>
-            <input
-              data-money
-              data-real-total-input='true'
-              data-real-total-month='${monthIndex}'
-              data-last-valid='${money(safeValue)}'
-              data-real-total-estimated='${isEstimated ? "true" : "false"}'
-              class='${isEstimated ? "is-estimated" : ""}'
-              type='text'
-              value='${money(safeValue)}'
-              aria-label='${inputPrefix} ${monthName}'
-            />
-          </div>
-        `;
-      }
-
-      return `
-        <div class='money-pill totalizer-month-pill readonly' data-month-col='${monthIndex}' data-totalizer-month='${monthIndex}'>
-          <span class='totalizer-value'>${money(safeValue)}</span>
-        </div>
-      `;
-    })
-    .join("");
-}
-
-function renderSoberTotalizer() {
-  const host = document.getElementById("cgd-totalizer");
-  if (!host) {
-    return;
-  }
-
-  const year = Number(cgdState.selectedYear);
-  const realSeries = computeRealSeriesForYear(year, cgdState.realComputationContexts);
-  const realValues = realSeries.values;
-  const realEstimatedFlags = realSeries.estimatedFlags;
-  const savingsTotals = computeSavingsSeriesForYear(year, cgdState.realComputationContexts);
-  const availableTotals = months.map((_, monthIndex) => {
-    const real = Number(realValues?.[monthIndex]) || 0;
-    const savings = Number(savingsTotals?.[monthIndex]) || 0;
-    return real - savings;
-  });
-  const savingsRubrics = Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
-
-  const savingsRubricRows = savingsRubrics
-    .map((rubric) => {
-      const rubricTotals = computeSavingsRubricSeriesForYear(year, rubric?.id, cgdState.realComputationContexts);
-
-      return `
-        <div class='data-row totalizer-row totalizer-row-savings-rubric'>
-          <div class='desc-cell totalizer-desc-cell'>
-            <span class='totalizer-row-label'>${escapeHtml(rubric?.name || "Savings")}</span>
-          </div>
-          ${renderTotalizerMonthPills(rubricTotals)}
-        </div>
-      `;
-    })
-    .join("");
-
-  host.innerHTML = `
-    <section class='totalizer-shell' aria-label='Totalizador mensal consolidado'>
-      <header class='totalizer-head'>
-        <h3>Totalizador mensal</h3>
-      </header>
-      <div class='totalizer-grid-wrap'>
-        <div class='totalizer-grid'>
-          <div class='data-row totalizer-row totalizer-row-real'>
-            <div class='desc-cell totalizer-desc-cell'>
-              <span class='totalizer-row-label'>Real</span>
-            </div>
-            ${renderTotalizerMonthPills(realValues, { editable: true, inputPrefix: "Real", estimatedFlags: realEstimatedFlags })}
-          </div>
-          <div class='data-row totalizer-row totalizer-row-available'>
-            <div class='desc-cell totalizer-desc-cell'>
-              <span class='totalizer-row-label'>Disponivel</span>
-            </div>
-            ${renderTotalizerMonthPills(availableTotals)}
-          </div>
-          <div class='data-row totalizer-row totalizer-row-savings'>
-            <div class='desc-cell totalizer-desc-cell'>
-              <span class='totalizer-row-label'>Savings</span>
-            </div>
-            ${renderTotalizerMonthPills(savingsTotals)}
-          </div>
-          ${savingsRubricRows}
-        </div>
-      </div>
-    </section>
-  `;
-}
-
 function monthPills(values, editable, labelPrefix, estimatedFlags = [], historyByMonth = [], detailMeta = null) {
   return values
     .map((value, monthIndex) => {
       const dataMonth = `data-month-col='${monthIndex}'`;
       if (editable) {
-        const numericValue = Number(value);
-        const displayValue = Number.isFinite(numericValue) && !isZeroMoneyDisplayValue(numericValue) ? money(numericValue) : "";
+        const isRubricTotalInput = /\stotal$/i.test(String(labelPrefix || ""));
         return `
         <div class='money-pill' ${dataMonth}>
-          <input data-money type='text' value='${displayValue}' aria-label='${labelPrefix} ${months[monthIndex]}' />
+          <input data-money class='${isRubricTotalInput ? "rubric-total-input" : ""}' type='text' value='${money(value)}' aria-label='${labelPrefix} ${months[monthIndex]}' />
         </div>`;
       }
       const detailAttrs = detailMeta
         ? `data-rubrica-id='${detailMeta.rubricaId ?? detailMeta.rubricId ?? ""}' data-expense-id='${detailMeta.expenseId ?? ""}' data-month-index='${monthIndex}' data-expense-kind='${detailMeta.kind || "outcome"}'`
         : "";
-      const isInteractiveReadonly = Boolean(detailMeta);
       const historyClass = historyByMonth?.[monthIndex] ? "has-history-note" : "";
-      const numericValue = Number(value);
-      const hasDisplayValue = value != null && Number.isFinite(numericValue) && !isZeroMoneyDisplayValue(numericValue);
-      const displayValue = hasDisplayValue ? money(numericValue) : "";
-      const estimatedClass = hasDisplayValue && estimatedFlags[monthIndex] ? "estimated-value" : "";
-      if (!isInteractiveReadonly) {
-        return `
-      <div class='money-pill readonly' ${dataMonth}>
-        <span class='${estimatedClass}'>${displayValue}</span>
-      </div>`;
-      }
       return `
       <div class='money-pill readonly' ${dataMonth}>
         <button type='button' class='${historyClass}' data-expense-field='${labelPrefix} - ${months[monthIndex]}' ${detailAttrs}>
-          <span class='${estimatedClass}'>${displayValue}</span>
+          <span class='${estimatedFlags[monthIndex] ? "estimated-value" : ""}'>${money(value)}</span>
         </button>
       </div>`;
     })
     .join("");
-}
-
-function readonlySummaryPills(values, labelPrefix) {
-  return values
-    .map((value, monthIndex) => {
-      const dataMonth = `data-month-col='${monthIndex}' data-totalizer-month='${monthIndex}'`;
-      return `
-      <div class='money-pill readonly income-collapsed-pill' ${dataMonth}>
-        <span aria-label='${labelPrefix} ${months[monthIndex]}'>${money(value)}</span>
-      </div>`;
-    })
-    .join("");
-}
-
-function readonlyBalanceSummaryPills(values, labelPrefix) {
-  return values
-    .map((value, monthIndex) => {
-      const numericValue = Number(value);
-      const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
-      const signClass = safeValue > 0 ? "balance-value-positive" : safeValue < 0 ? "balance-value-negative" : "balance-value-neutral";
-      const dataMonth = `data-month-col='${monthIndex}' data-totalizer-month='${monthIndex}'`;
-      return `
-      <div class='money-pill readonly income-collapsed-pill' ${dataMonth}>
-        <span class='${signClass}' aria-label='${labelPrefix} ${months[monthIndex]}'>${money(safeValue)}</span>
-      </div>`;
-    })
-    .join("");
-}
-
-function buildBalancePanel() {
-  const incomeTotals = sumRubricsValuesByMonth(cgdState.data?.income || []);
-  const savingsTotals = sumRubricsValuesByMonth(cgdState.data?.savings || []);
-  const outcomeTotals = sumRubricsValuesByMonth(cgdState.data?.outcome || []);
-  const balanceTotals = months.map((_, monthIndex) => {
-    const income = Number(incomeTotals?.[monthIndex]) || 0;
-    const savings = Number(savingsTotals?.[monthIndex]) || 0;
-    const outcome = Number(outcomeTotals?.[monthIndex]) || 0;
-    return income + savings - outcome;
-  });
-
-  return `
-  <section class='panel balance'>
-    <header class='panel-head'>
-      <div class='panel-title'>
-        <span class='chev-spacer' aria-hidden='true'></span>
-        <span class='desc-pill panel-balance-title'>Balance</span>
-      </div>
-    </header>
-    <div class='panel-collapsed-summary panel-collapsed-summary-balance'>
-      <div class='data-row collapsed-total-row collapsed-total-row-balance'>
-        <div class='desc-cell'>
-          <span class='desc-pill collapsed-total-label collapsed-total-label-balance'>Total</span>
-        </div>
-        ${readonlyBalanceSummaryPills(balanceTotals, "Total Balance")}
-      </div>
-    </div>
-  </section>
-  `;
 }
 
 function renderTimeline(year) {
@@ -1147,7 +531,7 @@ function renderRubrics(rubrics, kind) {
       <article class='rubric' data-sortable data-rubrica-id='${rubric.id ?? ""}' data-rubrica-seq='${rubric.seq ?? ""}' data-rubrica-tipo='${kind}'>
         <header class='rubric-head data-row'>
           <div class='desc-cell rubric-desc-cell'>
-            <button class='chev' type='button' data-toggle-target='${expenseBodyId}' aria-expanded='false' aria-label='Expandir rubrica'>▼</button>
+            <button class='chev' type='button' data-toggle-target='${expenseBodyId}' aria-expanded='true' aria-label='Expandir rubrica'>▼</button>
             <button class='desc-pill rubric-title rubric-menu-trigger' type='button' data-rubric-menu-toggle aria-expanded='false' aria-label='Opcoes da rubrica ${rubric.name}'>${rubric.name}</button>
             <div class='rubric-sort-actions'>
               <div class='rubric-menu' role='menu'>
@@ -1160,9 +544,9 @@ function renderRubrics(rubrics, kind) {
               </div>
             </div>
           </div>
-          ${monthPills(totals, false, `${rubric.name} total`)}
+          ${monthPills(totals, true, `${rubric.name} total`)}
         </header>
-        <div class='rubric-body is-collapsed' id='${expenseBodyId}'>
+        <div class='rubric-body' id='${expenseBodyId}'>
           <div class='expense-body'>
             <div class='item-rows'>
               ${renderExpenseRows(rubric.expenses, rubric.name, kind)}
@@ -1178,40 +562,14 @@ function renderRubrics(rubrics, kind) {
 function buildPanel(title, kind, rubrics) {
   const panelId = `panel-${kind}`;
   const bodyId = `${panelId}-body`;
-  const totalsByMonth = sumRubricsValuesByMonth(rubrics);
-  const hasCollapsedSummary = kind === "income" || kind === "savings" || kind === "outcome";
-  const collapsedSummary = hasCollapsedSummary
-    ? `
-    <div class='panel-collapsed-summary panel-collapsed-summary-${kind}'>
-      <div class='data-row collapsed-total-row collapsed-total-row-${kind}'>
-        <div class='desc-cell'>
-          <span class='desc-pill collapsed-total-label collapsed-total-label-${kind}'>Total</span>
-        </div>
-        ${readonlySummaryPills(totalsByMonth, "Total")}
-      </div>
-    </div>`
-    : "";
-  const showChartAction = kind === "outcome" || kind === "income" || kind === "savings";
-  const lineChartVisible = kind === "outcome"
-    ? cgdState.outcomeChartVisible
-    : kind === "savings"
-      ? cgdState.savingsChartVisible
-      : cgdState.incomeChartVisible;
-  const comparisonChartVisible = kind === "outcome"
-    ? cgdState.outcomeComparisonChartVisible
-    : kind === "savings"
-      ? cgdState.savingsComparisonChartVisible
-      : cgdState.incomeComparisonChartVisible;
-  const lineChartToggleAttr = kind === "outcome"
-    ? "data-outcome-chart-toggle-visibility"
-    : kind === "savings"
-      ? "data-savings-chart-toggle-visibility"
-      : "data-income-chart-toggle-visibility";
-  const comparisonChartToggleAttr = kind === "outcome"
+  const showChartAction = kind === "outcome" || kind === "income";
+  const isOutcome = kind === "outcome";
+  const lineChartVisible = isOutcome ? cgdState.outcomeChartVisible : cgdState.incomeChartVisible;
+  const comparisonChartVisible = isOutcome ? cgdState.outcomeComparisonChartVisible : cgdState.incomeComparisonChartVisible;
+  const lineChartToggleAttr = isOutcome ? "data-outcome-chart-toggle-visibility" : "data-income-chart-toggle-visibility";
+  const comparisonChartToggleAttr = isOutcome
     ? "data-outcome-comparison-chart-toggle-visibility"
-    : kind === "savings"
-      ? "data-savings-comparison-chart-toggle-visibility"
-      : "data-income-comparison-chart-toggle-visibility";
+    : "data-income-comparison-chart-toggle-visibility";
   const chartAction = showChartAction
     ? `<div class='panel-head-actions'>
         <button
@@ -1253,7 +611,7 @@ function buildPanel(title, kind, rubrics) {
   <section class='panel ${kind}' data-panel-block data-panel-kind='${kind}'>
     <header class='panel-head'>
       <div class='panel-title'>
-        <button class='chev' type='button' data-toggle-target='${bodyId}' aria-expanded='false' aria-label='Expandir ${title}'>▼</button>
+        <button class='chev' type='button' data-toggle-target='${bodyId}' aria-expanded='true' aria-label='Expandir ${title}'>▼</button>
         <button class='desc-pill panel-menu-trigger' type='button' data-panel-menu-toggle aria-expanded='false' aria-label='Opcoes do painel ${title}'>${title}</button>
         <div class='panel-sort-actions'>
           <div class='panel-menu' role='menu'>
@@ -1263,10 +621,9 @@ function buildPanel(title, kind, rubrics) {
       </div>
       ${chartAction}
     </header>
-    <div class='panel-body is-collapsed' id='${bodyId}'>
+    <div class='panel-body' id='${bodyId}'>
       ${renderRubrics(rubrics, kind)}
     </div>
-    ${collapsedSummary}
   </section>
   `;
 }
@@ -1539,39 +896,6 @@ function buildIncomeRubricSeries() {
     .filter((entry) => entry.values.some((value) => value !== 0));
 }
 
-function buildSavingsRubricSeries() {
-  const palette = ["#70c3ff", "#5fc8b6", "#f2c46a", "#7cc4ff", "#84d56b", "#f08b5f", "#58d2c3", "#9ad9ff", "#9ed86b", "#a9e46f"];
-  const sourceRubrics = Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
-
-  return sourceRubrics
-    .map((rubric, index) => {
-      const rawId = rubric?.id;
-      const key = Number.isFinite(Number(rawId)) ? `id-${Number(rawId)}` : `idx-${index}`;
-      const values = months.map((_, monthIndex) => {
-        const numeric = Number(rubric?.values?.[monthIndex]);
-        return Number.isFinite(numeric) ? numeric : 0;
-      });
-      const expenses = Array.isArray(rubric?.expenses)
-        ? rubric.expenses.map((expense, expenseIndex) => ({
-            key: `expense-${index}-${expenseIndex}-${Number(expense?.id) || 0}`,
-            name: expense?.name || `Despesa ${expenseIndex + 1}`,
-            values: months.map((_, monthIndex) => {
-              const numeric = Number(expense?.values?.[monthIndex]);
-              return Number.isFinite(numeric) ? numeric : 0;
-            })
-          }))
-        : [];
-      return {
-        key,
-        name: rubric?.name || `Rubrica ${index + 1}`,
-        values,
-        color: palette[index % palette.length],
-        expenses
-      };
-    })
-    .filter((entry) => entry.values.some((value) => value !== 0));
-}
-
 function buildOutcomeExpenseSeriesForRubric(rubric) {
   if (!rubric) {
     return [];
@@ -1597,25 +921,6 @@ function buildIncomeExpenseSeriesForRubric(rubric) {
   }
 
   const palette = ["#8fdcb3", "#8bc8f5", "#9fdc88", "#7fded2", "#95d889", "#79bfe3", "#abdcc6", "#8fd7ff", "#8bcf96", "#93c4eb"];
-  return (rubric.expenses || [])
-    .map((expense, index) => ({
-      key: expense.key || `expense-${index}`,
-      name: expense.name || `Despesa ${index + 1}`,
-      values: months.map((_, monthIndex) => {
-        const numeric = Number(expense.values?.[monthIndex]);
-        return Number.isFinite(numeric) ? numeric : 0;
-      }),
-      color: palette[index % palette.length]
-    }))
-    .filter((entry) => entry.values.some((value) => value !== 0));
-}
-
-function buildSavingsExpenseSeriesForRubric(rubric) {
-  if (!rubric) {
-    return [];
-  }
-
-  const palette = ["#9ad9ff", "#a9e46f", "#f7c86a", "#7acfc6", "#95c7ff", "#e8a0b4", "#84d56b", "#eac17a", "#8fdcb3", "#8bc8f5"];
   return (rubric.expenses || [])
     .map((expense, index) => ({
       key: expense.key || `expense-${index}`,
@@ -1899,288 +1204,6 @@ function renderIncomeEvolutionChart() {
     ${singleRubricLegendMarkup}
     <div class='outcome-evolution-svg-wrap'>
       <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${isSingleRubricMode ? "Grafico de linhas com evolucao das despesas da rubrica selecionada" : "Grafico de linhas com evolucao das rubricas de income"}'>
-        ${gridLines}
-        ${monthGridLines}
-        ${lines}
-        ${monthLabels}
-      </svg>
-      <div class='outcome-evolution-tooltip' aria-hidden='true'></div>
-    </div>
-  `;
-
-  bindOutcomeChartHover(host);
-}
-
-function bindSavingsChartInteractions(host) {
-  if (!host || host.dataset.chartBoundSavings === "1") {
-    return;
-  }
-
-  host.dataset.chartBoundSavings = "1";
-  host.addEventListener("click", (event) => {
-    const closeMainChartBtn = event.target.closest("[data-savings-chart-close-main]");
-    if (closeMainChartBtn) {
-      cgdState.savingsChartVisible = false;
-      cgdState.savingsChartSelectedRubricKey = null;
-      cgdState.savingsChartHiddenRubrics.clear();
-      renderPanels();
-      document.dispatchEvent(new Event("cgd:rendered"));
-      requestAnimationFrame(() => {
-        ensurePanelHeadVisible("savings");
-      });
-      return;
-    }
-
-    const drilldownToggle = event.target.closest("[data-savings-drilldown-toggle]");
-    if (drilldownToggle) {
-      const expenseKey = String(drilldownToggle.getAttribute("data-savings-drilldown-toggle") || "").trim();
-      const activeRubricKey = cgdState.savingsChartSelectedRubricKey || String(host.dataset.singleSavingsRubricKey || "").trim();
-      if (expenseKey) {
-        const stateKey = `${activeRubricKey}::${expenseKey}`;
-        if (cgdState.savingsDrilldownHiddenExpenses.has(stateKey)) {
-          cgdState.savingsDrilldownHiddenExpenses.delete(stateKey);
-        } else {
-          cgdState.savingsDrilldownHiddenExpenses.add(stateKey);
-        }
-        renderSavingsEvolutionChart();
-      }
-      return;
-    }
-
-    const drilldownTarget = event.target.closest("[data-savings-chart-drilldown]");
-    if (drilldownTarget) {
-      const key = String(drilldownTarget.getAttribute("data-savings-chart-drilldown") || "").trim();
-      const isSameSelectedRubric = cgdState.savingsChartSelectedRubricKey === key;
-
-      if (isSameSelectedRubric) {
-        cgdState.savingsChartSelectedRubricKey = null;
-        cgdState.savingsChartHiddenRubrics.clear();
-      } else {
-        cgdState.savingsChartSelectedRubricKey = key;
-        const allRubricKeys = buildSavingsRubricSeries().map((entry) => entry.key);
-        cgdState.savingsChartHiddenRubrics.clear();
-        allRubricKeys.forEach((rubricKey) => {
-          if (rubricKey !== key) {
-            cgdState.savingsChartHiddenRubrics.add(rubricKey);
-          }
-        });
-      }
-
-      renderSavingsEvolutionChart();
-      return;
-    }
-
-    const toggleBtn = event.target.closest("[data-savings-chart-toggle]");
-    if (toggleBtn) {
-      const key = String(toggleBtn.getAttribute("data-savings-chart-toggle") || "").trim();
-      if (key) {
-        if (cgdState.savingsChartHiddenRubrics.has(key)) {
-          cgdState.savingsChartHiddenRubrics.delete(key);
-        } else {
-          cgdState.savingsChartHiddenRubrics.add(key);
-          if (cgdState.savingsChartSelectedRubricKey === key) {
-            cgdState.savingsChartSelectedRubricKey = null;
-          }
-        }
-        renderSavingsEvolutionChart();
-      }
-      return;
-    }
-
-    const selectAllBtn = event.target.closest("[data-savings-chart-select-all]");
-    if (selectAllBtn) {
-      cgdState.savingsChartHiddenRubrics.clear();
-      renderSavingsEvolutionChart();
-      return;
-    }
-
-    const deselectAllBtn = event.target.closest("[data-savings-chart-deselect-all]");
-    if (deselectAllBtn) {
-      host.querySelectorAll("[data-savings-chart-toggle]").forEach((item) => {
-        const key = String(item.getAttribute("data-savings-chart-toggle") || "").trim();
-        if (key) {
-          cgdState.savingsChartHiddenRubrics.add(key);
-        }
-      });
-      cgdState.savingsChartSelectedRubricKey = null;
-      renderSavingsEvolutionChart();
-    }
-  });
-}
-
-function renderSavingsEvolutionChart() {
-  const host = document.getElementById("savings-evolution-chart");
-  if (!host) {
-    return;
-  }
-
-  const chartCard = host.closest(".savings-evolution-card");
-  if (!cgdState.savingsChartVisible) {
-    if (chartCard) {
-      chartCard.classList.add("outcome-evolution-card-hidden");
-    }
-    host.innerHTML = "";
-    return;
-  }
-
-  if (chartCard) {
-    chartCard.classList.remove("outcome-evolution-card-hidden");
-  }
-
-  bindSavingsChartInteractions(host);
-
-  const series = buildSavingsRubricSeries();
-  const visibleSeries = series.filter((entry) => !cgdState.savingsChartHiddenRubrics.has(entry.key));
-  const singleVisibleRubric = visibleSeries.length === 1 ? visibleSeries[0] : null;
-  host.dataset.singleSavingsRubricKey = singleVisibleRubric ? singleVisibleRubric.key : "";
-
-  const legend = series
-    .map((entry) => {
-      const isVisible = !cgdState.savingsChartHiddenRubrics.has(entry.key);
-      const stateClass = isVisible ? "is-active" : "is-inactive";
-      return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-savings-chart-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisible ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</button>`;
-    })
-    .join("");
-
-  if (!series.length) {
-    host.innerHTML = `
-      <p class='outcome-evolution-empty'>Ainda nao existem valores totalizadores para desenhar a evolucao anual.</p>
-      <div class='outcome-evolution-legend'></div>
-    `;
-    return;
-  }
-
-  if (!visibleSeries.length) {
-    host.innerHTML = `
-      <p class='outcome-evolution-empty'>Nenhuma rubrica selecionada. Clica na legenda para voltar a mostrar.</p>
-      <div class='outcome-evolution-legend'>${legend}</div>
-    `;
-    return;
-  }
-
-  const isSingleRubricMode = Boolean(singleVisibleRubric);
-  const expenseSeries = isSingleRubricMode ? buildSavingsExpenseSeriesForRubric(singleVisibleRubric) : [];
-  const expenseStateKey = (expenseKey) => `${singleVisibleRubric.key}::${expenseKey}`;
-  const visibleExpenseSeries = isSingleRubricMode
-    ? expenseSeries.filter((entry) => !cgdState.savingsDrilldownHiddenExpenses.has(expenseStateKey(entry.key)))
-    : [];
-
-  const chartWidth = 980;
-  const chartHeight = 320;
-  const padding = { top: 20, right: 18, bottom: 38, left: 54 };
-  const plotWidth = chartWidth - padding.left - padding.right;
-  const plotHeight = chartHeight - padding.top - padding.bottom;
-  const monthStep = plotWidth / (months.length - 1);
-  const plotBottom = padding.top + plotHeight;
-
-  const plottedSeries = isSingleRubricMode ? visibleExpenseSeries : visibleSeries;
-  if (isSingleRubricMode && !expenseSeries.length) {
-    host.innerHTML = `
-      <div class='outcome-drilldown-toolbar'>
-        <button type='button' class='outcome-drilldown-close-btn' data-savings-chart-close-main>Fechar</button>
-      </div>
-      <div class='outcome-evolution-top-series'>${legend}</div>
-      <p class='outcome-evolution-empty'>Esta rubrica nao tem despesas com valores ao longo do ano.</p>
-    `;
-    return;
-  }
-
-  if (isSingleRubricMode && !visibleExpenseSeries.length) {
-    host.innerHTML = `
-      <div class='outcome-drilldown-toolbar'>
-        <button type='button' class='outcome-drilldown-close-btn' data-savings-chart-close-main>Fechar</button>
-      </div>
-      <div class='outcome-evolution-top-series'>${legend}</div>
-      <p class='outcome-evolution-empty'>Nenhuma despesa selecionada. Clica na legenda para voltar a mostrar.</p>
-      <div class='outcome-evolution-top-series'>${expenseSeries
-        .map((entry) => {
-          const isVisible = !cgdState.savingsDrilldownHiddenExpenses.has(expenseStateKey(entry.key));
-          const stateClass = isVisible ? "is-active" : "is-inactive";
-          return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-savings-drilldown-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisible ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</button>`;
-        })
-        .join("")}</div>
-    `;
-    return;
-  }
-
-  const maxValue = Math.max(...plottedSeries.flatMap((entry) => entry.values));
-  const yMax = maxValue > 0 ? maxValue : 1;
-
-  const xFor = (monthIndex) => padding.left + monthIndex * monthStep;
-  const yFor = (value) => padding.top + plotHeight - (value / yMax) * plotHeight;
-
-  const horizontalGridCount = 12;
-  const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
-    const ratio = index / horizontalGridCount;
-    const y = padding.top + plotHeight - ratio * plotHeight;
-    const labelValue = yMax * ratio;
-    return `
-      <line x1='${padding.left}' y1='${y}' x2='${chartWidth - padding.right}' y2='${y}' stroke='rgba(176,210,226,0.18)' stroke-width='0.7' />
-      <text x='${padding.left - 8}' y='${y + 4}' text-anchor='end' fill='rgba(197,220,231,0.82)' font-size='9'>${labelValue.toFixed(0)}</text>
-    `;
-  }).join("");
-
-  const monthLabels = months
-    .map((month, monthIndex) => {
-      const x = xFor(monthIndex);
-      return `<text x='${x}' y='${chartHeight - 12}' text-anchor='middle' fill='rgba(197,220,231,0.9)' font-size='10'>${escapeHtml(month)}</text>`;
-    })
-    .join("");
-
-  const monthGridLines = months
-    .map((_, monthIndex) => {
-      const x = xFor(monthIndex);
-      return `<line x1='${x}' y1='${padding.top}' x2='${x}' y2='${padding.top + plotHeight}' stroke='rgba(176,210,226,0.12)' stroke-width='1' />`;
-    })
-    .join("");
-
-  const lines = plottedSeries
-    .map((entry) => {
-      const isSelected = !isSingleRubricMode && entry.key === cgdState.savingsChartSelectedRubricKey;
-      const strokeWidth = isSingleRubricMode ? "0.6" : "1.3";
-      const selectionClass = isSelected ? "is-selected" : "";
-      const points = entry.values.map((value, monthIndex) => ({ x: xFor(monthIndex), y: yFor(value), value, monthIndex }));
-      const pathData = buildSmoothPathData(points);
-      const areaPath = `${pathData} L ${points[points.length - 1].x.toFixed(2)} ${plotBottom.toFixed(2)} L ${points[0].x.toFixed(2)} ${plotBottom.toFixed(2)} Z`;
-      const pointsMarkup = entry.values
-        .map((value, monthIndex) => {
-          const cx = xFor(monthIndex);
-          const cy = yFor(value);
-          return `<circle class='outcome-evolution-point' cx='${cx.toFixed(2)}' cy='${cy.toFixed(2)}' r='2.8' fill='${entry.color}' tabindex='0' data-series-name='${escapeHtml(entry.name)}' data-month-name='${escapeHtml(months[monthIndex])}' data-value='${value.toFixed(2)}' data-series-color='${entry.color}'></circle>`;
-        })
-        .join("");
-      return `
-        <g class='outcome-evolution-series ${selectionClass}' ${isSingleRubricMode ? "" : `data-savings-chart-drilldown='${escapeHtml(entry.key)}'`}>
-          <path d='${areaPath}' class='outcome-evolution-area' fill='${entry.color}' fill-opacity='0.10' />
-          <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='${strokeWidth}' stroke-linecap='round' stroke-linejoin='round' />
-          ${pointsMarkup}
-        </g>
-      `;
-    })
-    .join("");
-
-  const expenseLegend = isSingleRubricMode
-    ? expenseSeries
-        .map((entry) => {
-          const isVisible = !cgdState.savingsDrilldownHiddenExpenses.has(expenseStateKey(entry.key));
-          const stateClass = isVisible ? "is-active" : "is-inactive";
-          return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-savings-drilldown-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisible ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.name)}</button>`;
-        })
-        .join("")
-    : "";
-
-  const singleRubricLegendMarkup = isSingleRubricMode && expenseSeries.length
-    ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>`
-    : "";
-
-  host.innerHTML = `
-    <div class='outcome-drilldown-toolbar'>
-      <button type='button' class='outcome-drilldown-close-btn' data-savings-chart-close-main>Fechar</button>
-    </div>
-    <div class='outcome-evolution-top-series'>${legend}</div>
-    ${singleRubricLegendMarkup}
-    <div class='outcome-evolution-svg-wrap'>
-      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${isSingleRubricMode ? "Grafico de linhas com evolucao das despesas da rubrica selecionada" : "Grafico de linhas com evolucao das rubricas de savings"}'>
         ${gridLines}
         ${monthGridLines}
         ${lines}
@@ -2507,132 +1530,22 @@ function renderPanels() {
     <section class='outcome-evolution-card income-comparison-card'>
       <div class='outcome-evolution' id='income-comparison-chart' aria-live='polite'></div>
     </section>
-    ${buildPanel("Savings", "savings", cgdState.data.savings)}
-    <section class='outcome-evolution-card savings-evolution-card'>
-      <div class='outcome-evolution' id='savings-evolution-chart' aria-live='polite'></div>
-    </section>
-    <section class='outcome-evolution-card savings-comparison-card'>
-      <div class='outcome-evolution' id='savings-comparison-chart' aria-live='polite'></div>
-    </section>
     ${buildPanel("Outcome", "outcome", cgdState.data.outcome)}
-    <section class='outcome-evolution-card outcome-evolution-card-main'>
-      <div class='outcome-evolution' id='outcome-evolution-chart' aria-live='polite'></div>
-    </section>
-    <section class='outcome-evolution-card outcome-comparison-card-main'>
-      <div class='outcome-evolution' id='outcome-comparison-chart' aria-live='polite'></div>
-    </section>
-    ${buildBalancePanel()}
   `;
 
   restoreCollapseState(collapseState);
 
   renderIncomeEvolutionChart();
   renderIncomeComparisonChart();
-  renderSavingsEvolutionChart();
-  renderSavingsComparisonChart();
   renderOutcomeEvolutionChart();
   renderOutcomeComparisonChart();
-}
-
-function parseMoneyInputValue(value) {
-  const normalized = String(value || "").replace(/\s+/g, "").replace(/,/g, "").trim();
-  if (!normalized) {
-    return null;
-  }
-  const numeric = Number(normalized);
-  return Number.isFinite(numeric) ? numeric : null;
-}
-
-function normalizeBoundedRealInputValue(value) {
-  const parsed = parseMoneyInputValue(value);
-  if (parsed === null) {
-    return null;
-  }
-
-  const clamped = Math.max(-999999.99, Math.min(999999.99, parsed));
-  return Math.round(clamped * 100) / 100;
-}
-
-function isPastMonthOfCurrentYear(year, monthIndex) {
-  const selectedYear = Number(year);
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
-  return selectedYear === currentYear && Number(monthIndex) < currentMonth;
-}
-
-function syncRealTotalizerEditableMonth(monthIndex) {
-  const activeMonth = Number(monthIndex);
-  const validActiveMonth = Number.isInteger(activeMonth) && activeMonth >= 0 && activeMonth <= 11
-    ? activeMonth
-    : Number(document.querySelector(".month-tile.active")?.getAttribute("data-month"));
-
-  document.querySelectorAll("input[data-real-total-input='true']").forEach((input) => {
-    const inputMonth = Number(input.getAttribute("data-real-total-month"));
-    const editable = Number.isInteger(validActiveMonth) && inputMonth === validActiveMonth;
-    input.readOnly = !editable;
-    input.classList.toggle("is-locked", !editable);
-    input.setAttribute("aria-readonly", String(!editable));
-    input.tabIndex = editable ? 0 : -1;
-  });
-}
-
-function bindSoberTotalizerInputs() {
-  document.addEventListener("input", (event) => {
-    const input = event.target.closest("input[data-real-total-input='true']");
-    if (!input || input.readOnly) {
-      return;
-    }
-
-    const normalized = String(input.value || "")
-      .replace(/[^0-9,\.-]/g, "")
-      .replace(/(?!^)-/g, "");
-    if (normalized !== input.value) {
-      input.value = normalized;
-    }
-  });
-
-  document.addEventListener("focusout", (event) => {
-    const input = event.target.closest("input[data-real-total-input='true']");
-    if (!input || input.readOnly) {
-      return;
-    }
-
-    const monthIndex = Number(input.getAttribute("data-real-total-month"));
-    if (!Number.isInteger(monthIndex) || monthIndex < 0 || monthIndex > 11) {
-      return;
-    }
-
-    const year = Number(cgdState.selectedYear);
-    const lastValidValue = input.getAttribute("data-last-valid") || "";
-    const realValue = normalizeBoundedRealInputValue(input.value);
-    if (realValue === null && String(input.value || "").trim() !== "") {
-      input.value = lastValidValue || money(0);
-      return;
-    }
-
-    input.value = realValue == null ? "" : money(realValue);
-    input.setAttribute("data-last-valid", input.value);
-
-    upsertRealValueForMonth({
-      ano: year,
-      mes: monthIndex + 1,
-      real: realValue
-    })
-      .then(() => loadYearData(cgdState.selectedYear))
-      .catch((error) => {
-        console.error("Erro ao guardar valor real em cgd_real:", error);
-      });
-  });
 }
 
 function buildComparisonSeriesForKind(kind) {
   const palette = kind === "income"
     ? ["#6ecf9a", "#7cc4ff", "#9ed86b", "#58d2c3", "#8bcf7a", "#5fb3de", "#9edfb7", "#71d0ff", "#77c87f", "#79bdf0"]
-    : kind === "savings"
-      ? ["#70c3ff", "#5fc8b6", "#f2c46a", "#7cc4ff", "#84d56b", "#f08b5f", "#58d2c3", "#9ad9ff", "#9ed86b", "#a9e46f"]
-      : ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"];
-  const sourceRubrics = kind === "income" ? cgdState.data?.income : kind === "savings" ? cgdState.data?.savings : cgdState.data?.outcome;
+    : ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"];
+  const sourceRubrics = kind === "income" ? cgdState.data?.income : cgdState.data?.outcome;
   const rubrics = Array.isArray(sourceRubrics) ? sourceRubrics : [];
 
   return rubrics
@@ -2692,9 +1605,7 @@ function buildComparisonExpenseSeriesForRubric(rubric, kind) {
 
   const palette = kind === "income"
     ? ["#8fdcb3", "#8bc8f5", "#9fdc88", "#7fded2", "#95d889", "#79bfe3", "#abdcc6", "#8fd7ff", "#8bcf96", "#93c4eb"]
-    : kind === "savings"
-      ? ["#9ad9ff", "#a9e46f", "#f7c86a", "#7acfc6", "#95c7ff", "#e8a0b4", "#84d56b", "#eac17a", "#8fdcb3", "#8bc8f5"]
-      : ["#9ad9ff", "#a9e46f", "#f7c86a", "#f3a47d", "#95c7ff", "#84d56b", "#e8a0b4", "#7acfc6", "#eac17a", "#a6d8b5"];
+    : ["#9ad9ff", "#a9e46f", "#f7c86a", "#f3a47d", "#95c7ff", "#84d56b", "#e8a0b4", "#7acfc6", "#eac17a", "#a6d8b5"];
 
   const expenses = Array.isArray(rubric.expenses) ? rubric.expenses : [];
   return expenses.map((expense, index) => ({
@@ -2757,25 +1668,15 @@ function bindComparisonChartInteractions(host, kind) {
 
   host.dataset.comparisonChartBound = "1";
   host.addEventListener("click", (event) => {
-    const hiddenSet = kind === "income"
-      ? cgdState.incomeComparisonHiddenRubrics
-      : kind === "savings"
-        ? cgdState.savingsComparisonHiddenRubrics
-        : cgdState.outcomeComparisonHiddenRubrics;
-    const hiddenExpensesSet = kind === "income"
-      ? cgdState.incomeComparisonHiddenExpenses
-      : kind === "savings"
-        ? cgdState.savingsComparisonHiddenExpenses
-        : cgdState.outcomeComparisonHiddenExpenses;
+    const hiddenSet = kind === "income" ? cgdState.incomeComparisonHiddenRubrics : cgdState.outcomeComparisonHiddenRubrics;
+    const hiddenExpensesSet = kind === "income" ? cgdState.incomeComparisonHiddenExpenses : cgdState.outcomeComparisonHiddenExpenses;
 
-    const closeBtn = event.target.closest("[data-income-comparison-chart-close-main], [data-savings-comparison-chart-close-main], [data-outcome-comparison-chart-close-main]");
+    const closeBtn = event.target.closest("[data-income-comparison-chart-close-main], [data-outcome-comparison-chart-close-main]");
     if (closeBtn) {
       hiddenSet.clear();
       hiddenExpensesSet.clear();
       if (kind === "income") {
         cgdState.incomeComparisonChartVisible = false;
-      } else if (kind === "savings") {
-        cgdState.savingsComparisonChartVisible = false;
       } else {
         cgdState.outcomeComparisonChartVisible = false;
       }
@@ -2805,8 +1706,6 @@ function bindComparisonChartInteractions(host, kind) {
 
       if (kind === "income") {
         renderIncomeComparisonChart();
-      } else if (kind === "savings") {
-        renderSavingsComparisonChart();
       } else {
         renderOutcomeComparisonChart();
       }
@@ -2828,8 +1727,6 @@ function bindComparisonChartInteractions(host, kind) {
 
       if (kind === "income") {
         renderIncomeComparisonChart();
-      } else if (kind === "savings") {
-        renderSavingsComparisonChart();
       } else {
         renderOutcomeComparisonChart();
       }
@@ -2860,16 +1757,8 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
 
   bindComparisonChartInteractions(host, kind);
 
-  const hiddenSet = kind === "income"
-    ? cgdState.incomeComparisonHiddenRubrics
-    : kind === "savings"
-      ? cgdState.savingsComparisonHiddenRubrics
-      : cgdState.outcomeComparisonHiddenRubrics;
-  const hiddenExpensesSet = kind === "income"
-    ? cgdState.incomeComparisonHiddenExpenses
-    : kind === "savings"
-      ? cgdState.savingsComparisonHiddenExpenses
-      : cgdState.outcomeComparisonHiddenExpenses;
+  const hiddenSet = kind === "income" ? cgdState.incomeComparisonHiddenRubrics : cgdState.outcomeComparisonHiddenRubrics;
+  const hiddenExpensesSet = kind === "income" ? cgdState.incomeComparisonHiddenExpenses : cgdState.outcomeComparisonHiddenExpenses;
   const rubricSeries = buildComparisonSeriesForKind(kind);
 
   if (!rubricSeries.length) {
@@ -2985,16 +1874,15 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
     })
     .join("");
 
-  const monthInnerPadding = 6;
   const barPairsPerMonth = Math.max(plottedSeries.length, 1);
+  const monthInnerPadding = 6;
   const barSlotWidth = Math.max((monthBand - monthInnerPadding * 2) / (barPairsPerMonth * 2), 2);
   const barWidth = Math.min(barSlotWidth, 11);
   const clusterWidth = barPairsPerMonth * 2 * barWidth;
 
   const bars = months
     .map((monthName, monthIndex) => {
-      const monthCenter = xFor(monthIndex) + monthBand / 2;
-      const monthStart = monthCenter - clusterWidth / 2;
+      const monthStart = xFor(monthIndex) + monthBand / 2 - clusterWidth / 2;
       return plottedSeries
         .map((entry, entryIndex) => {
           const baseX = monthStart + entryIndex * 2 * barWidth;
@@ -3004,6 +1892,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
           const estimatedY = yFor(estimated);
           const valueHeight = Math.max(padding.top + plotHeight - valueY, 1);
           const estimatedHeight = Math.max(padding.top + plotHeight - estimatedY, 1);
+
           return `
             <rect class='outcome-comparison-bar' x='${baseX.toFixed(2)}' y='${valueY.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${valueHeight.toFixed(2)}' fill='${entry.color}' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} · Valor`)}' data-month-name='${escapeHtml(monthName)}' data-value='${value.toFixed(2)}' data-series-color='${entry.color}'></rect>
             <rect class='outcome-comparison-bar outcome-comparison-bar-estimated' x='${(baseX + barWidth).toFixed(2)}' y='${estimatedY.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${estimatedHeight.toFixed(2)}' fill='${entry.color}' fill-opacity='0.42' stroke='${entry.color}' stroke-width='0.8' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} · Estimado`)}' data-month-name='${escapeHtml(monthName)}' data-value='${estimated.toFixed(2)}' data-series-color='${entry.color}'></rect>
@@ -3017,13 +1906,9 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
     ? (isSingleRubricMode
       ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de income selecionada"
       : "Grafico comparativo mensal de valor e valor estimado do income")
-    : kind === "savings"
-      ? (isSingleRubricMode
-        ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de savings selecionada"
-        : "Grafico comparativo mensal de valor e valor estimado do savings")
-      : (isSingleRubricMode
-        ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de outcome selecionada"
-        : "Grafico comparativo mensal de valor e valor estimado do outcome");
+    : (isSingleRubricMode
+      ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de outcome selecionada"
+      : "Grafico comparativo mensal de valor e valor estimado do outcome");
 
   const singleRubricLegendMarkup = isSingleRubricMode && expenseSeries.length
     ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>`
@@ -3067,15 +1952,6 @@ function renderOutcomeComparisonChart() {
   });
 }
 
-function renderSavingsComparisonChart() {
-  renderComparisonChart({
-    hostId: "savings-comparison-chart",
-    kind: "savings",
-    isVisible: cgdState.savingsComparisonChartVisible,
-    closeAttr: "data-savings-comparison-chart-close-main"
-  });
-}
-
 window.cgdToggleIncomeChart = () => {
   cgdState.incomeChartVisible = !cgdState.incomeChartVisible;
   if (!cgdState.incomeChartVisible) {
@@ -3114,46 +1990,6 @@ window.cgdToggleIncomeComparisonChart = () => {
   }
 
   return cgdState.incomeComparisonChartVisible;
-};
-
-window.cgdToggleSavingsChart = () => {
-  cgdState.savingsChartVisible = !cgdState.savingsChartVisible;
-  if (!cgdState.savingsChartVisible) {
-    cgdState.savingsChartSelectedRubricKey = null;
-    cgdState.savingsChartHiddenRubrics.clear();
-  }
-  renderPanels();
-  document.dispatchEvent(new Event("cgd:rendered"));
-
-  if (cgdState.savingsChartVisible) {
-    scheduleChartOpenScroll(".savings-evolution-card");
-  } else {
-    requestAnimationFrame(() => {
-      ensurePanelHeadVisible("savings");
-    });
-  }
-
-  return cgdState.savingsChartVisible;
-};
-
-window.cgdToggleSavingsComparisonChart = () => {
-  cgdState.savingsComparisonChartVisible = !cgdState.savingsComparisonChartVisible;
-  if (!cgdState.savingsComparisonChartVisible) {
-    cgdState.savingsComparisonHiddenRubrics.clear();
-    cgdState.savingsComparisonHiddenExpenses.clear();
-  }
-  renderPanels();
-  document.dispatchEvent(new Event("cgd:rendered"));
-
-  if (cgdState.savingsComparisonChartVisible) {
-    scheduleChartOpenScroll(".savings-comparison-card");
-  } else {
-    requestAnimationFrame(() => {
-      ensurePanelHeadVisible("savings");
-    });
-  }
-
-  return cgdState.savingsComparisonChartVisible;
 };
 
 window.cgdToggleOutcomeChart = () => {
@@ -3205,23 +2041,16 @@ async function loadYearData(year) {
 
   if (!supabaseClient) {
     cgdState.data = fallbackMock;
-    cgdState.realComputationContexts = {
-      [Number(year)]: defaultRealComputationContext(),
-      [Number(year) - 1]: defaultRealComputationContext(),
-      [Number(year) - 2]: defaultRealComputationContext()
-    };
-    renderSoberTotalizer();
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
     return;
   }
 
   try {
-    const [rubricsResult, expensesResult, expenseHistoryResult, realValuesResult] = await Promise.allSettled([
+    const [rubricsResult, expensesResult, expenseHistoryResult] = await Promise.allSettled([
       fetchRubricsForYear(year),
       fetchExpensesForYear(year),
-      fetchExpenseHistoryMonthKeysForYear(year),
-      fetchRealValuesForYear(year)
+      fetchExpenseHistoryMonthKeysForYear(year)
     ]);
 
     const rubricRows = rubricsResult.status === "fulfilled" ? rubricsResult.value : [];
@@ -3240,72 +2069,13 @@ async function loadYearData(year) {
       console.error("Erro a carregar historico de notas CGD:", expenseHistoryResult.reason);
     }
 
-    if (realValuesResult.status === "rejected") {
-      console.error("Erro a carregar valores reais CGD:", realValuesResult.reason);
-    }
-
     const expenseHistoryMonthKeys = expenseHistoryResult.status === "fulfilled" ? expenseHistoryResult.value : new Set();
-    const realRows = realValuesResult.status === "fulfilled" ? realValuesResult.value : [];
-    const model = buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys);
-    cgdState.data = model;
-
-    // Never let totalizer context errors hide main rubric/expense panels.
-    try {
-      const [previousYearContext, twoYearsBackContext] = await Promise.all([
-        fetchYearContextForRealComputation(Number(year) - 1),
-        fetchYearContextForRealComputation(Number(year) - 2)
-      ]);
-
-      cgdState.realComputationContexts = {
-        [Number(year)]: {
-          dbRealValues: buildRealValuesFromRows(realRows),
-          savingsRubricsById: buildSavingsRubricsById(model),
-          totals: buildTotalsForModel(model)
-        },
-        [Number(year) - 1]: previousYearContext,
-        [Number(year) - 2]: twoYearsBackContext
-      };
-    } catch (realContextError) {
-      console.error("Erro a preparar contexto real do totalizador:", realContextError);
-      cgdState.realComputationContexts = {
-        [Number(year)]: {
-          dbRealValues: buildRealValuesFromRows(realRows),
-          savingsRubricsById: buildSavingsRubricsById(model),
-          totals: buildTotalsForModel(model)
-        },
-        [Number(year) - 1]: defaultRealComputationContext(),
-        [Number(year) - 2]: defaultRealComputationContext()
-      };
-    }
-
-    try {
-      renderSoberTotalizer();
-    } catch (totalizerError) {
-      console.error("Erro a renderizar totalizador CGD:", totalizerError);
-      const totalizerHost = document.getElementById("cgd-totalizer");
-      if (totalizerHost) {
-        totalizerHost.innerHTML = "";
-      }
-    }
+    cgdState.data = buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys);
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
   } catch (error) {
     console.error("Erro a carregar dados CGD:", error);
     cgdState.data = fallbackMock;
-    cgdState.realComputationContexts = {
-      [Number(year)]: defaultRealComputationContext(),
-      [Number(year) - 1]: defaultRealComputationContext(),
-      [Number(year) - 2]: defaultRealComputationContext()
-    };
-    try {
-      renderSoberTotalizer();
-    } catch (totalizerError) {
-      console.error("Erro a renderizar totalizador CGD em fallback:", totalizerError);
-      const totalizerHost = document.getElementById("cgd-totalizer");
-      if (totalizerHost) {
-        totalizerHost.innerHTML = "";
-      }
-    }
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
   }
@@ -3320,16 +2090,7 @@ async function persistRubricOrder(rubricRows) {
     .map((row, index) => ({
       id: Number(row.getAttribute("data-rubrica-id")),
       seq: index + 1,
-      tipo: (() => {
-        const rubricType = row.getAttribute("data-rubrica-tipo");
-        if (rubricType === "income") {
-          return "Receita";
-        }
-        if (rubricType === "savings") {
-          return "Aprovisionamento";
-        }
-        return "Despesa";
-      })()
+      tipo: row.getAttribute("data-rubrica-tipo") === "income" ? "receita" : "despesa"
     }))
     .filter((item) => Number.isFinite(item.id));
 
@@ -3401,8 +2162,8 @@ async function createRubricaForYear(kind, description) {
     return;
   }
 
-  const normalizedKind = kind === "income" || kind === "savings" ? kind : "outcome";
-  const rubricaTipo = normalizedKind === "income" ? "Receita" : normalizedKind === "savings" ? "Aprovisionamento" : "Despesa";
+  const normalizedKind = kind === "income" ? "income" : "outcome";
+  const rubricaTipo = normalizedKind === "income" ? "Receita" : "Despesa";
   const existing = cgdState.data[normalizedKind] || [];
   const nextSeq = existing.length ? Math.max(...existing.map((item) => parseSeq(item.seq, 0))) + 1 : 1;
   const nextRubricaId = await getNextRubricaId();
@@ -3442,16 +2203,8 @@ async function createDespesaForRubrica(rubricaId, description) {
     return;
   }
 
-  const rubricType = cgdState.data.income.some((rubric) => Number(rubric.id) === rubricaId)
-    ? "income"
-    : cgdState.data.savings.some((rubric) => Number(rubric.id) === rubricaId)
-      ? "savings"
-      : "outcome";
-  const sourceRubrics = rubricType === "income"
-    ? cgdState.data.income
-    : rubricType === "savings"
-      ? cgdState.data.savings
-      : cgdState.data.outcome;
+  const rubricType = cgdState.data.income.some((rubric) => Number(rubric.id) === rubricaId) ? "income" : "outcome";
+  const sourceRubrics = rubricType === "income" ? cgdState.data.income : cgdState.data.outcome;
   const rubric = sourceRubrics.find((item) => Number(item.id) === rubricaId);
   const existingExpenses = rubric?.expenses || [];
   const nextSeq = existingExpenses.length ? Math.max(...existingExpenses.map((item) => parseSeq(item.seq, 0))) + 1 : 1;
@@ -3634,7 +2387,7 @@ async function deleteRubricaForYear(rubricaId) {
 }
 
 function findExpenseRecord(rubricaId, despesaId) {
-  const allRubrics = [...(cgdState.data.income || []), ...(cgdState.data.savings || []), ...(cgdState.data.outcome || [])];
+  const allRubrics = [...(cgdState.data.income || []), ...(cgdState.data.outcome || [])];
   for (const rubric of allRubrics) {
     if (Number(rubric.id) !== Number(rubricaId)) {
       continue;
@@ -3672,24 +2425,16 @@ function resolveSelectedExpenseKey({ rubricaId, despesaId, monthIndex }) {
   };
 }
 
-function resolveExpenseUpdatePayload(detail, options = {}) {
-  const estimatedMode = Boolean(options?.estimatedMode);
+function resolveExpenseUpdatePayload(detail) {
   const payload = {
+    valor: detail.valor,
     totalizador: detail.totalizador
   };
 
-  if (cgdState.expenseColumns.has("zerado")) {
-    payload.zerado = false;
-  }
-
-  if (estimatedMode) {
-    if (cgdState.expenseColumns.has("valor_estimado")) {
-      payload.valor_estimado = detail.valorEstimado;
-    } else if (cgdState.expenseColumns.has("valor_Estimado")) {
-      payload.valor_Estimado = detail.valorEstimado;
-    }
-  } else {
-    payload.valor = detail.valor;
+  if (cgdState.expenseColumns.has("valor_estimado")) {
+    payload.valor_estimado = detail.valorEstimado;
+  } else if (cgdState.expenseColumns.has("valor_Estimado")) {
+    payload.valor_Estimado = detail.valorEstimado;
   }
 
   if (cgdState.expenseColumns.has("nota")) {
@@ -3702,12 +2447,10 @@ function resolveExpenseUpdatePayload(detail, options = {}) {
 }
 
 window.cgdLoadYearData = loadYearData;
-window.cgdSyncRealTotalizerEditableMonth = syncRealTotalizerEditableMonth;
 
 window.cgdCreateRubric = async (kind) => {
-  const sectionLabel = kind === "income" ? "Income" : kind === "savings" ? "Savings" : "Outcome";
   const description = await requestEntityDescription({
-    title: `Adicionar rubrica ${sectionLabel}`,
+    title: `Adicionar rubrica ${kind === "income" ? "Income" : "Outcome"}`,
     subtitle: "Indica o descritivo da nova rubrica para o ano selecionado.",
     label: "Descricao da rubrica",
     promptText: "Descricao da nova rubrica"
@@ -3722,14 +2465,6 @@ window.cgdCreateRubric = async (kind) => {
     return true;
   } catch (error) {
     console.error("Erro ao criar rubrica:", error);
-    const code = String(error?.code || "").trim();
-    const message = String(error?.message || "").toLowerCase();
-    const isSavingsConstraintError =
-      kind === "savings" && code === "23514" && (message.includes("rubrica_tipo") || message.includes("check constraint"));
-
-    if (isSavingsConstraintError) {
-      window.alert("Nao foi possivel criar a rubrica em Savings porque a base de dados ainda nao permite rubrica_tipo = Aprovisionamento. Aplica a migration que atualiza a check constraint da tabela cgd_rubrica.");
-    }
     return false;
   }
 };
@@ -3803,31 +2538,17 @@ window.cgdGetExpenseDetail = ({ rubricaId, despesaId, monthIndex }) => {
   }
 
   const monthDetail = found.expense.monthData?.[index] || {
-    valor: null,
+    valor: 0,
     valorEstimado: 0,
     totalizador: false,
-    zerado: false,
     nota: ""
   };
 
-  const noteText = monthDetail.nota == null ? "" : String(monthDetail.nota);
-  const isZerado = Boolean(monthDetail.zerado);
-  const rawValor = Number(monthDetail.valor);
-  const hasValor = Number.isFinite(rawValor) && rawValor !== 0;
-  const normalizedValor = hasValor ? rawValor : null;
-  const normalizedValorEstimado = Number(monthDetail.valorEstimado);
-  const safeValorEstimado = Number.isFinite(normalizedValorEstimado) ? normalizedValorEstimado : 0;
-
-  const valorInputValue = isZerado
-    ? null
-    : (hasValor ? normalizedValor : safeValorEstimado);
-
   return {
-    valor: normalizedValor,
-    valorInputValue,
-    valorEstimado: safeValorEstimado,
+    valor: Number(monthDetail.valor) || 0,
+    valorEstimado: Number(monthDetail.valorEstimado) || 0,
     totalizador: Boolean(monthDetail.totalizador),
-    nota: noteText
+    nota: monthDetail.nota || ""
   };
 };
 
@@ -3875,21 +2596,7 @@ window.cgdDeleteExpenseNote = async ({ rubricaId, despesaId, monthIndex, contado
   return true;
 };
 
-window.cgdSaveExpenseDetail = async ({
-  rubricaId,
-  despesaId,
-  monthIndex,
-  valor,
-  valorEstimado,
-  estimatedMode,
-  totalizador,
-  nota,
-  applyToEndYear,
-  adjustmentValue,
-  registerAdjustment,
-  registerValueChangeNote,
-  noteEntryValue
-}) => {
+window.cgdSaveExpenseDetail = async ({ rubricaId, despesaId, monthIndex, valor, valorEstimado, totalizador, nota, applyToEndYear, adjustmentValue, registerAdjustment }) => {
   if (!supabaseClient) {
     return false;
   }
@@ -3910,8 +2617,7 @@ window.cgdSaveExpenseDetail = async ({
     nota: nota == null ? "" : String(nota)
   };
 
-  const estimatedToggleOn = Boolean(estimatedMode);
-  const payload = resolveExpenseUpdatePayload(detail, { estimatedMode: estimatedToggleOn });
+  const payload = resolveExpenseUpdatePayload(detail);
   const targetMonths = applyToEndYear
     ? Array.from({ length: 13 - startMonth }, (_, index) => startMonth + index)
     : [startMonth];
@@ -3935,22 +2641,10 @@ window.cgdSaveExpenseDetail = async ({
   }
 
   const numericAdjustment = Number(adjustmentValue);
-  const normalizedNoteEntryValue = Number(noteEntryValue);
-  const rawAdjustmentNote = String(nota == null ? "" : nota).trim();
-  const adjustmentNote = estimatedToggleOn
-    ? (rawAdjustmentNote ? `(Est) ${rawAdjustmentNote}` : "(Est)")
-    : rawAdjustmentNote;
-  const shouldRegisterAdjustment = Boolean(registerAdjustment) && Number.isFinite(numericAdjustment) && numericAdjustment !== 0;
-  const shouldRegisterValueChangeNote = Boolean(registerValueChangeNote);
-  const shouldCreateNote = shouldRegisterAdjustment || shouldRegisterValueChangeNote;
-
-  if (shouldCreateNote) {
-    const valueForNote = shouldRegisterAdjustment
-      ? numericAdjustment
-      : Number.isFinite(normalizedNoteEntryValue)
-        ? normalizedNoteEntryValue
-        : detail.valor;
-
+  const adjustmentNote = String(nota == null ? "" : nota).trim();
+  const shouldRegisterAdjustment =
+    Boolean(registerAdjustment) && Number.isFinite(numericAdjustment) && numericAdjustment !== 0 && adjustmentNote.length > 0;
+  if (shouldRegisterAdjustment) {
     await Promise.all(
       targetMonths.map((mes) =>
         createExpenseNoteEntry({
@@ -3958,41 +2652,14 @@ window.cgdSaveExpenseDetail = async ({
           rubricaId: selectedKey.rubricaId,
           despesaId: selectedKey.despesaId,
           mes,
-          valor: valueForNote,
+          valor: numericAdjustment,
           nota: adjustmentNote
         })
       )
     );
   }
 
-  await refreshYearDataAndFutureTotalizerFromMonth(startMonth - 1);
-  return true;
-};
-
-window.cgdZeroExpenseDetail = async ({ rubricaId, despesaId, monthIndex }) => {
-  if (!supabaseClient) {
-    return false;
-  }
-
-  const selectedKey = resolveSelectedExpenseKey({ rubricaId, despesaId, monthIndex });
-  if (!selectedKey) {
-    return false;
-  }
-
-  const payload = { valor: null };
-  if (cgdState.expenseColumns.has("zerado")) {
-    payload.zerado = true;
-  }
-
-  await supabaseClient
-    .from("cgd_despesa")
-    .update(payload)
-    .eq("ano", selectedKey.ano)
-    .eq("rubrica_id", selectedKey.rubricaId)
-    .eq("despesa_id", selectedKey.despesaId)
-    .eq("mes", selectedKey.mes);
-
-  await refreshYearDataAndFutureTotalizerFromMonth(selectedKey.mes - 1);
+  await loadYearData(cgdState.selectedYear);
   return true;
 };
 
@@ -4050,7 +2717,6 @@ window.cgdHandleExpenseReorder = async (row, action) => {
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
-  bindSoberTotalizerInputs();
   renderTimeline(cgdState.selectedYear);
   await loadYearData(cgdState.selectedYear);
 
