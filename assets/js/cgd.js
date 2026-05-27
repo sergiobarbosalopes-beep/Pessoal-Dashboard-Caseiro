@@ -76,12 +76,13 @@ function parseExpenseValue(record, fallback = 0, options = {}) {
   }
   const rawValor = record?.valor;
   const rawValorEstimado = record?.valor_estimado ?? record?.valor_Estimado;
-  const hasValor = rawValor !== null && rawValor !== undefined && String(rawValor).trim() !== "";
+  const hasValorRaw = rawValor !== null && rawValor !== undefined && String(rawValor).trim() !== "";
   const hasValorEstimado = rawValorEstimado !== null && rawValorEstimado !== undefined && String(rawValorEstimado).trim() !== "";
   const valor = Number(rawValor);
   const valorEstimado = Number(rawValorEstimado);
+  const hasValor = hasValorRaw && Number.isFinite(valor) && valor !== 0;
 
-  if (hasValor && Number.isFinite(valor)) {
+  if (hasValor) {
     return valor;
   }
 
@@ -98,10 +99,12 @@ function isEstimatedExpenseValue(record) {
   }
   const rawValor = record?.valor;
   const rawValorEstimado = record?.valor_estimado ?? record?.valor_Estimado;
-  const hasValor = rawValor !== null && rawValor !== undefined && String(rawValor).trim() !== "";
+  const hasValorRaw = rawValor !== null && rawValor !== undefined && String(rawValor).trim() !== "";
   const hasValorEstimado = rawValorEstimado !== null && rawValorEstimado !== undefined && String(rawValorEstimado).trim() !== "";
+  const valor = Number(rawValor);
   const valorEstimado = Number(rawValorEstimado);
-  return !hasValor && hasValorEstimado && Number.isFinite(valorEstimado);
+  const hasValor = hasValorRaw && Number.isFinite(valor) && valor !== 0;
+  return !hasValor && hasValorEstimado && Number.isFinite(valorEstimado) && valorEstimado !== 0;
 }
 
 function parseSeq(value, fallback = 999999) {
@@ -3727,7 +3730,7 @@ window.cgdGetExpenseDetail = ({ rubricaId, despesaId, monthIndex }) => {
   const noteText = monthDetail.nota == null ? "" : String(monthDetail.nota);
   const isZerado = Boolean(monthDetail.zerado);
   const rawValor = Number(monthDetail.valor);
-  const hasValor = Number.isFinite(rawValor);
+  const hasValor = Number.isFinite(rawValor) && rawValor !== 0;
   const normalizedValor = hasValor ? rawValor : null;
   const normalizedValorEstimado = Number(monthDetail.valorEstimado);
   const safeValorEstimado = Number.isFinite(normalizedValorEstimado) ? normalizedValorEstimado : 0;
