@@ -850,6 +850,8 @@ function renderSoberTotalizer() {
   }
 
   const year = Number(cgdState.selectedYear);
+  const now = new Date();
+  const canCalculateReal = year === now.getFullYear() && now.getMonth() < 11;
   const realSeries = computeRealSeriesForYear(year, cgdState.realComputationContexts);
   const realValues = realSeries.values;
   const realEstimatedFlags = realSeries.estimatedFlags;
@@ -880,6 +882,9 @@ function renderSoberTotalizer() {
     <section class='totalizer-shell' aria-label='Totalizador mensal consolidado'>
       <header class='totalizer-head'>
         <h3>Totalizador mensal</h3>
+        <div class='totalizer-head-actions'>
+          <button type='button' class='totalizer-calc-btn' data-totalizer-calculate-real='true' ${canCalculateReal ? "" : "disabled"}>Calcular</button>
+        </div>
       </header>
       <div class='totalizer-grid-wrap'>
         <div class='totalizer-grid'>
@@ -2495,6 +2500,55 @@ function syncRealTotalizerEditableMonth(monthIndex) {
 }
 
 function bindSoberTotalizerInputs() {
+  document.addEventListener("click", async (event) => {
+    const calculateBtn = event.target.closest("button[data-totalizer-calculate-real='true']");
+    if (!calculateBtn || calculateBtn.disabled) {
+      return;
+    }
+
+    const selectedYear = Number(cgdState.selectedYear);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    if (selectedYear !== currentYear || currentMonth >= 11) {
+      return;
+    }
+
+    const originalLabel = calculateBtn.textContent;
+    calculateBtn.disabled = true;
+    calculateBtn.textContent = "Calculando...";
+
+    try {
+      const realSeries = computeRealSeriesForYear(currentYear, cgdState.realComputationContexts);
+      const updates = [];
+
+      for (let monthIndex = currentMonth + 1; monthIndex <= 11; monthIndex += 1) {
+        const computed = Number(realSeries.values?.[monthIndex]);
+        if (!Number.isFinite(computed)) {
+          continue;
+        }
+        const roundedValue = Math.round(computed * 100) / 100;
+        updates.push(
+          upsertRealValueForMonth({
+            ano: currentYear,
+            mes: monthIndex + 1,
+            real: roundedValue
+          })
+        );
+      }
+
+      if (updates.length) {
+        await Promise.all(updates);
+        await loadYearData(cgdState.selectedYear);
+      }
+    } catch (error) {
+      console.error("Erro ao calcular linha real para meses futuros:", error);
+    } finally {
+      calculateBtn.textContent = originalLabel;
+      calculateBtn.disabled = false;
+    }
+  });
+
   document.addEventListener("input", (event) => {
     const input = event.target.closest("input[data-real-total-input='true']");
     if (!input || input.readOnly) {
