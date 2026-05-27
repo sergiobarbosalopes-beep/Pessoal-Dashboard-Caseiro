@@ -1822,6 +1822,16 @@ a {
   line-height: 1.1;
 }
 
+.panel.income .rubric-head .money-pill.readonly button,
+.panel.savings .rubric-head .money-pill.readonly button,
+.panel.outcome .rubric-head .money-pill.readonly button,
+.panel.income .rubric-head .money-pill.readonly button span,
+.panel.savings .rubric-head .money-pill.readonly button span,
+.panel.outcome .rubric-head .money-pill.readonly button span {
+  font-size: 0.68rem !important;
+  line-height: 1.1 !important;
+}
+
 .rubric-head .money-pill input.rubric-total-input {
   font-size: 0.68rem !important;
   line-height: 1.1 !important;

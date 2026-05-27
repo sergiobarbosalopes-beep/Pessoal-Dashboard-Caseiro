@@ -1147,7 +1147,7 @@ function renderRubrics(rubrics, kind) {
       <article class='rubric' data-sortable data-rubrica-id='${rubric.id ?? ""}' data-rubrica-seq='${rubric.seq ?? ""}' data-rubrica-tipo='${kind}'>
         <header class='rubric-head data-row'>
           <div class='desc-cell rubric-desc-cell'>
-            <button class='chev' type='button' data-toggle-target='${expenseBodyId}' aria-expanded='false' aria-label='Expandir rubrica'>Ôû╝</button>
+            <button class='chev' type='button' data-toggle-target='${expenseBodyId}' aria-expanded='false' aria-label='Expandir rubrica'>&#9660;</button>
             <button class='desc-pill rubric-title rubric-menu-trigger' type='button' data-rubric-menu-toggle aria-expanded='false' aria-label='Opcoes da rubrica ${rubric.name}'>${rubric.name}</button>
             <div class='rubric-sort-actions'>
               <div class='rubric-menu' role='menu'>
@@ -1253,7 +1253,7 @@ function buildPanel(title, kind, rubrics) {
   <section class='panel ${kind}' data-panel-block data-panel-kind='${kind}'>
     <header class='panel-head'>
       <div class='panel-title'>
-        <button class='chev' type='button' data-toggle-target='${bodyId}' aria-expanded='false' aria-label='Expandir ${title}'>Ôû╝</button>
+        <button class='chev' type='button' data-toggle-target='${bodyId}' aria-expanded='false' aria-label='Expandir ${title}'>&#9660;</button>
         <button class='desc-pill panel-menu-trigger' type='button' data-panel-menu-toggle aria-expanded='false' aria-label='Opcoes do painel ${title}'>${title}</button>
         <div class='panel-sort-actions'>
           <div class='panel-menu' role='menu'>
