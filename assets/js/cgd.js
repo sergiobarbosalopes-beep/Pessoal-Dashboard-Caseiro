@@ -250,35 +250,49 @@ async function fetchExpenseHistoryMonthKeysForYear(year) {
     return new Set();
   }
 
-  const queryByYear = (tableName) =>
+  const queryByYear = (tableName, noteColumn) =>
     supabaseClient
       .from(tableName)
-      .select("rubrica_id,despesa_id,mes")
+      .select(`rubrica_id,despesa_id,mes,${noteColumn}`)
       .eq("ano", Number(year));
 
-  const preferredTable = cgdState.notesTableName || "cgd_despesa_notas";
-  const { data: primaryData, error: primaryError } = await queryByYear(preferredTable);
-  if (!primaryError) {
-    cgdState.notesTableName = preferredTable;
-    return new Set(
-      (Array.isArray(primaryData) ? primaryData : [])
+  const fetchRowsWithNoteColumn = async (tableName) => {
+    const primary = await queryByYear(tableName, "nota");
+    if (!primary.error) {
+      return { rows: Array.isArray(primary.data) ? primary.data : [], noteColumn: "nota" };
+    }
+
+    const fallback = await queryByYear(tableName, "notas");
+    if (!fallback.error) {
+      return { rows: Array.isArray(fallback.data) ? fallback.data : [], noteColumn: "notas" };
+    }
+
+    throw primary.error;
+  };
+
+  const buildHistorySet = (rows, noteColumn) =>
+    new Set(
+      (Array.isArray(rows) ? rows : [])
+        .filter((row) => String(row?.[noteColumn] ?? "").trim().length > 0)
         .map((row) => buildExpenseHistoryMonthKey(row.rubrica_id, row.despesa_id, row.mes))
         .filter((key) => !key.includes("NaN"))
     );
-  }
 
-  const fallbackTable = preferredTable === "cgd_despesa_notas" ? "cgd_despesas_notas" : "cgd_despesa_notas";
-  const { data: fallbackData, error: fallbackError } = await queryByYear(fallbackTable);
-  if (fallbackError) {
-    throw primaryError;
+  const preferredTable = cgdState.notesTableName || "cgd_despesa_notas";
+  try {
+    const preferredResult = await fetchRowsWithNoteColumn(preferredTable);
+    cgdState.notesTableName = preferredTable;
+    return buildHistorySet(preferredResult.rows, preferredResult.noteColumn);
+  } catch (primaryError) {
+    const fallbackTable = preferredTable === "cgd_despesa_notas" ? "cgd_despesas_notas" : "cgd_despesa_notas";
+    try {
+      const fallbackResult = await fetchRowsWithNoteColumn(fallbackTable);
+      cgdState.notesTableName = fallbackTable;
+      return buildHistorySet(fallbackResult.rows, fallbackResult.noteColumn);
+    } catch (fallbackError) {
+      throw primaryError;
+    }
   }
-
-  cgdState.notesTableName = fallbackTable;
-  return new Set(
-    (Array.isArray(fallbackData) ? fallbackData : [])
-      .map((row) => buildExpenseHistoryMonthKey(row.rubrica_id, row.despesa_id, row.mes))
-      .filter((key) => !key.includes("NaN"))
-  );
 }
 
 async function createExpenseNoteEntry({ ano, rubricaId, despesaId, mes, valor, nota }) {
