@@ -584,6 +584,8 @@ a {
   gap: 3px;
   color: #cce0eb;
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
   transition: background-color 180ms ease, color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
 }
 
@@ -610,6 +612,48 @@ a {
   border-color: rgba(170, 211, 238, 0.62);
   box-shadow: 0 0 0 1px rgba(182, 220, 243, 0.32), 0 10px 20px rgba(0, 65, 113, 0.36);
   color: #fff;
+  animation: monthTilePulse 2.2s ease-in-out infinite;
+}
+
+.month-tile.active::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -120%;
+  width: 70%;
+  height: 200%;
+  background: linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.28) 50%, transparent 100%);
+  transform: rotate(8deg);
+  animation: monthTileShimmer 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes monthTilePulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(182, 220, 243, 0.32), 0 10px 20px rgba(0, 65, 113, 0.36);
+  }
+  50% {
+    box-shadow: 0 0 0 1px rgba(196, 229, 248, 0.42), 0 0 18px rgba(74, 163, 216, 0.42), 0 10px 24px rgba(0, 65, 113, 0.42);
+  }
+}
+
+@keyframes monthTileShimmer {
+  0% {
+    left: -120%;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  55% {
+    left: 140%;
+    opacity: 0;
+  }
+  100% {
+    left: 140%;
+    opacity: 0;
+  }
 }
 
 .sober-totalizer-card {
