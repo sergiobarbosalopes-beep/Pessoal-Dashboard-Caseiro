@@ -579,9 +579,7 @@ function initExpenseModal() {
       return;
     }
 
-    const originalLabel = zeroBtn.textContent;
     zeroBtn.disabled = true;
-    zeroBtn.textContent = "A zerar...";
 
     try {
       const success = await window.cgdZeroExpenseDetail({
@@ -599,7 +597,6 @@ function initExpenseModal() {
     }
 
     zeroBtn.disabled = false;
-    zeroBtn.textContent = originalLabel;
   });
 }
 
