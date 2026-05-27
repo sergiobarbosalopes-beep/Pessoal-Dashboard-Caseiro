@@ -334,14 +334,20 @@ function initExpenseModal() {
 
     if (inputValor) {
       const valorForInput = detail?.valorInputValue;
-      if (valorForInput == null || !Number.isFinite(Number(valorForInput))) {
+      const numericValorForInput = Number(valorForInput);
+      if (valorForInput == null || !Number.isFinite(numericValorForInput) || numericValorForInput === 0) {
         inputValor.value = "";
       } else {
-        inputValor.value = Number(valorForInput).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        inputValor.value = numericValorForInput.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       }
     }
     if (inputValorEstimado) {
-      inputValorEstimado.value = Number(detail?.valorEstimado || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const numericValorEstimado = Number(detail?.valorEstimado);
+      if (!Number.isFinite(numericValorEstimado) || numericValorEstimado === 0) {
+        inputValorEstimado.value = "";
+      } else {
+        inputValorEstimado.value = numericValorEstimado.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
     }
     if (inputNotes) {
       inputNotes.value = detail?.nota || "";
