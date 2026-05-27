@@ -1100,6 +1100,10 @@ a {
   background: linear-gradient(180deg, rgba(112, 42, 42, 0.44), rgba(146, 54, 54, 0.38) 38%, rgba(176, 72, 72, 0.3) 70%, rgba(209, 100, 100, 0.24));
 }
 
+.panel.balance + .panel.income {
+  margin-top: 18px;
+}
+
 .panel-head {
   padding: 6px 10px;
   display: flex;
