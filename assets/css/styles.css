@@ -1834,7 +1834,7 @@ a {
 }
 
 .rubric-head .money-pill input.rubric-total-input {
-  font-size: 0.76rem !important;
+  font-size: 0.74rem !important;
   line-height: 1.1 !important;
   color: #96a2aa !important;
   min-height: 32px;
@@ -1844,7 +1844,7 @@ a {
 .rubric-head .money-pill.rubric-total-cell button,
 .rubric-head .money-pill.rubric-total-cell button span,
 .rubric-head .money-pill.rubric-total-cell > span {
-  font-size: 0.76rem !important;
+  font-size: 0.74rem !important;
   line-height: 1.1 !important;
   color: #96a2aa !important;
 }
