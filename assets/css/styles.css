@@ -1834,27 +1834,32 @@ a {
 }
 
 .rubric-head .money-pill input.rubric-total-input {
-  font-size: 0.8rem !important;
-  line-height: 1.4 !important;
+  font-size: 0.76rem !important;
+  line-height: 1.1 !important;
   color: #96a2aa !important;
-  min-height: 30px;
-  display: flex;
-  align-items: center;
+  min-height: 32px;
 }
 
 .rubric-head .money-pill.rubric-total-cell input,
 .rubric-head .money-pill.rubric-total-cell button,
 .rubric-head .money-pill.rubric-total-cell button span,
 .rubric-head .money-pill.rubric-total-cell > span {
-  font-size: 0.8rem !important;
-  line-height: 1.4 !important;
+  font-size: 0.76rem !important;
+  line-height: 1.1 !important;
   color: #96a2aa !important;
 }
 
 .rubric-head .money-pill.rubric-total-cell button {
   align-items: center;
   justify-content: flex-end;
-  min-height: 30px;
+  min-height: 32px;
+  padding: 8px 9px;
+  box-sizing: border-box;
+}
+
+.rubric-head .money-pill.rubric-total-cell button span {
+  width: 100%;
+  text-align: right;
 }
 
 .money-pill.readonly {
