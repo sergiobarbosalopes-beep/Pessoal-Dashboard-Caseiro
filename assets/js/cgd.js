@@ -509,6 +509,14 @@ function money(value) {
   return Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function isZeroMoneyDisplayValue(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return true;
+  }
+  return Math.round(numeric * 100) === 0;
+}
+
 function sumRubricsValuesByMonth(rubrics) {
   const source = Array.isArray(rubrics) ? rubrics : [];
   return months.map((_, monthIndex) =>
@@ -838,7 +846,7 @@ function monthPills(values, editable, labelPrefix, estimatedFlags = [], historyB
       const dataMonth = `data-month-col='${monthIndex}'`;
       if (editable) {
         const numericValue = Number(value);
-        const displayValue = Number.isFinite(numericValue) && numericValue !== 0 ? money(numericValue) : "";
+        const displayValue = Number.isFinite(numericValue) && !isZeroMoneyDisplayValue(numericValue) ? money(numericValue) : "";
         return `
         <div class='money-pill' ${dataMonth}>
           <input data-money type='text' value='${displayValue}' aria-label='${labelPrefix} ${months[monthIndex]}' />
@@ -849,7 +857,7 @@ function monthPills(values, editable, labelPrefix, estimatedFlags = [], historyB
         : "";
       const historyClass = historyByMonth?.[monthIndex] ? "has-history-note" : "";
       const numericValue = Number(value);
-      const hasDisplayValue = value != null && Number.isFinite(numericValue) && numericValue !== 0;
+      const hasDisplayValue = value != null && Number.isFinite(numericValue) && !isZeroMoneyDisplayValue(numericValue);
       const displayValue = hasDisplayValue ? money(numericValue) : "";
       const estimatedClass = hasDisplayValue && estimatedFlags[monthIndex] ? "estimated-value" : "";
       return `

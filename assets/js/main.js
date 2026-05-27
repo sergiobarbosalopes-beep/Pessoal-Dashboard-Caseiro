@@ -77,6 +77,14 @@ function initExpenseModal() {
     return Number.isFinite(numeric) ? numeric : 0;
   };
 
+  const isZeroMoneyDisplayValue = (value) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return true;
+    }
+    return Math.round(numeric * 100) === 0;
+  };
+
   let activeContext = null;
 
   const sanitizeDecimalInputValue = (value) => {
@@ -236,7 +244,7 @@ function initExpenseModal() {
 
       const numeric = Number(sanitized);
       if (Number.isFinite(numeric)) {
-        if (numeric === 0) {
+        if (isZeroMoneyDisplayValue(numeric)) {
           input.value = "";
         } else {
           input.value = numeric.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -339,7 +347,7 @@ function initExpenseModal() {
     if (inputValor) {
       const valorForInput = detail?.valorInputValue;
       const numericValorForInput = Number(valorForInput);
-      if (valorForInput == null || !Number.isFinite(numericValorForInput) || numericValorForInput === 0) {
+      if (valorForInput == null || !Number.isFinite(numericValorForInput) || isZeroMoneyDisplayValue(numericValorForInput)) {
         inputValor.value = "";
       } else {
         inputValor.value = numericValorForInput.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -347,7 +355,7 @@ function initExpenseModal() {
     }
     if (inputValorEstimado) {
       const numericValorEstimado = Number(detail?.valorEstimado);
-      if (!Number.isFinite(numericValorEstimado) || numericValorEstimado === 0) {
+      if (!Number.isFinite(numericValorEstimado) || isZeroMoneyDisplayValue(numericValorEstimado)) {
         inputValorEstimado.value = "";
       } else {
         inputValorEstimado.value = numericValorEstimado.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
