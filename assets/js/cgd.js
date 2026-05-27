@@ -3624,7 +3624,20 @@ window.cgdDeleteExpenseNote = async ({ rubricaId, despesaId, monthIndex, contado
   return true;
 };
 
-window.cgdSaveExpenseDetail = async ({ rubricaId, despesaId, monthIndex, valor, valorEstimado, totalizador, nota, applyToEndYear, adjustmentValue, registerAdjustment }) => {
+window.cgdSaveExpenseDetail = async ({
+  rubricaId,
+  despesaId,
+  monthIndex,
+  valor,
+  valorEstimado,
+  totalizador,
+  nota,
+  applyToEndYear,
+  adjustmentValue,
+  registerAdjustment,
+  registerValueChangeNote,
+  noteEntryValue
+}) => {
   if (!supabaseClient) {
     return false;
   }
@@ -3669,10 +3682,19 @@ window.cgdSaveExpenseDetail = async ({ rubricaId, despesaId, monthIndex, valor, 
   }
 
   const numericAdjustment = Number(adjustmentValue);
+  const normalizedNoteEntryValue = Number(noteEntryValue);
   const adjustmentNote = String(nota == null ? "" : nota).trim();
-  const shouldRegisterAdjustment =
-    Boolean(registerAdjustment) && Number.isFinite(numericAdjustment) && numericAdjustment !== 0 && adjustmentNote.length > 0;
-  if (shouldRegisterAdjustment) {
+  const shouldRegisterAdjustment = Boolean(registerAdjustment) && Number.isFinite(numericAdjustment) && numericAdjustment !== 0;
+  const shouldRegisterValueChangeNote = Boolean(registerValueChangeNote);
+  const shouldCreateNote = adjustmentNote.length > 0 && (shouldRegisterAdjustment || shouldRegisterValueChangeNote);
+
+  if (shouldCreateNote) {
+    const valueForNote = shouldRegisterAdjustment
+      ? numericAdjustment
+      : Number.isFinite(normalizedNoteEntryValue)
+        ? normalizedNoteEntryValue
+        : detail.valor;
+
     await Promise.all(
       targetMonths.map((mes) =>
         createExpenseNoteEntry({
@@ -3680,7 +3702,7 @@ window.cgdSaveExpenseDetail = async ({ rubricaId, despesaId, monthIndex, valor, 
           rubricaId: selectedKey.rubricaId,
           despesaId: selectedKey.despesaId,
           mes,
-          valor: numericAdjustment,
+          valor: valueForNote,
           nota: adjustmentNote
         })
       )

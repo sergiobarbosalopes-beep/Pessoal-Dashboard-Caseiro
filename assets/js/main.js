@@ -65,7 +65,8 @@ function initExpenseModal() {
   let isModalReadonly = false;
   let initialModalValues = {
     valor: 0,
-    valorEstimado: 0
+    valorEstimado: 0,
+    totalizador: false
   };
 
   const toNumber = (value) => {
@@ -102,11 +103,25 @@ function initExpenseModal() {
     return Number.isFinite(numeric) && numeric !== 0;
   };
 
+  const hasTrackedValueChanges = () => {
+    const currentValor = toNumber(inputValor?.value);
+    const currentValorEstimado = toNumber(inputValorEstimado?.value);
+    const currentTotalizador = Boolean(checkTotalizador?.checked);
+    return (
+      currentValor !== initialModalValues.valor
+      || currentValorEstimado !== initialModalValues.valorEstimado
+      || currentTotalizador !== initialModalValues.totalizador
+    );
+  };
+
   const updateNotesVisibility = () => {
     if (!notesSection) {
       return;
     }
-    const showNotes = hasAdjustmentValue(inputAdd?.value) || hasAdjustmentValue(inputSubtract?.value);
+    const showNotes =
+      hasAdjustmentValue(inputAdd?.value)
+      || hasAdjustmentValue(inputSubtract?.value)
+      || hasTrackedValueChanges();
     notesSection.hidden = !showNotes;
   };
 
@@ -222,6 +237,11 @@ function initExpenseModal() {
 
   [inputValor, inputValorEstimado, inputAdd, inputSubtract].forEach(enforceExpenseNumericInput);
 
+  checkTotalizador?.addEventListener("change", () => {
+    updateNotesVisibility();
+    syncFieldLocks();
+  });
+
   const applyReadonlyState = (readonly) => {
     isModalReadonly = readonly;
     clearLockedFieldIndicators();
@@ -316,7 +336,8 @@ function initExpenseModal() {
 
     initialModalValues = {
       valor: toNumber(inputValor?.value),
-      valorEstimado: toNumber(inputValorEstimado?.value)
+      valorEstimado: toNumber(inputValorEstimado?.value),
+      totalizador: Boolean(checkTotalizador?.checked)
     };
 
     updateNotesVisibility();
@@ -412,10 +433,26 @@ function initExpenseModal() {
       return;
     }
 
+    const currentValor = toNumber(inputValor?.value);
+    const currentValorEstimado = toNumber(inputValorEstimado?.value);
+    const currentTotalizador = Boolean(checkTotalizador?.checked);
     const plusValue = toNumber(inputAdd?.value);
     const minusValue = toNumber(inputSubtract?.value);
     const adjustmentValue = plusValue - minusValue;
     const registerAdjustment = plusValue !== 0 || minusValue !== 0;
+    const valorChanged = !registerAdjustment && currentValor !== initialModalValues.valor;
+    const valorEstimadoChanged = currentValorEstimado !== initialModalValues.valorEstimado;
+    const totalizadorChanged = currentTotalizador !== initialModalValues.totalizador;
+    const registerValueChangeNote = valorChanged || valorEstimadoChanged || totalizadorChanged;
+
+    let noteEntryValue = 0;
+    if (registerAdjustment) {
+      noteEntryValue = adjustmentValue;
+    } else if (valorChanged || totalizadorChanged) {
+      noteEntryValue = currentValor;
+    } else if (valorEstimadoChanged) {
+      noteEntryValue = currentValorEstimado;
+    }
 
     applyAdjustments();
 
@@ -429,7 +466,9 @@ function initExpenseModal() {
       applyToEndYear: Boolean(checkApplyEndYear?.checked),
       nota: inputNotes?.value || "",
       adjustmentValue,
-      registerAdjustment
+      registerAdjustment,
+      registerValueChangeNote,
+      noteEntryValue
     });
 
     if (success) {
