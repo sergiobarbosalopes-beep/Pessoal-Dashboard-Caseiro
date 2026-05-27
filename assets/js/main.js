@@ -236,7 +236,11 @@ function initExpenseModal() {
 
       const numeric = Number(sanitized);
       if (Number.isFinite(numeric)) {
-        input.value = numeric.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        if (numeric === 0) {
+          input.value = "";
+        } else {
+          input.value = numeric.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
       } else {
         input.value = "";
       }
