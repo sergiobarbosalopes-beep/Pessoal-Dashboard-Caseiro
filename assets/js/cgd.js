@@ -837,9 +837,11 @@ function monthPills(values, editable, labelPrefix, estimatedFlags = [], historyB
     .map((value, monthIndex) => {
       const dataMonth = `data-month-col='${monthIndex}'`;
       if (editable) {
+        const numericValue = Number(value);
+        const displayValue = Number.isFinite(numericValue) && numericValue !== 0 ? money(numericValue) : "";
         return `
         <div class='money-pill' ${dataMonth}>
-          <input data-money type='text' value='${money(value)}' aria-label='${labelPrefix} ${months[monthIndex]}' />
+          <input data-money type='text' value='${displayValue}' aria-label='${labelPrefix} ${months[monthIndex]}' />
         </div>`;
       }
       const detailAttrs = detailMeta
