@@ -936,22 +936,23 @@ function readonlySummaryPills(values, labelPrefix) {
 
 function buildBalancePanel() {
   const incomeTotals = sumRubricsValuesByMonth(cgdState.data?.income || []);
+  const savingsTotals = sumRubricsValuesByMonth(cgdState.data?.savings || []);
   const outcomeTotals = sumRubricsValuesByMonth(cgdState.data?.outcome || []);
   const balanceTotals = months.map((_, monthIndex) => {
     const income = Number(incomeTotals?.[monthIndex]) || 0;
+    const savings = Number(savingsTotals?.[monthIndex]) || 0;
     const outcome = Number(outcomeTotals?.[monthIndex]) || 0;
-    return income - outcome;
+    return income + savings - outcome;
   });
 
   return `
-  <section class='panel balance' data-panel-block data-panel-kind='balance'>
+  <section class='panel balance'>
     <header class='panel-head'>
       <div class='panel-title'>
-        <span class='chev chev-static' aria-hidden='true'>▼</span>
-        <span class='desc-pill panel-menu-trigger panel-balance-title'>Balance</span>
+        <span class='chev-spacer' aria-hidden='true'></span>
+        <span class='desc-pill panel-balance-title'>Balance</span>
       </div>
     </header>
-    <div class='panel-body is-collapsed' id='panel-balance-body'></div>
     <div class='panel-collapsed-summary panel-collapsed-summary-balance'>
       <div class='data-row collapsed-total-row collapsed-total-row-balance'>
         <div class='desc-cell'>
@@ -2400,6 +2401,12 @@ function renderPanels() {
       <div class='outcome-evolution' id='savings-comparison-chart' aria-live='polite'></div>
     </section>
     ${buildPanel("Outcome", "outcome", cgdState.data.outcome)}
+    <section class='outcome-evolution-card outcome-evolution-card-main'>
+      <div class='outcome-evolution' id='outcome-evolution-chart' aria-live='polite'></div>
+    </section>
+    <section class='outcome-evolution-card outcome-comparison-card-main'>
+      <div class='outcome-evolution' id='outcome-comparison-chart' aria-live='polite'></div>
+    </section>
     ${buildBalancePanel()}
   `;
 
