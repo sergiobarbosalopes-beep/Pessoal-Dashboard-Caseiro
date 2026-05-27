@@ -69,11 +69,15 @@ function parseMoneyField(record, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
-function parseExpenseValue(record, fallback = 0) {
+function parseExpenseValue(record, fallback = 0, options = {}) {
+  const hasHistoryForMonth = Boolean(options?.hasHistoryForMonth);
   const valor = Number(record.valor);
   const valorEstimado = Number(record.valor_estimado ?? record.valor_Estimado);
 
   if (Number.isFinite(valor) && valor === 0 && Number.isFinite(valorEstimado) && valorEstimado !== 0) {
+    if (hasHistoryForMonth) {
+      return null;
+    }
     return valorEstimado;
   }
 
@@ -437,10 +441,12 @@ function buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys = new S
         values: emptyValues(),
         estimatedFlags: Array.from({ length: 12 }, () => false),
         monthData: Array.from({ length: 12 }, () => ({
-          valor: 0,
+          valor: null,
           valorEstimado: 0,
           totalizador: false,
-          nota: ""
+          nota: "",
+          estimatedByFallback: false,
+          hasHistoryNote: false
         }))
       });
     }
@@ -448,18 +454,22 @@ function buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys = new S
     const expense = expenseMap.get(expenseKey);
     expense.seq = Math.min(expense.seq, parseSeq(row.despesa_seq, expense.seq));
     if (monthIndex >= 0) {
-      expense.historyByMonth[monthIndex] = expenseHistoryMonthKeys.has(buildExpenseHistoryMonthKey(row.rubrica_id, row.despesa_id, row.mes));
+      const hasHistoryForMonth = expenseHistoryMonthKeys.has(buildExpenseHistoryMonthKey(row.rubrica_id, row.despesa_id, row.mes));
+      expense.historyByMonth[monthIndex] = hasHistoryForMonth;
       const rawValor = Number(row.valor);
       const rawValorEstimado = Number(row.valor_estimado ?? row.valor_Estimado);
       const rawNota = row.nota ?? row.notas ?? "";
-      expense.values[monthIndex] = parseExpenseValue(row, expense.values[monthIndex]);
-      expense.estimatedFlags[monthIndex] = isEstimatedExpenseValue(row);
+      const isEstimatedFallback = isEstimatedExpenseValue(row);
+      expense.values[monthIndex] = parseExpenseValue(row, expense.values[monthIndex], { hasHistoryForMonth });
+      expense.estimatedFlags[monthIndex] = isEstimatedFallback && !hasHistoryForMonth;
       const normalizedNote = rawNota == null ? "" : String(rawNota);
       expense.monthData[monthIndex] = {
         valor: Number.isFinite(rawValor) ? rawValor : null,
         valorEstimado: Number.isFinite(rawValorEstimado) ? rawValorEstimado : 0,
         totalizador: parseBoolean(row.totalizador),
-        nota: normalizedNote
+        nota: normalizedNote,
+        estimatedByFallback: isEstimatedFallback,
+        hasHistoryNote: hasHistoryForMonth
       };
     }
   });
@@ -836,10 +846,13 @@ function monthPills(values, editable, labelPrefix, estimatedFlags = [], historyB
         ? `data-rubrica-id='${detailMeta.rubricaId ?? detailMeta.rubricId ?? ""}' data-expense-id='${detailMeta.expenseId ?? ""}' data-month-index='${monthIndex}' data-expense-kind='${detailMeta.kind || "outcome"}'`
         : "";
       const historyClass = historyByMonth?.[monthIndex] ? "has-history-note" : "";
+      const hasNumericValue = value != null && Number.isFinite(Number(value));
+      const displayValue = hasNumericValue ? money(value) : "";
+      const estimatedClass = hasNumericValue && estimatedFlags[monthIndex] ? "estimated-value" : "";
       return `
       <div class='money-pill readonly' ${dataMonth}>
         <button type='button' class='${historyClass}' data-expense-field='${labelPrefix} - ${months[monthIndex]}' ${detailAttrs}>
-          <span class='${estimatedFlags[monthIndex] ? "estimated-value" : ""}'>${money(value)}</span>
+          <span class='${estimatedClass}'>${displayValue}</span>
         </button>
       </div>`;
     })
@@ -3574,16 +3587,17 @@ window.cgdGetExpenseDetail = ({ rubricaId, despesaId, monthIndex }) => {
   };
 
   const noteText = monthDetail.nota == null ? "" : String(monthDetail.nota);
-  const hasNote = noteText.trim().length > 0;
+  const hasHistoryNote = Boolean(found.expense.historyByMonth?.[index] || monthDetail.hasHistoryNote);
+  const isEstimatedFallback = Boolean(monthDetail.estimatedByFallback);
   const rawValor = Number(monthDetail.valor);
-  const hasValor = Number.isFinite(rawValor);
+  const hasValor = Number.isFinite(rawValor) && !(hasHistoryNote && isEstimatedFallback && rawValor === 0);
   const normalizedValor = hasValor ? rawValor : null;
   const normalizedValorEstimado = Number(monthDetail.valorEstimado);
   const safeValorEstimado = Number.isFinite(normalizedValorEstimado) ? normalizedValorEstimado : 0;
 
   const valorInputValue = hasValor
     ? normalizedValor
-    : (!hasNote && safeValorEstimado !== 0 ? safeValorEstimado : null);
+    : (!hasHistoryNote && safeValorEstimado !== 0 ? safeValorEstimado : null);
 
   return {
     valor: normalizedValor,
