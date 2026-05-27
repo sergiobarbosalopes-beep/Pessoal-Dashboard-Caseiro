@@ -2468,6 +2468,7 @@ function renderPanels() {
   const collapseState = captureCollapseState();
 
   panels.innerHTML = `
+    ${buildBalancePanel()}
     ${buildPanel("Income", "income", cgdState.data.income)}
     <section class='outcome-evolution-card income-evolution-card'>
       <div class='outcome-evolution' id='income-evolution-chart' aria-live='polite'></div>
@@ -2489,7 +2490,6 @@ function renderPanels() {
     <section class='outcome-evolution-card outcome-comparison-card-main'>
       <div class='outcome-evolution' id='outcome-comparison-chart' aria-live='polite'></div>
     </section>
-    ${buildBalancePanel()}
   `;
 
   restoreCollapseState(collapseState);
