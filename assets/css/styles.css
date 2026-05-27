@@ -1475,6 +1475,19 @@ a {
   line-height: 1.1;
 }
 
+.panel.income .rubric-head .money-pill input,
+.panel.savings .rubric-head .money-pill input,
+.panel.outcome .rubric-head .money-pill input,
+.panel.income .rubric-head .money-pill.readonly button,
+.panel.savings .rubric-head .money-pill.readonly button,
+.panel.outcome .rubric-head .money-pill.readonly button,
+.panel.income .rubric-head .money-pill.readonly button span,
+.panel.savings .rubric-head .money-pill.readonly button span,
+.panel.outcome .rubric-head .money-pill.readonly button span {
+  font-size: 0.72rem !important;
+  line-height: 1.1 !important;
+}
+
 .rubric-desc-cell {
   position: relative;
   padding-right: 0;
