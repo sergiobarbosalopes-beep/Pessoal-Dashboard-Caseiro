@@ -934,6 +934,34 @@ function readonlySummaryPills(values, labelPrefix) {
     .join("");
 }
 
+function buildBalanceSummaryPanel() {
+  const incomeTotals = sumRubricsValuesByMonth(cgdState.data?.income || []);
+  const outcomeTotals = sumRubricsValuesByMonth(cgdState.data?.outcome || []);
+  const balanceTotals = months.map((_, monthIndex) => {
+    const income = Number(incomeTotals?.[monthIndex]) || 0;
+    const outcome = Number(outcomeTotals?.[monthIndex]) || 0;
+    return income - outcome;
+  });
+
+  return `
+  <section class='panel panel-balance-summary balance'>
+    <header class='panel-head'>
+      <div class='panel-title'>
+        <span class='desc-pill panel-balance-title'>Balance</span>
+      </div>
+    </header>
+    <div class='panel-collapsed-summary panel-collapsed-summary-balance'>
+      <div class='data-row collapsed-total-row collapsed-total-row-balance'>
+        <div class='desc-cell'>
+          <span class='desc-pill collapsed-total-label collapsed-total-label-balance'>Total</span>
+        </div>
+        ${readonlySummaryPills(balanceTotals, "Total Balance")}
+      </div>
+    </div>
+  </section>
+  `;
+}
+
 function renderTimeline(year) {
   const timeline = document.getElementById("month-timeline");
   if (!timeline) {
@@ -2370,6 +2398,7 @@ function renderPanels() {
       <div class='outcome-evolution' id='savings-comparison-chart' aria-live='polite'></div>
     </section>
     ${buildPanel("Outcome", "outcome", cgdState.data.outcome)}
+    ${buildBalanceSummaryPanel()}
   `;
 
   restoreCollapseState(collapseState);
