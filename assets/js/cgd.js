@@ -848,9 +848,10 @@ function monthPills(values, editable, labelPrefix, estimatedFlags = [], historyB
         ? `data-rubrica-id='${detailMeta.rubricaId ?? detailMeta.rubricId ?? ""}' data-expense-id='${detailMeta.expenseId ?? ""}' data-month-index='${monthIndex}' data-expense-kind='${detailMeta.kind || "outcome"}'`
         : "";
       const historyClass = historyByMonth?.[monthIndex] ? "has-history-note" : "";
-      const hasNumericValue = value != null && Number.isFinite(Number(value));
-      const displayValue = hasNumericValue ? money(value) : "";
-      const estimatedClass = hasNumericValue && estimatedFlags[monthIndex] ? "estimated-value" : "";
+      const numericValue = Number(value);
+      const hasDisplayValue = value != null && Number.isFinite(numericValue) && numericValue !== 0;
+      const displayValue = hasDisplayValue ? money(numericValue) : "";
+      const estimatedClass = hasDisplayValue && estimatedFlags[monthIndex] ? "estimated-value" : "";
       return `
       <div class='money-pill readonly' ${dataMonth}>
         <button type='button' class='${historyClass}' data-expense-field='${labelPrefix} - ${months[monthIndex]}' ${detailAttrs}>
