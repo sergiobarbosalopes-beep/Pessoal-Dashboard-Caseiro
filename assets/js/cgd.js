@@ -649,13 +649,12 @@ function computeRealSeriesForYear(targetYear, contexts) {
     resolving.add(key);
     const previous = previousMonthContext(year, monthIndex);
     const previousResolved = resolveReal(previous.year, previous.monthIndex, depth + 1);
-    const currentContext = yearContexts[year] || defaultRealComputationContext();
     const previousContext = yearContexts[previous.year] || defaultRealComputationContext();
     const previousSavingsAccumulated = savingsTotalAt(previous.year, previous.monthIndex);
     const previousSavingsRubrics = Number(previousContext.totals?.savings?.[previous.monthIndex]) || 0;
-    const income = Number(currentContext.totals?.income?.[monthIndex]) || 0;
-    const outcome = Number(currentContext.totals?.outcome?.[monthIndex]) || 0;
-    const estimatedValue = previousResolved.value + previousSavingsAccumulated + previousSavingsRubrics + income - outcome;
+    const previousIncome = Number(previousContext.totals?.income?.[previous.monthIndex]) || 0;
+    const previousOutcome = Number(previousContext.totals?.outcome?.[previous.monthIndex]) || 0;
+    const estimatedValue = previousResolved.value + previousSavingsAccumulated + previousSavingsRubrics + previousIncome - previousOutcome;
 
     const estimated = { value: estimatedValue, estimated: true };
     memo.set(key, estimated);
