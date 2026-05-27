@@ -795,58 +795,24 @@ function buildRealComputationContextsForFutureMonths(year, startMonthIndex, cont
   };
 }
 
-async function recalculateFutureRealTotalizerMonths({ year, startMonthIndex }) {
-  if (!supabaseClient) {
-    return 0;
-  }
+async function refreshYearDataAndFutureTotalizerFromMonth(startMonthIndex) {
+  await loadYearData(cgdState.selectedYear);
 
-  const normalizedYear = Number(year);
   const normalizedStartMonth = Number(startMonthIndex);
-  if (!Number.isInteger(normalizedYear) || !Number.isInteger(normalizedStartMonth) || normalizedStartMonth < 0 || normalizedStartMonth >= 11) {
-    return 0;
+  if (!Number.isInteger(normalizedStartMonth) || normalizedStartMonth < 0 || normalizedStartMonth >= 11) {
+    return;
   }
 
-  const calculationContexts = buildRealComputationContextsForFutureMonths(
-    normalizedYear,
+  // Recompute future "Real" values as estimates in-memory only.
+  // No writes are made to cgd_real for estimated months.
+  cgdState.realComputationContexts = buildRealComputationContextsForFutureMonths(
+    Number(cgdState.selectedYear),
     normalizedStartMonth,
     cgdState.realComputationContexts
   );
-  const realSeries = computeRealSeriesForYear(normalizedYear, calculationContexts);
-  const updates = [];
 
-  for (let monthIndex = normalizedStartMonth + 1; monthIndex <= 11; monthIndex += 1) {
-    const computed = Number(realSeries.values?.[monthIndex]);
-    if (!Number.isFinite(computed)) {
-      continue;
-    }
-
-    updates.push(
-      upsertRealValueForMonth({
-        ano: normalizedYear,
-        mes: monthIndex + 1,
-        real: Math.round(computed * 100) / 100
-      })
-    );
-  }
-
-  if (!updates.length) {
-    return 0;
-  }
-
-  await Promise.all(updates);
-  return updates.length;
-}
-
-async function refreshYearDataAndFutureTotalizerFromMonth(startMonthIndex) {
-  await loadYearData(cgdState.selectedYear);
-  const updatedMonths = await recalculateFutureRealTotalizerMonths({
-    year: cgdState.selectedYear,
-    startMonthIndex
-  });
-
-  if (updatedMonths > 0) {
-    await loadYearData(cgdState.selectedYear);
-  }
+  renderSoberTotalizer();
+  syncRealTotalizerEditableMonth(document.querySelector(".month-tile.active")?.getAttribute("data-month"));
 }
 
 async function fetchYearContextForRealComputation(year) {
