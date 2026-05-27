@@ -131,6 +131,28 @@ a {
   color: #fff;
 }
 
+.menu-link[href="caixa-geral-depositos.html"] {
+  border: 1px solid rgba(133, 191, 226, 0.34);
+  background: linear-gradient(135deg, rgba(0, 79, 143, 0.2), rgba(0, 102, 179, 0.16));
+  color: #cfe9f9;
+}
+
+.menu-link[href="caixa-geral-depositos.html"]:hover,
+.menu-link[href="caixa-geral-depositos.html"]:focus-visible {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, rgba(0, 89, 155, 0.44), rgba(0, 102, 179, 0.36));
+  border-color: rgba(172, 218, 244, 0.58);
+  color: #f0fbff;
+  box-shadow: 0 0 0 1px rgba(179, 224, 247, 0.24), 0 8px 16px rgba(0, 63, 110, 0.28);
+}
+
+.menu-link[href="caixa-geral-depositos.html"].active {
+  background: linear-gradient(135deg, #00589b, #0066b3 58%, #0a78c8);
+  border-color: rgba(186, 227, 248, 0.7);
+  color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(188, 230, 249, 0.34), 0 0 18px rgba(67, 156, 208, 0.28);
+}
+
 .hero {
   margin-top: 16px;
   position: relative;
