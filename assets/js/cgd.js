@@ -934,7 +934,7 @@ function readonlySummaryPills(values, labelPrefix) {
     .join("");
 }
 
-function buildBalanceSummaryPanel() {
+function buildBalancePanel() {
   const incomeTotals = sumRubricsValuesByMonth(cgdState.data?.income || []);
   const outcomeTotals = sumRubricsValuesByMonth(cgdState.data?.outcome || []);
   const balanceTotals = months.map((_, monthIndex) => {
@@ -944,11 +944,11 @@ function buildBalanceSummaryPanel() {
   });
 
   return `
-  <section class='panel panel-balance-summary balance'>
+  <section class='panel balance' data-panel-block data-panel-kind='balance'>
     <header class='panel-head'>
       <div class='panel-title'>
-        <span class='chev chev-static' aria-hidden='true'>•</span>
-        <span class='desc-pill panel-balance-title'>Balance</span>
+        <span class='chev chev-static' aria-hidden='true'>▼</span>
+        <span class='desc-pill panel-menu-trigger panel-balance-title'>Balance</span>
       </div>
     </header>
     <div class='panel-body is-collapsed' id='panel-balance-body'></div>
@@ -1032,7 +1032,7 @@ function renderRubrics(rubrics, kind) {
       <article class='rubric' data-sortable data-rubrica-id='${rubric.id ?? ""}' data-rubrica-seq='${rubric.seq ?? ""}' data-rubrica-tipo='${kind}'>
         <header class='rubric-head data-row'>
           <div class='desc-cell rubric-desc-cell'>
-            <button class='chev' type='button' data-toggle-target='${expenseBodyId}' aria-expanded='true' aria-label='Expandir rubrica'>▼</button>
+            <button class='chev' type='button' data-toggle-target='${expenseBodyId}' aria-expanded='false' aria-label='Expandir rubrica'>▼</button>
             <button class='desc-pill rubric-title rubric-menu-trigger' type='button' data-rubric-menu-toggle aria-expanded='false' aria-label='Opcoes da rubrica ${rubric.name}'>${rubric.name}</button>
             <div class='rubric-sort-actions'>
               <div class='rubric-menu' role='menu'>
@@ -1047,7 +1047,7 @@ function renderRubrics(rubrics, kind) {
           </div>
           ${monthPills(totals, true, `${rubric.name} total`)}
         </header>
-        <div class='rubric-body' id='${expenseBodyId}'>
+        <div class='rubric-body is-collapsed' id='${expenseBodyId}'>
           <div class='expense-body'>
             <div class='item-rows'>
               ${renderExpenseRows(rubric.expenses, rubric.name, kind)}
@@ -1138,7 +1138,7 @@ function buildPanel(title, kind, rubrics) {
   <section class='panel ${kind}' data-panel-block data-panel-kind='${kind}'>
     <header class='panel-head'>
       <div class='panel-title'>
-        <button class='chev' type='button' data-toggle-target='${bodyId}' aria-expanded='true' aria-label='Expandir ${title}'>▼</button>
+        <button class='chev' type='button' data-toggle-target='${bodyId}' aria-expanded='false' aria-label='Expandir ${title}'>▼</button>
         <button class='desc-pill panel-menu-trigger' type='button' data-panel-menu-toggle aria-expanded='false' aria-label='Opcoes do painel ${title}'>${title}</button>
         <div class='panel-sort-actions'>
           <div class='panel-menu' role='menu'>
@@ -1148,7 +1148,7 @@ function buildPanel(title, kind, rubrics) {
       </div>
       ${chartAction}
     </header>
-    <div class='panel-body' id='${bodyId}'>
+    <div class='panel-body is-collapsed' id='${bodyId}'>
       ${renderRubrics(rubrics, kind)}
     </div>
     ${collapsedSummary}
@@ -2400,7 +2400,7 @@ function renderPanels() {
       <div class='outcome-evolution' id='savings-comparison-chart' aria-live='polite'></div>
     </section>
     ${buildPanel("Outcome", "outcome", cgdState.data.outcome)}
-    ${buildBalanceSummaryPanel()}
+    ${buildBalancePanel()}
   `;
 
   restoreCollapseState(collapseState);
