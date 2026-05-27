@@ -70,18 +70,22 @@ function parseMoneyField(record, fallback = 0) {
 }
 
 function parseExpenseValue(record, fallback = 0, options = {}) {
-  const hasHistoryForMonth = Boolean(options?.hasHistoryForMonth);
   const isZerado = parseBoolean(record.zerado);
   if (isZerado) {
     return null;
   }
-  const valor = Number(record.valor);
-  const valorEstimado = Number(record.valor_estimado ?? record.valor_Estimado);
+  const rawValor = record?.valor;
+  const rawValorEstimado = record?.valor_estimado ?? record?.valor_Estimado;
+  const hasValor = rawValor !== null && rawValor !== undefined && String(rawValor).trim() !== "";
+  const hasValorEstimado = rawValorEstimado !== null && rawValorEstimado !== undefined && String(rawValorEstimado).trim() !== "";
+  const valor = Number(rawValor);
+  const valorEstimado = Number(rawValorEstimado);
 
-  if (Number.isFinite(valor) && valor === 0 && Number.isFinite(valorEstimado) && valorEstimado !== 0) {
-    if (hasHistoryForMonth) {
-      return null;
-    }
+  if (hasValor && Number.isFinite(valor)) {
+    return valor;
+  }
+
+  if (hasValorEstimado && Number.isFinite(valorEstimado)) {
     return valorEstimado;
   }
 
@@ -92,9 +96,12 @@ function isEstimatedExpenseValue(record) {
   if (parseBoolean(record.zerado)) {
     return false;
   }
-  const valor = Number(record.valor);
-  const valorEstimado = Number(record.valor_estimado ?? record.valor_Estimado);
-  return Number.isFinite(valor) && valor === 0 && Number.isFinite(valorEstimado) && valorEstimado !== 0;
+  const rawValor = record?.valor;
+  const rawValorEstimado = record?.valor_estimado ?? record?.valor_Estimado;
+  const hasValor = rawValor !== null && rawValor !== undefined && String(rawValor).trim() !== "";
+  const hasValorEstimado = rawValorEstimado !== null && rawValorEstimado !== undefined && String(rawValorEstimado).trim() !== "";
+  const valorEstimado = Number(rawValorEstimado);
+  return !hasValor && hasValorEstimado && Number.isFinite(valorEstimado);
 }
 
 function parseSeq(value, fallback = 999999) {
@@ -477,18 +484,21 @@ function buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys = new S
     if (monthIndex >= 0) {
       const hasHistoryForMonth = expenseHistoryMonthKeys.has(buildExpenseHistoryMonthKey(row.rubrica_id, row.despesa_id, row.mes));
       expense.historyByMonth[monthIndex] = hasHistoryForMonth;
-      const rawValor = Number(row.valor);
-      const rawValorEstimado = Number(row.valor_estimado ?? row.valor_Estimado);
+      const rawValorValue = row.valor;
+      const rawValorEstimadoValue = row.valor_estimado ?? row.valor_Estimado;
+      const rawValor = Number(rawValorValue);
+      const rawValorEstimado = Number(rawValorEstimadoValue);
       const rawNota = row.nota ?? row.notas ?? "";
       const isEstimatedFallback = isEstimatedExpenseValue(row);
       expense.values[monthIndex] = parseExpenseValue(row, expense.values[monthIndex], { hasHistoryForMonth });
-      expense.estimatedFlags[monthIndex] = isEstimatedFallback && !hasHistoryForMonth;
+      expense.estimatedFlags[monthIndex] = isEstimatedFallback;
       const normalizedNote = rawNota == null ? "" : String(rawNota);
       expense.monthData[monthIndex] = {
-        valor: Number.isFinite(rawValor) ? rawValor : null,
-        valorEstimado: Number.isFinite(rawValorEstimado) ? rawValorEstimado : 0,
+        valor: rawValorValue == null || String(rawValorValue).trim() === "" || !Number.isFinite(rawValor) ? null : rawValor,
+        valorEstimado: rawValorEstimadoValue == null || String(rawValorEstimadoValue).trim() === "" || !Number.isFinite(rawValorEstimado) ? 0 : rawValorEstimado,
         totalizador: parseBoolean(row.totalizador),
         nota: normalizedNote,
+        zerado: parseBoolean(row.zerado),
         estimatedByFallback: isEstimatedFallback,
         hasHistoryNote: hasHistoryForMonth
       };
@@ -3710,21 +3720,21 @@ window.cgdGetExpenseDetail = ({ rubricaId, despesaId, monthIndex }) => {
     valor: null,
     valorEstimado: 0,
     totalizador: false,
+    zerado: false,
     nota: ""
   };
 
   const noteText = monthDetail.nota == null ? "" : String(monthDetail.nota);
-  const hasHistoryNote = Boolean(found.expense.historyByMonth?.[index] || monthDetail.hasHistoryNote);
-  const isEstimatedFallback = Boolean(monthDetail.estimatedByFallback);
+  const isZerado = Boolean(monthDetail.zerado);
   const rawValor = Number(monthDetail.valor);
-  const hasValor = Number.isFinite(rawValor) && !(hasHistoryNote && isEstimatedFallback && rawValor === 0);
+  const hasValor = Number.isFinite(rawValor);
   const normalizedValor = hasValor ? rawValor : null;
   const normalizedValorEstimado = Number(monthDetail.valorEstimado);
   const safeValorEstimado = Number.isFinite(normalizedValorEstimado) ? normalizedValorEstimado : 0;
 
-  const valorInputValue = hasValor
-    ? normalizedValor
-    : (!hasHistoryNote && safeValorEstimado !== 0 ? safeValorEstimado : null);
+  const valorInputValue = isZerado
+    ? null
+    : (hasValor ? normalizedValor : safeValorEstimado);
 
   return {
     valor: normalizedValor,
