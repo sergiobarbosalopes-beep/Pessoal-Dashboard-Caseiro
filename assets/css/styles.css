@@ -1862,6 +1862,16 @@ a {
   text-align: right;
 }
 
+.rubric-head .money-pill.readonly.rubric-total-cell {
+  padding: 7px 9px;
+}
+
+.rubric-head .money-pill.readonly.rubric-total-cell > span {
+  display: block;
+  width: 100%;
+  text-align: right;
+}
+
 .money-pill.readonly {
   padding: 0;
 }
