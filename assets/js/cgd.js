@@ -2897,6 +2897,13 @@ function bindRealValuePopup() {
     }
   });
 
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      modal.querySelector("[data-real-modal-save]").click();
+    }
+  });
+
   modal.querySelector("[data-real-modal-save]").addEventListener("click", async () => {
     const monthIndex = Number(input.getAttribute("data-real-modal-month"));
     const realValue = normalizeBoundedRealInputValue(input.value);
