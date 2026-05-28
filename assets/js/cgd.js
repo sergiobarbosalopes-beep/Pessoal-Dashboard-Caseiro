@@ -3955,7 +3955,7 @@ window.cgdGetExpenseDetail = ({ rubricaId, despesaId, monthIndex }) => {
 
   const valorInputValue = isZerado
     ? null
-    : (hasValor ? normalizedValor : safeValorEstimado);
+    : normalizedValor;
 
   return {
     valor: normalizedValor,
