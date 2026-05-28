@@ -27,6 +27,7 @@ const cgdState = {
   savingsChartHiddenRubrics: new Set(),
   savingsChartSelectedRubricKey: null,
   savingsDrilldownHiddenExpenses: new Set(),
+  temporalSummaryHiddenSeries: new Set(),
   outcomeChartVisible: false,
   outcomeComparisonChartVisible: false,
   outcomeComparisonHiddenRubrics: new Set(),
@@ -1062,105 +1063,140 @@ function renderCgdTemporalSummaryChart() {
     return real - savings;
   });
 
-  const series = [
-    { label: "Real", color: "#ecf6fb", values: realValues },
-    { label: "Disponivel", color: "#7fd7a8", values: availableValues },
-    { label: "Poupancas", color: "#8ccbf3", values: savingsValues }
+  const allSeries = [
+    { key: "real", label: "Real", color: "#ecf6fb", values: realValues },
+    { key: "available", label: "Disponivel", color: "#7fd7a8", values: availableValues },
+    { key: "savings", label: "Poupancas", color: "#8ccbf3", values: savingsValues }
   ];
 
-  const allValues = series.flatMap((entry) => entry.values.map((value) => Number(value) || 0));
-  const minValue = Math.min(...allValues, 0);
-  const maxValue = Math.max(...allValues, 0);
-  const hasRange = maxValue !== minValue;
-  const paddedMin = hasRange ? minValue : minValue - 1;
-  const paddedMax = hasRange ? maxValue : maxValue + 1;
-  const valueRange = paddedMax - paddedMin;
+  const hiddenSeries = cgdState.temporalSummaryHiddenSeries;
+  const visibleSeries = allSeries.filter((entry) => !hiddenSeries.has(entry.key));
 
-  const width = 1040;
-  const height = 280;
-  const padLeft = 50;
-  const padRight = 18;
-  const padTop = 16;
-  const padBottom = 38;
-  const innerWidth = width - padLeft - padRight;
-  const innerHeight = height - padTop - padBottom;
+  const legend = allSeries
+    .map((entry) => {
+      const isVisible = !hiddenSeries.has(entry.key);
+      const stateClass = isVisible ? "is-active" : "is-inactive";
+      return `<button type='button' class='outcome-evolution-legend-item ${stateClass}' data-cgd-summary-toggle='${escapeHtml(entry.key)}' aria-pressed='${isVisible ? "true" : "false"}'><span class='outcome-evolution-legend-dot' style='background:${entry.color};'></span>${escapeHtml(entry.label)}</button>`;
+    })
+    .join("");
 
-  const xFor = (index) => {
-    if (months.length <= 1) {
-      return padLeft;
-    }
-    return padLeft + (innerWidth * index) / (months.length - 1);
-  };
-
-  const yFor = (value) => {
-    const safeValue = Number(value) || 0;
-    const normalized = (safeValue - paddedMin) / valueRange;
-    return padTop + innerHeight - (normalized * innerHeight);
-  };
-
-  const pathFor = (values) => values
-    .map((value, index) => `${index === 0 ? "M" : "L"}${xFor(index).toFixed(2)} ${yFor(value).toFixed(2)}`)
-    .join(" ");
-
-  const horizontalGridLines = 4;
-  const gridLines = Array.from({ length: horizontalGridLines + 1 }, (_, step) => {
-    const ratio = step / horizontalGridLines;
-    const y = padTop + innerHeight * ratio;
-    const valueAtLine = paddedMax - ratio * valueRange;
-    return `
-      <line x1='${padLeft}' y1='${y.toFixed(2)}' x2='${(width - padRight).toFixed(2)}' y2='${y.toFixed(2)}' class='cgd-summary-grid-line' />
-      <text x='${(padLeft - 8).toFixed(2)}' y='${(y + 3).toFixed(2)}' class='cgd-summary-grid-label'>${money(valueAtLine)}</text>
-    `;
-  }).join("");
-
-  const monthLabels = months.map((monthLabel, index) => `
-    <text x='${xFor(index).toFixed(2)}' y='${(height - 14).toFixed(2)}' text-anchor='middle' class='cgd-summary-month-label'>${monthLabel}</text>
-  `).join("");
-
-  const plottedSeries = series.map((entry) => ({
-    ...entry,
-    path: pathFor(entry.values),
-    points: entry.values.map((value, index) => ({
-      x: xFor(index),
-      y: yFor(value),
-      value: Number(value) || 0,
-      monthLabel: months[index]
-    }))
-  }));
-
-  const seriesPaths = plottedSeries.map((entry) => `
-    <path d='${entry.path}' fill='none' stroke='${entry.color}' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' />
-  `).join("");
-
-  const seriesPoints = plottedSeries.map((entry) => entry.points.map((point) => `
-    <circle cx='${point.x.toFixed(2)}' cy='${point.y.toFixed(2)}' r='3.4' fill='${entry.color}'>
-      <title>${entry.label} ${point.monthLabel}: ${money(point.value)} EUR</title>
-    </circle>
-  `).join("")).join("");
-
-  const legend = plottedSeries.map((entry) => `
-    <li>
-      <span class='cgd-summary-legend-dot' style='--dot-color:${entry.color}' aria-hidden='true'></span>
-      <span>${entry.label}</span>
-    </li>
-  `).join("");
-
-  host.innerHTML = `
-    <section class='cgd-summary-chart-shell' aria-label='Grafico temporal de totalizador mensal'>
-      <header class='cgd-summary-chart-head'>
-        <h3>Evolucao temporal anual</h3>
-        <ul class='cgd-summary-legend'>${legend}</ul>
-      </header>
-      <div class='cgd-summary-chart-wrap'>
-        <svg class='cgd-summary-chart' viewBox='0 0 ${width} ${height}' role='img' aria-label='Comparacao mensal de Real, Disponivel e Poupancas'>
-          ${gridLines}
-          ${seriesPaths}
-          ${seriesPoints}
-          ${monthLabels}
-        </svg>
+  if (!visibleSeries.length) {
+    host.innerHTML = `
+      <div class='outcome-evolution'>
+        <div class='outcome-evolution-head'>
+          <h3>Evolucao temporal anual</h3>
+          <p>Totalizador mensal consolidado</p>
+        </div>
+        <p class='outcome-evolution-empty'>Nenhuma serie selecionada. Clica na legenda para voltar a mostrar.</p>
+        <div class='outcome-evolution-legend'>${legend}</div>
       </div>
-    </section>
-  `;
+    `;
+  } else {
+    const chartWidth = 980;
+    const chartHeight = 320;
+    const padding = { top: 20, right: 18, bottom: 38, left: 54 };
+    const plotWidth = chartWidth - padding.left - padding.right;
+    const plotHeight = chartHeight - padding.top - padding.bottom;
+    const monthBand = plotWidth / Math.max(months.length - 1, 1);
+    const xFor = (monthIndex) => padding.left + monthBand * monthIndex;
+
+    const allValues = visibleSeries.flatMap((entry) => entry.values.map((value) => Number(value) || 0));
+    const verticalScale = computeChartVerticalScale(allValues, { top: padding.top, height: plotHeight });
+    const yFor = verticalScale.yFor;
+    const zeroY = verticalScale.zeroY;
+
+    const horizontalGridCount = 6;
+    const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
+      const ratio = index / horizontalGridCount;
+      const y = padding.top + ratio * plotHeight;
+      const labelValue = verticalScale.maxValue - ratio * (verticalScale.maxValue - verticalScale.minValue);
+      return `
+        <line x1='${padding.left}' y1='${y.toFixed(2)}' x2='${(chartWidth - padding.right).toFixed(2)}' y2='${y.toFixed(2)}' stroke='rgba(176,210,226,0.18)' stroke-width='0.7' />
+        <text x='${(padding.left - 8).toFixed(2)}' y='${(y + 4).toFixed(2)}' text-anchor='end' fill='rgba(197,220,231,0.82)' font-size='9'>${labelValue.toFixed(0)}</text>
+      `;
+    }).join("");
+
+    const monthGridLines = months
+      .map((_, monthIndex) => {
+        const x = xFor(monthIndex);
+        return `<line x1='${x.toFixed(2)}' y1='${padding.top}' x2='${x.toFixed(2)}' y2='${(padding.top + plotHeight).toFixed(2)}' stroke='rgba(176,210,226,0.12)' stroke-width='1' />`;
+      })
+      .join("");
+
+    const monthLabels = months
+      .map((monthName, monthIndex) => {
+        const x = xFor(monthIndex);
+        return `<text x='${x.toFixed(2)}' y='${(chartHeight - 12).toFixed(2)}' text-anchor='middle' fill='rgba(197,220,231,0.9)' font-size='10'>${escapeHtml(monthName)}</text>`;
+      })
+      .join("");
+
+    const seriesMarkup = visibleSeries
+      .map((entry) => {
+        const points = entry.values.map((value, monthIndex) => ({
+          x: xFor(monthIndex),
+          y: yFor(value),
+          value: Number(value) || 0,
+          month: months[monthIndex]
+        }));
+
+        const pathData = buildSmoothPathData(points);
+        const areaPath = `${pathData} L ${points[points.length - 1].x.toFixed(2)} ${zeroY.toFixed(2)} L ${points[0].x.toFixed(2)} ${zeroY.toFixed(2)} Z`;
+        const pointsMarkup = points
+          .map((point) => `<circle class='outcome-evolution-point' cx='${point.x.toFixed(2)}' cy='${point.y.toFixed(2)}' r='2.8' fill='${entry.color}' tabindex='0'><title>${escapeHtml(entry.label)} ${escapeHtml(point.month)}: ${money(point.value)} EUR</title></circle>`)
+          .join("");
+
+        return `
+          <g class='outcome-evolution-series'>
+            <path d='${areaPath}' class='outcome-evolution-area' fill='${entry.color}' fill-opacity='0.10' />
+            <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round' />
+            ${pointsMarkup}
+          </g>
+        `;
+      })
+      .join("");
+
+    host.innerHTML = `
+      <div class='outcome-evolution cgd-summary-outcome-evolution'>
+        <div class='outcome-evolution-head'>
+          <h3>Evolucao temporal anual</h3>
+          <p>Totalizador mensal consolidado</p>
+        </div>
+        <div class='outcome-evolution-legend'>${legend}</div>
+        <div class='outcome-evolution-svg-wrap cgd-summary-svg-wrap'>
+          <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='Grafico temporal com Real, Disponivel e Poupancas'>
+            ${gridLines}
+            ${monthGridLines}
+            ${seriesMarkup}
+            ${monthLabels}
+          </svg>
+          <div class='outcome-evolution-tooltip' aria-hidden='true'></div>
+        </div>
+      </div>
+    `;
+  }
+
+  if (host.dataset.summaryLegendBound !== "1") {
+    host.dataset.summaryLegendBound = "1";
+    host.addEventListener("click", (event) => {
+      const toggleBtn = event.target.closest("[data-cgd-summary-toggle]");
+      if (!toggleBtn) {
+        return;
+      }
+
+      const key = String(toggleBtn.getAttribute("data-cgd-summary-toggle") || "").trim();
+      if (!key) {
+        return;
+      }
+
+      if (cgdState.temporalSummaryHiddenSeries.has(key)) {
+        cgdState.temporalSummaryHiddenSeries.delete(key);
+      } else {
+        cgdState.temporalSummaryHiddenSeries.add(key);
+      }
+
+      renderCgdTemporalSummaryChart();
+    });
+  }
 }
 
 function calculateAccumulatedSavingsToDecember(rubrics, year) {
@@ -1178,8 +1214,9 @@ function calculateAccumulatedSavingsToDecember(rubrics, year) {
 }
 
 function renderCgdTopTiles() {
-  const host = document.getElementById("cgd-top-tiles");
-  if (!host) {
+  const averagesHost = document.getElementById("cgd-top-tiles-averages");
+  const projectionHost = document.getElementById("cgd-top-tiles-projection");
+  if (!averagesHost && !projectionHost) {
     return;
   }
 
@@ -1208,39 +1245,46 @@ function renderCgdTopTiles() {
   const incomeFilteredRubrics = incomeRubrics.filter((rubric) => !rubricNameMatchesAny(rubric?.name, ["movimentos"]));
   const incomeAverage = averageOfSeries(sumRubricsValuesByMonth(incomeFilteredRubrics));
 
-  host.innerHTML = `
-    <article class='stat-tile stat-tile--green'>
-      <h4>Media de receitas</h4>
-      <p>${formatTileMoney(incomeAverage)}</p>
-      <span class='stat-tile-meta'>Exclui movimentos</span>
-    </article>
-    <article class='stat-tile stat-tile--blue'>
-      <h4>Media de poupancas</h4>
-      <p>${formatTileMoney(savingsAverage)}</p>
-      <span class='stat-tile-meta'>Ano ${year}</span>
-    </article>
-    <article class='stat-tile stat-tile--danger'>
-      <h4>Media de despesas</h4>
-      <p>${formatTileMoney(outcomeAverage)}</p>
-      <span class='stat-tile-meta'>Exclui movimentos e impostos</span>
-    </article>
-    <article class='stat-tile stat-tile--green'>
-      <h4>Total disponivel Dezembro ${year}</h4>
-      <p>${formatTileMoney(totalAvailableDecember)}</p>
-      <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
-    </article>
-    <article class='stat-tile stat-tile--blue'>
-      <h4>Poupanca IRS Dezembro ${year}</h4>
-      <p>${formatTileMoney(irsSavingsAccumulatedDecember)}</p>
-      <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
-    </article>
-    <article class='stat-tile stat-tile--blue'>
-      <h4>Poupanca Audi Dezembro ${year}</h4>
-      <p>${formatTileMoney(audiSavingsAccumulatedDecember)}</p>
-      <span class='stat-tile-meta stat-tile-meta--right'>Meta Setembro 2028</span>
-      <span class='stat-tile-meta stat-tile-meta--right stat-tile-meta-target'>${formatTileMoney(5900)}</span>
-    </article>
-  `;
+  if (averagesHost) {
+    averagesHost.innerHTML = `
+      <article class='stat-tile stat-tile--green'>
+        <h4>Media de receitas</h4>
+        <p>${formatTileMoney(incomeAverage)}</p>
+        <span class='stat-tile-meta'>Exclui movimentos</span>
+      </article>
+      <article class='stat-tile stat-tile--blue'>
+        <h4>Media de poupancas</h4>
+        <p>${formatTileMoney(savingsAverage)}</p>
+        <span class='stat-tile-meta'>Ano ${year}</span>
+      </article>
+      <article class='stat-tile stat-tile--danger'>
+        <h4>Media de despesas</h4>
+        <p>${formatTileMoney(outcomeAverage)}</p>
+        <span class='stat-tile-meta'>Exclui movimentos e impostos</span>
+      </article>
+    `;
+  }
+
+  if (projectionHost) {
+    projectionHost.innerHTML = `
+      <article class='stat-tile stat-tile--green'>
+        <h4>Total disponivel Dezembro ${year}</h4>
+        <p>${formatTileMoney(totalAvailableDecember)}</p>
+        <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
+      </article>
+      <article class='stat-tile stat-tile--blue'>
+        <h4>Poupanca IRS Dezembro ${year}</h4>
+        <p>${formatTileMoney(irsSavingsAccumulatedDecember)}</p>
+        <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
+      </article>
+      <article class='stat-tile stat-tile--blue'>
+        <h4>Poupanca Audi Dezembro ${year}</h4>
+        <p>${formatTileMoney(audiSavingsAccumulatedDecember)}</p>
+        <span class='stat-tile-meta stat-tile-meta--right'>Meta Setembro 2028</span>
+        <span class='stat-tile-meta stat-tile-meta--right stat-tile-meta-target'>${formatTileMoney(5900)}</span>
+      </article>
+    `;
+  }
 }
 
 function buildBalancePanel() {
@@ -3511,10 +3555,12 @@ async function loadYearData(year) {
       renderCgdTopTiles();
     } catch (topTilesError) {
       console.error("Erro a renderizar tiles de topo CGD:", topTilesError);
-      const tilesHost = document.getElementById("cgd-top-tiles");
-      if (tilesHost) {
-        tilesHost.innerHTML = "";
-      }
+      ["cgd-top-tiles-averages", "cgd-top-tiles-projection"].forEach((hostId) => {
+        const host = document.getElementById(hostId);
+        if (host) {
+          host.innerHTML = "";
+        }
+      });
     }
 
     try {
@@ -3550,10 +3596,12 @@ async function loadYearData(year) {
       renderCgdTopTiles();
     } catch (topTilesError) {
       console.error("Erro a renderizar tiles de topo CGD em fallback:", topTilesError);
-      const tilesHost = document.getElementById("cgd-top-tiles");
-      if (tilesHost) {
-        tilesHost.innerHTML = "";
-      }
+      ["cgd-top-tiles-averages", "cgd-top-tiles-projection"].forEach((hostId) => {
+        const host = document.getElementById(hostId);
+        if (host) {
+          host.innerHTML = "";
+        }
+      });
     }
     try {
       renderCgdTemporalSummaryChart();
