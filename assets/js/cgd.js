@@ -1141,7 +1141,7 @@ function renderCgdTemporalSummaryChart() {
         const pathData = buildSmoothPathData(points);
         const areaPath = `${pathData} L ${points[points.length - 1].x.toFixed(2)} ${zeroY.toFixed(2)} L ${points[0].x.toFixed(2)} ${zeroY.toFixed(2)} Z`;
         const pointsMarkup = points
-          .map((point) => `<circle class='outcome-evolution-point' cx='${point.x.toFixed(2)}' cy='${point.y.toFixed(2)}' r='2.2' fill='${entry.color}' tabindex='0'><title>${escapeHtml(entry.label)} ${escapeHtml(point.month)}: ${money(point.value)} EUR</title></circle>`)
+          .map((point) => `<circle class='outcome-evolution-point' cx='${point.x.toFixed(2)}' cy='${point.y.toFixed(2)}' r='2.2' fill='${entry.color}' tabindex='0' data-month-name='${escapeHtml(point.month)}' data-series-name='${escapeHtml(entry.label)}' data-value='${money(point.value)} EUR' data-series-color='${entry.color}'></circle>`)
           .join("");
 
         return `
@@ -1195,30 +1195,7 @@ function renderCgdTemporalSummaryChart() {
       renderCgdTemporalSummaryChart();
     });
 
-    const tooltipEl = host.querySelector('.outcome-evolution-tooltip');
-    if (tooltipEl) {
-      const pointElements = host.querySelectorAll('.outcome-evolution-point');
-      pointElements.forEach((pointEl) => {
-        pointEl.addEventListener('mouseenter', (e) => {
-          const titleEl = pointEl.querySelector('title');
-          const text = titleEl ? titleEl.textContent : '';
-          if (text) {
-            tooltipEl.textContent = text;
-            const svgWrap = host.querySelector('.outcome-evolution-svg-wrap');
-            if (svgWrap) {
-              const rect = svgWrap.getBoundingClientRect();
-              const pointRect = pointEl.getBoundingClientRect();
-              tooltipEl.style.left = (pointRect.left - rect.left - 20) + 'px';
-              tooltipEl.style.top = (pointRect.top - rect.top - 36) + 'px';
-            }
-            tooltipEl.classList.add('is-visible');
-          }
-        });
-        pointEl.addEventListener('mouseleave', () => {
-          tooltipEl.classList.remove('is-visible');
-        });
-      });
-    }
+    bindOutcomeChartHover(host);
   }
 }
 

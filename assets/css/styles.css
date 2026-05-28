@@ -297,8 +297,8 @@ a {
 }
 
 .temporal-nav-card {
-  position: sticky;
-  top: 84px;
+  position: relative;
+  top: auto;
   z-index: 24;
   border-color: rgba(124, 190, 228, 0.48);
   background: rgba(11, 28, 39, 0.9);
