@@ -811,6 +811,7 @@ async function refreshYearDataAndFutureTotalizerFromMonth(startMonthIndex) {
     cgdState.realComputationContexts
   );
 
+  renderCgdTopTiles();
   renderSoberTotalizer();
   syncRealTotalizerEditableMonth(document.querySelector(".month-tile.active")?.getAttribute("data-month"));
 }
