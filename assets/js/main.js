@@ -58,33 +58,21 @@ function initExpenseModal() {
   const notesSection = modal.querySelector("[data-expense-notes-section]");
   const historyTableBody = modal.querySelector("[data-expense-history-body]");
   const historyEmpty = modal.querySelector("[data-expense-history-empty]");
-  const checkEstimated = modal.querySelector("[data-expense-estimated]");
+  const checkEstimatedMode = modal.querySelector("[data-expense-estimated-mode]");
   const checkTotalizador = modal.querySelector("[data-expense-totalizador]");
   const checkApplyEndYear = modal.querySelector("[data-expense-apply-end-year]");
-  const zeroBtn = modal.querySelector("[data-expense-zero]");
   const saveBtn = modal.querySelector("[data-expense-save]");
   const closeModal = () => modal.classList.remove("show");
   let isModalReadonly = false;
   let initialModalValues = {
     valor: 0,
-    valorEstimado: 0,
-    totalizador: false
+    valorEstimado: 0
   };
-  let editedValorField = false;
-  let editedValorEstimadoField = false;
 
   const toNumber = (value) => {
     const normalized = String(value || "").replace(/\s+/g, "").replace(/,/g, "");
     const numeric = Number(normalized);
     return Number.isFinite(numeric) ? numeric : 0;
-  };
-
-  const isZeroMoneyDisplayValue = (value) => {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) {
-      return true;
-    }
-    return Math.round(numeric * 100) === 0;
   };
 
   let activeContext = null;
@@ -115,27 +103,11 @@ function initExpenseModal() {
     return Number.isFinite(numeric) && numeric !== 0;
   };
 
-  const hasTrackedValueChanges = () => {
-    const currentValor = toNumber(inputValor?.value);
-    const currentValorEstimado = toNumber(inputValorEstimado?.value);
-    const currentTotalizador = Boolean(checkTotalizador?.checked);
-    return (
-      currentValor !== initialModalValues.valor
-      || currentValorEstimado !== initialModalValues.valorEstimado
-      || currentTotalizador !== initialModalValues.totalizador
-      || editedValorField
-      || editedValorEstimadoField
-    );
-  };
-
   const updateNotesVisibility = () => {
     if (!notesSection) {
       return;
     }
-    const showNotes =
-      hasAdjustmentValue(inputAdd?.value)
-      || hasAdjustmentValue(inputSubtract?.value)
-      || hasTrackedValueChanges();
+    const showNotes = hasAdjustmentValue(inputAdd?.value) || hasAdjustmentValue(inputSubtract?.value);
     notesSection.hidden = !showNotes;
   };
 
@@ -174,9 +146,9 @@ function initExpenseModal() {
 
     const lockOtherFields = hasAddValue || hasSubtractValue;
     applyFieldDisabledState(inputValor, lockOtherFields);
-    applyFieldDisabledState(inputValorEstimado, true);
+    applyFieldDisabledState(inputValorEstimado, lockOtherFields);
     applyFieldDisabledState(inputNotes, false);
-    applyFieldDisabledState(checkEstimated, false);
+    applyFieldDisabledState(checkEstimatedMode, false);
     applyFieldDisabledState(checkTotalizador, lockOtherFields);
     applyFieldDisabledState(checkApplyEndYear, lockOtherFields);
   };
@@ -215,15 +187,12 @@ function initExpenseModal() {
     historyTableBody.innerHTML = rowsHtml;
   };
 
-  const enforceExpenseNumericInput = (input, options = {}) => {
+  const enforceExpenseNumericInput = (input) => {
     if (!input) {
       return;
     }
 
     input.addEventListener("input", () => {
-      if (typeof options.onEdit === "function") {
-        options.onEdit();
-      }
       const cursorPosition = input.selectionStart;
       input.value = sanitizeDecimalInputValue(input.value);
       if (typeof cursorPosition === "number") {
@@ -235,9 +204,6 @@ function initExpenseModal() {
     });
 
     input.addEventListener("blur", () => {
-      if (typeof options.onEdit === "function") {
-        options.onEdit();
-      }
       const sanitized = sanitizeDecimalInputValue(input.value);
       if (!sanitized) {
         input.value = "";
@@ -247,11 +213,7 @@ function initExpenseModal() {
 
       const numeric = Number(sanitized);
       if (Number.isFinite(numeric)) {
-        if (isZeroMoneyDisplayValue(numeric)) {
-          input.value = "";
-        } else {
-          input.value = numeric.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
+        input.value = numeric.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       } else {
         input.value = "";
       }
@@ -260,32 +222,12 @@ function initExpenseModal() {
     });
   };
 
-  enforceExpenseNumericInput(inputValor, {
-    onEdit: () => {
-      editedValorField = true;
-    }
-  });
-  [inputAdd, inputSubtract].forEach((input) => enforceExpenseNumericInput(input));
-
-  if (inputValorEstimado) {
-    inputValorEstimado.readOnly = true;
-    inputValorEstimado.setAttribute("aria-readonly", "true");
-  }
-
-  checkEstimated?.addEventListener("change", () => {
-    updateNotesVisibility();
-    syncFieldLocks();
-  });
-
-  checkTotalizador?.addEventListener("change", () => {
-    updateNotesVisibility();
-    syncFieldLocks();
-  });
+  [inputValor, inputValorEstimado, inputAdd, inputSubtract].forEach(enforceExpenseNumericInput);
 
   const applyReadonlyState = (readonly) => {
     isModalReadonly = readonly;
     clearLockedFieldIndicators();
-    [inputValor, inputValorEstimado, inputAdd, inputSubtract, inputNotes, checkEstimated, checkTotalizador, checkApplyEndYear].forEach((element) => {
+    [inputValor, inputValorEstimado, inputAdd, inputSubtract, inputNotes, checkEstimatedMode, checkTotalizador, checkApplyEndYear].forEach((element) => {
       if (element) {
         element.disabled = readonly;
       }
@@ -293,10 +235,6 @@ function initExpenseModal() {
     if (saveBtn) {
       saveBtn.disabled = readonly;
       saveBtn.style.display = readonly ? "none" : "inline-flex";
-    }
-    if (zeroBtn) {
-      zeroBtn.disabled = readonly;
-      zeroBtn.style.display = readonly ? "none" : "inline-flex";
     }
     if (modalCard) {
       modalCard.setAttribute("data-expense-modal-readonly", String(readonly));
@@ -306,20 +244,15 @@ function initExpenseModal() {
     }
   };
 
-  const applyAdjustments = (useEstimatedMode) => {
-    if (!inputValor || !inputValorEstimado || !inputAdd || !inputSubtract) {
+  const applyAdjustments = () => {
+    if (!inputValor || !inputAdd || !inputSubtract) {
       return;
     }
-    const targetInput = useEstimatedMode ? inputValorEstimado : inputValor;
-    const baseValue = toNumber(targetInput.value);
+    const baseValue = toNumber(inputValor.value);
     const plusValue = toNumber(inputAdd.value);
     const minusValue = toNumber(inputSubtract.value);
     const result = baseValue + plusValue - minusValue;
-    if (isZeroMoneyDisplayValue(result)) {
-      targetInput.value = "";
-    } else {
-      targetInput.value = result.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
+    inputValor.value = result.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     inputAdd.value = "";
     inputSubtract.value = "";
     updateNotesVisibility();
@@ -362,21 +295,10 @@ function initExpenseModal() {
       : null;
 
     if (inputValor) {
-      const valorForInput = detail?.valorInputValue;
-      const numericValorForInput = Number(valorForInput);
-      if (valorForInput == null || !Number.isFinite(numericValorForInput) || isZeroMoneyDisplayValue(numericValorForInput)) {
-        inputValor.value = "";
-      } else {
-        inputValor.value = numericValorForInput.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      }
+      inputValor.value = Number(detail?.valor || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
     if (inputValorEstimado) {
-      const numericValorEstimado = Number(detail?.valorEstimado);
-      if (!Number.isFinite(numericValorEstimado) || isZeroMoneyDisplayValue(numericValorEstimado)) {
-        inputValorEstimado.value = "";
-      } else {
-        inputValorEstimado.value = numericValorEstimado.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      }
+      inputValorEstimado.value = Number(detail?.valorEstimado || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
     if (inputNotes) {
       inputNotes.value = detail?.nota || "";
@@ -384,11 +306,13 @@ function initExpenseModal() {
     if (checkTotalizador) {
       checkTotalizador.checked = Boolean(detail?.totalizador);
     }
+    if (checkEstimatedMode) {
+      const hasExplicitValor = Number.isFinite(Number(detail?.valor));
+      const hasEstimado = Number(detail?.valorEstimado || 0) !== 0;
+      checkEstimatedMode.checked = !hasExplicitValor && hasEstimado;
+    }
     if (checkApplyEndYear) {
       checkApplyEndYear.checked = false;
-    }
-    if (checkEstimated) {
-      checkEstimated.checked = false;
     }
     if (inputAdd) {
       inputAdd.value = "";
@@ -399,11 +323,8 @@ function initExpenseModal() {
 
     initialModalValues = {
       valor: toNumber(inputValor?.value),
-      valorEstimado: toNumber(inputValorEstimado?.value),
-      totalizador: Boolean(checkTotalizador?.checked)
+      valorEstimado: toNumber(inputValorEstimado?.value)
     };
-    editedValorField = false;
-    editedValorEstimadoField = false;
 
     updateNotesVisibility();
     syncFieldLocks();
@@ -498,59 +419,25 @@ function initExpenseModal() {
       return;
     }
 
-    const currentValor = toNumber(inputValor?.value);
-    const currentValorEstimado = toNumber(inputValorEstimado?.value);
-    const estimatedMode = Boolean(checkEstimated?.checked);
-    const currentTotalizador = Boolean(checkTotalizador?.checked);
     const plusValue = toNumber(inputAdd?.value);
     const minusValue = toNumber(inputSubtract?.value);
     const adjustmentValue = plusValue - minusValue;
     const registerAdjustment = plusValue !== 0 || minusValue !== 0;
-    const valorChanged = !registerAdjustment && !estimatedMode && currentValor !== initialModalValues.valor;
-    const valorEstimadoChanged = !registerAdjustment && estimatedMode && currentValor !== initialModalValues.valorEstimado;
-    const totalizadorChanged = currentTotalizador !== initialModalValues.totalizador;
-    const registerValueChangeNote =
-      valorChanged
-      || valorEstimadoChanged
-      || totalizadorChanged
-      || editedValorField;
 
-    let noteEntryValue = 0;
-    if (registerAdjustment) {
-      noteEntryValue = adjustmentValue;
-    } else if (valorChanged || totalizadorChanged) {
-      noteEntryValue = currentValor;
-    } else if (valorEstimadoChanged) {
-      noteEntryValue = currentValor;
-    }
-
-    if (registerAdjustment) {
-      applyAdjustments(estimatedMode);
-    }
-
-    const valueInputAfterAdjustments = toNumber(inputValor?.value);
-    const estimatedInputAfterAdjustments = toNumber(inputValorEstimado?.value);
-    const finalValor = estimatedMode && !registerAdjustment
-      ? initialModalValues.valor
-      : valueInputAfterAdjustments;
-    const finalValorEstimado = estimatedMode && !registerAdjustment
-      ? valueInputAfterAdjustments
-      : estimatedInputAfterAdjustments;
+    applyAdjustments();
 
     const success = await window.cgdSaveExpenseDetail({
       rubricaId: activeContext.rubricaId,
       despesaId: activeContext.despesaId,
       monthIndex: activeContext.monthIndex,
-      valor: finalValor,
-      valorEstimado: finalValorEstimado,
-      estimatedMode,
+      valor: toNumber(inputValor?.value),
+      valorEstimado: toNumber(inputValorEstimado?.value),
+      estimatedMode: Boolean(checkEstimatedMode?.checked),
       totalizador: Boolean(checkTotalizador?.checked),
       applyToEndYear: Boolean(checkApplyEndYear?.checked),
       nota: inputNotes?.value || "",
       adjustmentValue,
-      registerAdjustment,
-      registerValueChangeNote,
-      noteEntryValue
+      registerAdjustment
     });
 
     if (success) {
@@ -558,7 +445,7 @@ function initExpenseModal() {
     }
   };
 
-  const submitOnEnterInputs = [inputValor, inputAdd, inputSubtract, inputNotes];
+  const submitOnEnterInputs = [inputValor, inputValorEstimado, inputAdd, inputSubtract, inputNotes];
   submitOnEnterInputs.forEach((input) => {
     input?.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") {
@@ -573,31 +460,6 @@ function initExpenseModal() {
   });
 
   saveBtn?.addEventListener("click", handleSave);
-
-  zeroBtn?.addEventListener("click", async () => {
-    if (!activeContext || !window.cgdZeroExpenseDetail || zeroBtn.disabled) {
-      return;
-    }
-
-    zeroBtn.disabled = true;
-
-    try {
-      const success = await window.cgdZeroExpenseDetail({
-        rubricaId: activeContext.rubricaId,
-        despesaId: activeContext.despesaId,
-        monthIndex: activeContext.monthIndex
-      });
-
-      if (success) {
-        closeModal();
-        return;
-      }
-    } catch (error) {
-      console.error("Erro ao zerar despesa:", error);
-    }
-
-    zeroBtn.disabled = false;
-  });
 }
 
 function highlightMonth(monthIndex) {
@@ -623,10 +485,6 @@ function highlightMonth(monthIndex) {
     const rubricMonthPill = rubric.querySelector(`.rubric-head [data-month-col='${monthIndex}']`);
     rubricMonthPill?.classList.add("active");
   });
-
-  if (typeof window.cgdSyncRealTotalizerEditableMonth === "function") {
-    window.cgdSyncRealTotalizerEditableMonth(monthIndex);
-  }
 }
 
 function syncExpensePastMonthsState() {
