@@ -835,7 +835,7 @@ a {
 
 .temporal-nav-card {
   margin-top: 48px;
-  margin-bottom: 8px;
+  margin-bottom: 0;
   display: flex;
   position: relative;
   overflow-x: hidden;
@@ -1070,7 +1070,7 @@ a {
 .sober-totalizer-card {
   border-color: rgba(124, 190, 228, 0.52);
   background: linear-gradient(180deg, rgba(13, 25, 33, 0.94), rgba(13, 24, 31, 0.92));
-  margin-top: 30px;
+  margin-top: 12px;
   margin-bottom: 30px;
   box-shadow:
     0 0 0 1px rgba(148, 211, 241, 0.34),
