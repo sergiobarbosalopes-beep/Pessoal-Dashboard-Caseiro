@@ -1264,7 +1264,13 @@ function renderCgdTopTiles() {
   }
 
   if (projectionHost) {
+    const realDecember = Number(realSeries?.values?.[11]) || 0;
     projectionHost.innerHTML = `
+      <article class='stat-tile stat-tile--cyan'>
+        <h4>Real Dezembro ${year}</h4>
+        <p>${formatTileMoney(realDecember)}</p>
+        <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
+      </article>
       <article class='stat-tile stat-tile--green'>
         <h4>Total disponivel Dezembro ${year}</h4>
         <p>${formatTileMoney(totalAvailableDecember)}</p>

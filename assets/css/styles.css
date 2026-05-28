@@ -800,6 +800,17 @@ a {
 
 .temporal-nav-card {
   margin-top: 14px;
+  display: flex;
+  position: relative;
+  overflow-x: hidden;
+  border-radius: 16px;
+  padding: 10px 8px;
+  box-shadow:
+    0 0 0 1px rgba(152, 213, 242, 0.26),
+    0 0 30px rgba(0, 102, 179, 0.32),
+    0 0 62px rgba(0, 88, 155, 0.26),
+    0 0 92px rgba(10, 120, 200, 0.2),
+    0 14px 28px rgba(3, 9, 13, 0.44);
 }
 
 .stat-tile--blue p {
@@ -807,23 +818,6 @@ a {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-}
-
-.timeline-wrap {
-  display: flex;
-  position: relative;
-  overflow-x: hidden;
-  min-height: 74px;
-  padding: 10px 8px;
-  border-radius: 16px;
-  border: 1px solid rgba(186, 220, 238, 0.42);
-  background: linear-gradient(180deg, rgba(13, 25, 33, 0.94), rgba(13, 24, 31, 0.92));
-  box-shadow:
-    0 0 0 1px rgba(152, 213, 242, 0.26),
-    0 0 30px rgba(0, 102, 179, 0.32),
-    0 0 62px rgba(0, 88, 155, 0.26),
-    0 0 92px rgba(10, 120, 200, 0.2),
-    0 14px 28px rgba(3, 9, 13, 0.44);
 }
 
 .timeline-grid,
