@@ -1194,6 +1194,31 @@ function renderCgdTemporalSummaryChart() {
 
       renderCgdTemporalSummaryChart();
     });
+
+    const tooltipEl = host.querySelector('.outcome-evolution-tooltip');
+    if (tooltipEl) {
+      const pointElements = host.querySelectorAll('.outcome-evolution-point');
+      pointElements.forEach((pointEl) => {
+        pointEl.addEventListener('mouseenter', (e) => {
+          const titleEl = pointEl.querySelector('title');
+          const text = titleEl ? titleEl.textContent : '';
+          if (text) {
+            tooltipEl.textContent = text;
+            const svgWrap = host.querySelector('.outcome-evolution-svg-wrap');
+            if (svgWrap) {
+              const rect = svgWrap.getBoundingClientRect();
+              const pointRect = pointEl.getBoundingClientRect();
+              tooltipEl.style.left = (pointRect.left - rect.left - 20) + 'px';
+              tooltipEl.style.top = (pointRect.top - rect.top - 36) + 'px';
+            }
+            tooltipEl.classList.add('is-visible');
+          }
+        });
+        pointEl.addEventListener('mouseleave', () => {
+          tooltipEl.classList.remove('is-visible');
+        });
+      });
+    }
   }
 }
 
