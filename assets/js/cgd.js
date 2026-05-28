@@ -910,7 +910,7 @@ function renderSoberTotalizer() {
       return `
         <div class='data-row totalizer-row totalizer-row-savings-rubric'>
           <div class='desc-cell totalizer-desc-cell'>
-            <span class='totalizer-row-label'>${escapeHtml(rubric?.name || "Savings")}</span>
+            <span class='totalizer-row-label'>${escapeHtml(rubric?.name || "Poupancas")}</span>
           </div>
           ${renderTotalizerMonthPills(rubricTotals)}
         </div>
@@ -939,7 +939,7 @@ function renderSoberTotalizer() {
           </div>
           <div class='data-row totalizer-row totalizer-row-savings'>
             <div class='desc-cell totalizer-desc-cell'>
-              <span class='totalizer-row-label'>Savings</span>
+              <span class='totalizer-row-label'>Poupancas</span>
             </div>
             ${renderTotalizerMonthPills(savingsTotals)}
           </div>
@@ -1032,7 +1032,7 @@ function buildBalancePanel() {
     <header class='panel-head'>
       <div class='panel-title'>
         <span class='chev-spacer' aria-hidden='true'></span>
-        <span class='desc-pill panel-balance-title'>Balance</span>
+        <span class='desc-pill panel-balance-title'>Saldo</span>
       </div>
     </header>
     <div class='panel-collapsed-summary panel-collapsed-summary-balance'>
@@ -1040,7 +1040,7 @@ function buildBalancePanel() {
         <div class='desc-cell'>
           <span class='desc-pill collapsed-total-label collapsed-total-label-balance'>Total</span>
         </div>
-        ${readonlyBalanceSummaryPills(balanceTotals, "Total Balance")}
+        ${readonlyBalanceSummaryPills(balanceTotals, "Total Saldo")}
       </div>
     </div>
   </section>
@@ -1892,7 +1892,7 @@ function renderIncomeEvolutionChart() {
     <div class='outcome-evolution-top-series'>${legend}</div>
     ${singleRubricLegendMarkup}
     <div class='outcome-evolution-svg-wrap'>
-      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${isSingleRubricMode ? "Grafico de linhas com evolucao das despesas da rubrica selecionada" : "Grafico de linhas com evolucao das rubricas de income"}'>
+      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${isSingleRubricMode ? "Grafico de linhas com evolucao das despesas da rubrica selecionada" : "Grafico de linhas com evolucao das rubricas de receitas"}'>
         ${gridLines}
         ${monthGridLines}
         ${lines}
@@ -2174,7 +2174,7 @@ function renderSavingsEvolutionChart() {
     <div class='outcome-evolution-top-series'>${legend}</div>
     ${singleRubricLegendMarkup}
     <div class='outcome-evolution-svg-wrap'>
-      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${isSingleRubricMode ? "Grafico de linhas com evolucao das despesas da rubrica selecionada" : "Grafico de linhas com evolucao das rubricas de savings"}'>
+      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${isSingleRubricMode ? "Grafico de linhas com evolucao das despesas da rubrica selecionada" : "Grafico de linhas com evolucao das rubricas de poupancas"}'>
         ${gridLines}
         ${monthGridLines}
         ${lines}
@@ -2472,7 +2472,7 @@ function renderOutcomeEvolutionChart() {
     <div class='outcome-evolution-top-series'>${legend}</div>
     ${singleRubricLegendMarkup}
     <div class='outcome-evolution-svg-wrap'>
-      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${isSingleRubricMode ? "Grafico de linhas com evolucao das despesas da rubrica selecionada" : "Grafico de linhas com evolucao das rubricas de outcome"}'>
+      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${isSingleRubricMode ? "Grafico de linhas com evolucao das despesas da rubrica selecionada" : "Grafico de linhas com evolucao das rubricas de despesas"}'>
         ${gridLines}
         ${monthGridLines}
         ${lines}
@@ -2495,21 +2495,21 @@ function renderPanels() {
 
   panels.innerHTML = `
     ${buildBalancePanel()}
-    ${buildPanel("Income", "income", cgdState.data.income)}
+    ${buildPanel("Receitas", "income", cgdState.data.income)}
     <section class='outcome-evolution-card income-evolution-card'>
       <div class='outcome-evolution' id='income-evolution-chart' aria-live='polite'></div>
     </section>
     <section class='outcome-evolution-card income-comparison-card'>
       <div class='outcome-evolution' id='income-comparison-chart' aria-live='polite'></div>
     </section>
-    ${buildPanel("Savings", "savings", cgdState.data.savings)}
+    ${buildPanel("Poupancas", "savings", cgdState.data.savings)}
     <section class='outcome-evolution-card savings-evolution-card'>
       <div class='outcome-evolution' id='savings-evolution-chart' aria-live='polite'></div>
     </section>
     <section class='outcome-evolution-card savings-comparison-card'>
       <div class='outcome-evolution' id='savings-comparison-chart' aria-live='polite'></div>
     </section>
-    ${buildPanel("Outcome", "outcome", cgdState.data.outcome)}
+    ${buildPanel("Despesas", "outcome", cgdState.data.outcome)}
     <section class='outcome-evolution-card outcome-evolution-card-main'>
       <div class='outcome-evolution' id='outcome-evolution-chart' aria-live='polite'></div>
     </section>
@@ -3011,15 +3011,15 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
 
   const chartLabel = kind === "income"
     ? (isSingleRubricMode
-      ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de income selecionada"
-      : "Grafico comparativo mensal de valor e valor estimado do income")
+      ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de receitas selecionada"
+      : "Grafico comparativo mensal de valor e valor estimado das receitas")
     : kind === "savings"
       ? (isSingleRubricMode
-        ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de savings selecionada"
-        : "Grafico comparativo mensal de valor e valor estimado do savings")
+        ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de poupancas selecionada"
+        : "Grafico comparativo mensal de valor e valor estimado das poupancas")
       : (isSingleRubricMode
-        ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de outcome selecionada"
-        : "Grafico comparativo mensal de valor e valor estimado do outcome");
+        ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de despesas selecionada"
+        : "Grafico comparativo mensal de valor e valor estimado das despesas");
 
   const singleRubricLegendMarkup = isSingleRubricMode && expenseSeries.length
     ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>`
@@ -3701,7 +3701,7 @@ window.cgdLoadYearData = loadYearData;
 window.cgdSyncRealTotalizerEditableMonth = syncRealTotalizerEditableMonth;
 
 window.cgdCreateRubric = async (kind) => {
-  const sectionLabel = kind === "income" ? "Income" : kind === "savings" ? "Savings" : "Outcome";
+  const sectionLabel = kind === "income" ? "Receitas" : kind === "savings" ? "Poupancas" : "Despesas";
   const description = await requestEntityDescription({
     title: `Adicionar rubrica ${sectionLabel}`,
     subtitle: "Indica o descritivo da nova rubrica para o ano selecionado.",
@@ -3724,7 +3724,7 @@ window.cgdCreateRubric = async (kind) => {
       kind === "savings" && code === "23514" && (message.includes("rubrica_tipo") || message.includes("check constraint"));
 
     if (isSavingsConstraintError) {
-      window.alert("Nao foi possivel criar a rubrica em Savings porque a base de dados ainda nao permite rubrica_tipo = Aprovisionamento. Aplica a migration que atualiza a check constraint da tabela cgd_rubrica.");
+      window.alert("Nao foi possivel criar a rubrica em Poupancas porque a base de dados ainda nao permite rubrica_tipo = Aprovisionamento. Aplica a migration que atualiza a check constraint da tabela cgd_rubrica.");
     }
     return false;
   }

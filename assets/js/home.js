@@ -67,7 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
         labels: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"],
         datasets: [
           {
-            label: "Income",
+            label: "Receitas",
             data: [4180, 4320, 4670, 4410, 4820, 4960, 4870, 5050, 5190, 5100, 5230, 5480],
             borderColor: "#2c9b67",
             backgroundColor: "rgba(44, 155, 103, 0.16)",
@@ -77,7 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
             pointRadius: 2.8
           },
           {
-            label: "Outcome",
+            label: "Despesas",
             data: [2920, 2850, 3140, 3080, 3210, 3290, 3350, 3380, 3470, 3390, 3510, 3560],
             borderColor: "#c89e3d",
             backgroundColor: "rgba(200, 158, 61, 0.14)",
