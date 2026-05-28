@@ -1044,6 +1044,20 @@ function formatTileMoney(value) {
   return `${money(safeValue)} EUR`;
 }
 
+function calculateAccumulatedSavingsToDecember(rubrics, year) {
+  const source = Array.isArray(rubrics) ? rubrics : [];
+  return source.reduce((acc, rubric) => {
+    const rubricId = Number(rubric?.id);
+    if (Number.isFinite(rubricId)) {
+      const rubricSeries = computeSavingsRubricSeriesForYear(year, rubricId, cgdState.realComputationContexts);
+      return acc + (Number(rubricSeries?.[11]) || 0);
+    }
+    const rawValues = Array.isArray(rubric?.values) ? rubric.values.slice(0, 12) : emptyValues();
+    const fallbackAccumulated = rawValues.reduce((sum, monthValue) => sum + (Number(monthValue) || 0), 0);
+    return acc + fallbackAccumulated;
+  }, 0);
+}
+
 function renderCgdTopTiles() {
   const host = document.getElementById("cgd-top-tiles");
   if (!host) {
@@ -1056,16 +1070,10 @@ function renderCgdTopTiles() {
   const outcomeRubrics = Array.isArray(cgdState.data?.outcome) ? cgdState.data.outcome : [];
 
   const irsSavingsRubrics = savingsRubrics.filter((rubric) => rubricNameMatchesAny(rubric?.name, ["irs"]));
-  const irsSavingsAccumulatedDecember = irsSavingsRubrics.reduce((acc, rubric) => {
-    const rubricId = Number(rubric?.id);
-    if (Number.isFinite(rubricId)) {
-      const rubricSeries = computeSavingsRubricSeriesForYear(year, rubricId, cgdState.realComputationContexts);
-      return acc + (Number(rubricSeries?.[11]) || 0);
-    }
-    const rawValues = Array.isArray(rubric?.values) ? rubric.values.slice(0, 12) : emptyValues();
-    const fallbackAccumulated = rawValues.reduce((sum, monthValue) => sum + (Number(monthValue) || 0), 0);
-    return acc + fallbackAccumulated;
-  }, 0);
+  const irsSavingsAccumulatedDecember = calculateAccumulatedSavingsToDecember(irsSavingsRubrics, year);
+
+  const audiSavingsRubrics = savingsRubrics.filter((rubric) => rubricNameMatchesAny(rubric?.name, ["audi"]));
+  const audiSavingsAccumulatedDecember = calculateAccumulatedSavingsToDecember(audiSavingsRubrics, year);
 
   const realSeries = computeRealSeriesForYear(year, cgdState.realComputationContexts);
   const savingsAccumulatedSeries = computeSavingsSeriesForYear(year, cgdState.realComputationContexts);
@@ -1082,12 +1090,12 @@ function renderCgdTopTiles() {
   const incomeAverage = averageOfSeries(sumRubricsValuesByMonth(incomeFilteredRubrics));
 
   host.innerHTML = `
-    <article class='stat-tile'>
+    <article class='stat-tile stat-tile--green'>
       <h4>Media mensal de receitas</h4>
       <p>${formatTileMoney(incomeAverage)}</p>
       <span class='stat-tile-meta'>Exclui movimentos</span>
     </article>
-    <article class='stat-tile stat-tile--green'>
+    <article class='stat-tile stat-tile--blue'>
       <h4>Media mensal de poupancas</h4>
       <p>${formatTileMoney(savingsAverage)}</p>
       <span class='stat-tile-meta'>Ano ${year}</span>
@@ -1097,12 +1105,17 @@ function renderCgdTopTiles() {
       <p>${formatTileMoney(outcomeAverage)}</p>
       <span class='stat-tile-meta'>Exclui movimentos e impostos</span>
     </article>
-    <article class='stat-tile stat-tile--cyan'>
+    <article class='stat-tile stat-tile--green'>
       <h4>Total disponivel (Dez)</h4>
       <p>${formatTileMoney(totalAvailableDecember)}</p>
       <span class='stat-tile-meta'>Ano ${year}</span>
     </article>
-    <article class='stat-tile stat-tile--warning'>
+    <article class='stat-tile stat-tile--blue'>
+      <h4>Poupanca acumulada Audi (Dez)</h4>
+      <p>${formatTileMoney(audiSavingsAccumulatedDecember)}</p>
+      <span class='stat-tile-meta'>Ano ${year}</span>
+    </article>
+    <article class='stat-tile stat-tile--blue'>
       <h4>Poupanca IRS acumulada (Dez)</h4>
       <p>${formatTileMoney(irsSavingsAccumulatedDecember)}</p>
       <span class='stat-tile-meta'>Ano ${year}</span>

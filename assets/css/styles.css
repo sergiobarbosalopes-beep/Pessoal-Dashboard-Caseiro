@@ -555,19 +555,18 @@ a {
 .cgd-top-tiles {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 12px;
+  column-gap: 18px;
+  row-gap: 16px;
 }
 
-.cgd-top-tiles .stat-tile:nth-child(-n + 3) {
-  grid-column: span 2;
-}
-
-.cgd-top-tiles .stat-tile:nth-child(n + 4) {
+.cgd-top-tiles .stat-tile {
   grid-column: span 3;
 }
 
 .cgd-top-tiles-card {
-  margin-bottom: 10px;
+  margin-top: 16px;
+  margin-bottom: 18px;
+  padding: 18px 22px;
 }
 
 .stat-tile {
@@ -678,6 +677,21 @@ a {
 
 .stat-tile--cyan p {
   background: linear-gradient(135deg, #00d4ff, #9be7ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-tile--blue {
+  border-color: rgba(53, 168, 223, 0.34);
+}
+
+.stat-tile--blue::before {
+  background: linear-gradient(90deg, #00589b, #0072bf, #35a8df);
+}
+
+.stat-tile--blue p {
+  background: linear-gradient(135deg, #35a8df, #9bd8f2);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -2827,10 +2841,11 @@ a {
 
   .cgd-top-tiles {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 14px;
+    row-gap: 14px;
   }
 
-  .cgd-top-tiles .stat-tile:nth-child(-n + 3),
-  .cgd-top-tiles .stat-tile:nth-child(n + 4) {
+  .cgd-top-tiles .stat-tile {
     grid-column: span 1;
   }
 
@@ -2925,6 +2940,8 @@ a {
 
   .cgd-top-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 12px;
+    row-gap: 12px;
   }
 
   .card {
@@ -2986,6 +3003,7 @@ a {
 
   .cgd-top-tiles {
     grid-template-columns: 1fr;
+    row-gap: 10px;
   }
 
   .year-nav {
