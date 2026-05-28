@@ -1084,8 +1084,7 @@ function renderCgdTemporalSummaryChart() {
     host.innerHTML = `
       <div class='outcome-evolution'>
         <div class='outcome-evolution-head'>
-          <h3>Evolucao temporal anual</h3>
-          <p>Totalizador mensal consolidado</p>
+          <h3>Mapa ${year}</h3>
         </div>
         <p class='outcome-evolution-empty'>Nenhuma serie selecionada. Clica na legenda para voltar a mostrar.</p>
         <div class='outcome-evolution-legend'>${legend}</div>
@@ -1142,13 +1141,13 @@ function renderCgdTemporalSummaryChart() {
         const pathData = buildSmoothPathData(points);
         const areaPath = `${pathData} L ${points[points.length - 1].x.toFixed(2)} ${zeroY.toFixed(2)} L ${points[0].x.toFixed(2)} ${zeroY.toFixed(2)} Z`;
         const pointsMarkup = points
-          .map((point) => `<circle class='outcome-evolution-point' cx='${point.x.toFixed(2)}' cy='${point.y.toFixed(2)}' r='2.8' fill='${entry.color}' tabindex='0'><title>${escapeHtml(entry.label)} ${escapeHtml(point.month)}: ${money(point.value)} EUR</title></circle>`)
+          .map((point) => `<circle class='outcome-evolution-point' cx='${point.x.toFixed(2)}' cy='${point.y.toFixed(2)}' r='2.2' fill='${entry.color}' tabindex='0'><title>${escapeHtml(entry.label)} ${escapeHtml(point.month)}: ${money(point.value)} EUR</title></circle>`)
           .join("");
 
         return `
           <g class='outcome-evolution-series'>
             <path d='${areaPath}' class='outcome-evolution-area' fill='${entry.color}' fill-opacity='0.10' />
-            <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round' />
+            <path d='${pathData}' class='outcome-evolution-line cgd-summary-line-animated' fill='none' stroke='${entry.color}' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' />
             ${pointsMarkup}
           </g>
         `;
@@ -1158,8 +1157,7 @@ function renderCgdTemporalSummaryChart() {
     host.innerHTML = `
       <div class='outcome-evolution cgd-summary-outcome-evolution'>
         <div class='outcome-evolution-head'>
-          <h3>Evolucao temporal anual</h3>
-          <p>Totalizador mensal consolidado</p>
+          <h3>Mapa ${year}</h3>
         </div>
         <div class='outcome-evolution-legend'>${legend}</div>
         <div class='outcome-evolution-svg-wrap cgd-summary-svg-wrap'>
