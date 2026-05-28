@@ -812,6 +812,7 @@ async function refreshYearDataAndFutureTotalizerFromMonth(startMonthIndex) {
   );
 
   renderCgdTopTiles();
+  renderCgdTemporalSummaryChart();
   renderSoberTotalizer();
   syncRealTotalizerEditableMonth(document.querySelector(".month-tile.active")?.getAttribute("data-month"));
 }
@@ -1045,6 +1046,123 @@ function formatTileMoney(value) {
   return `${money(safeValue)} EUR`;
 }
 
+function renderCgdTemporalSummaryChart() {
+  const host = document.getElementById("cgd-temporal-summary-chart");
+  if (!host) {
+    return;
+  }
+
+  const year = Number(cgdState.selectedYear);
+  const realSeries = computeRealSeriesForYear(year, cgdState.realComputationContexts);
+  const realValues = Array.isArray(realSeries?.values) ? realSeries.values : emptyValues();
+  const savingsValues = computeSavingsSeriesForYear(year, cgdState.realComputationContexts);
+  const availableValues = months.map((_, monthIndex) => {
+    const real = Number(realValues?.[monthIndex]) || 0;
+    const savings = Number(savingsValues?.[monthIndex]) || 0;
+    return real - savings;
+  });
+
+  const series = [
+    { label: "Real", color: "#ecf6fb", values: realValues },
+    { label: "Disponivel", color: "#7fd7a8", values: availableValues },
+    { label: "Poupancas", color: "#8ccbf3", values: savingsValues }
+  ];
+
+  const allValues = series.flatMap((entry) => entry.values.map((value) => Number(value) || 0));
+  const minValue = Math.min(...allValues, 0);
+  const maxValue = Math.max(...allValues, 0);
+  const hasRange = maxValue !== minValue;
+  const paddedMin = hasRange ? minValue : minValue - 1;
+  const paddedMax = hasRange ? maxValue : maxValue + 1;
+  const valueRange = paddedMax - paddedMin;
+
+  const width = 1040;
+  const height = 280;
+  const padLeft = 50;
+  const padRight = 18;
+  const padTop = 16;
+  const padBottom = 38;
+  const innerWidth = width - padLeft - padRight;
+  const innerHeight = height - padTop - padBottom;
+
+  const xFor = (index) => {
+    if (months.length <= 1) {
+      return padLeft;
+    }
+    return padLeft + (innerWidth * index) / (months.length - 1);
+  };
+
+  const yFor = (value) => {
+    const safeValue = Number(value) || 0;
+    const normalized = (safeValue - paddedMin) / valueRange;
+    return padTop + innerHeight - (normalized * innerHeight);
+  };
+
+  const pathFor = (values) => values
+    .map((value, index) => `${index === 0 ? "M" : "L"}${xFor(index).toFixed(2)} ${yFor(value).toFixed(2)}`)
+    .join(" ");
+
+  const horizontalGridLines = 4;
+  const gridLines = Array.from({ length: horizontalGridLines + 1 }, (_, step) => {
+    const ratio = step / horizontalGridLines;
+    const y = padTop + innerHeight * ratio;
+    const valueAtLine = paddedMax - ratio * valueRange;
+    return `
+      <line x1='${padLeft}' y1='${y.toFixed(2)}' x2='${(width - padRight).toFixed(2)}' y2='${y.toFixed(2)}' class='cgd-summary-grid-line' />
+      <text x='${(padLeft - 8).toFixed(2)}' y='${(y + 3).toFixed(2)}' class='cgd-summary-grid-label'>${money(valueAtLine)}</text>
+    `;
+  }).join("");
+
+  const monthLabels = months.map((monthLabel, index) => `
+    <text x='${xFor(index).toFixed(2)}' y='${(height - 14).toFixed(2)}' text-anchor='middle' class='cgd-summary-month-label'>${monthLabel}</text>
+  `).join("");
+
+  const plottedSeries = series.map((entry) => ({
+    ...entry,
+    path: pathFor(entry.values),
+    points: entry.values.map((value, index) => ({
+      x: xFor(index),
+      y: yFor(value),
+      value: Number(value) || 0,
+      monthLabel: months[index]
+    }))
+  }));
+
+  const seriesPaths = plottedSeries.map((entry) => `
+    <path d='${entry.path}' fill='none' stroke='${entry.color}' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' />
+  `).join("");
+
+  const seriesPoints = plottedSeries.map((entry) => entry.points.map((point) => `
+    <circle cx='${point.x.toFixed(2)}' cy='${point.y.toFixed(2)}' r='3.4' fill='${entry.color}'>
+      <title>${entry.label} ${point.monthLabel}: ${money(point.value)} EUR</title>
+    </circle>
+  `).join("")).join("");
+
+  const legend = plottedSeries.map((entry) => `
+    <li>
+      <span class='cgd-summary-legend-dot' style='--dot-color:${entry.color}' aria-hidden='true'></span>
+      <span>${entry.label}</span>
+    </li>
+  `).join("");
+
+  host.innerHTML = `
+    <section class='cgd-summary-chart-shell' aria-label='Grafico temporal de totalizador mensal'>
+      <header class='cgd-summary-chart-head'>
+        <h3>Evolucao temporal anual</h3>
+        <ul class='cgd-summary-legend'>${legend}</ul>
+      </header>
+      <div class='cgd-summary-chart-wrap'>
+        <svg class='cgd-summary-chart' viewBox='0 0 ${width} ${height}' role='img' aria-label='Comparacao mensal de Real, Disponivel e Poupancas'>
+          ${gridLines}
+          ${seriesPaths}
+          ${seriesPoints}
+          ${monthLabels}
+        </svg>
+      </div>
+    </section>
+  `;
+}
+
 function calculateAccumulatedSavingsToDecember(rubrics, year) {
   const source = Array.isArray(rubrics) ? rubrics : [];
   return source.reduce((acc, rubric) => {
@@ -1092,34 +1210,35 @@ function renderCgdTopTiles() {
 
   host.innerHTML = `
     <article class='stat-tile stat-tile--green'>
-      <h4>Media mensal de receitas</h4>
+      <h4>Media de receitas</h4>
       <p>${formatTileMoney(incomeAverage)}</p>
       <span class='stat-tile-meta'>Exclui movimentos</span>
     </article>
     <article class='stat-tile stat-tile--blue'>
-      <h4>Media mensal de poupancas</h4>
+      <h4>Media de poupancas</h4>
       <p>${formatTileMoney(savingsAverage)}</p>
       <span class='stat-tile-meta'>Ano ${year}</span>
     </article>
     <article class='stat-tile stat-tile--danger'>
-      <h4>Media mensal de despesas</h4>
+      <h4>Media de despesas</h4>
       <p>${formatTileMoney(outcomeAverage)}</p>
       <span class='stat-tile-meta'>Exclui movimentos e impostos</span>
     </article>
     <article class='stat-tile stat-tile--green'>
-      <h4>Total disponivel (Dez)</h4>
+      <h4>Total disponivel Dezembro ${year}</h4>
       <p>${formatTileMoney(totalAvailableDecember)}</p>
-      <span class='stat-tile-meta'>Ano ${year}</span>
+      <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
     </article>
     <article class='stat-tile stat-tile--blue'>
-      <h4>Poupanca IRS acumulada (Dez)</h4>
+      <h4>Poupanca IRS Dezembro ${year}</h4>
       <p>${formatTileMoney(irsSavingsAccumulatedDecember)}</p>
-      <span class='stat-tile-meta'>Ano ${year}</span>
+      <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
     </article>
     <article class='stat-tile stat-tile--blue'>
-      <h4>Poupanca acumulada Audi (Dez)</h4>
+      <h4>Poupanca Audi Dezembro ${year}</h4>
       <p>${formatTileMoney(audiSavingsAccumulatedDecember)}</p>
-      <span class='stat-tile-meta'>Ano ${year}</span>
+      <span class='stat-tile-meta stat-tile-meta--right'>Meta Setembro 2028</span>
+      <span class='stat-tile-meta stat-tile-meta--right stat-tile-meta-target'>${formatTileMoney(5900)}</span>
     </article>
   `;
 }
@@ -3319,6 +3438,7 @@ async function loadYearData(year) {
       [Number(year) - 2]: defaultRealComputationContext()
     };
     renderCgdTopTiles();
+    renderCgdTemporalSummaryChart();
     renderSoberTotalizer();
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
@@ -3398,6 +3518,16 @@ async function loadYearData(year) {
     }
 
     try {
+      renderCgdTemporalSummaryChart();
+    } catch (summaryChartError) {
+      console.error("Erro a renderizar grafico temporal CGD:", summaryChartError);
+      const summaryChartHost = document.getElementById("cgd-temporal-summary-chart");
+      if (summaryChartHost) {
+        summaryChartHost.innerHTML = "";
+      }
+    }
+
+    try {
       renderSoberTotalizer();
     } catch (totalizerError) {
       console.error("Erro a renderizar totalizador CGD:", totalizerError);
@@ -3423,6 +3553,15 @@ async function loadYearData(year) {
       const tilesHost = document.getElementById("cgd-top-tiles");
       if (tilesHost) {
         tilesHost.innerHTML = "";
+      }
+    }
+    try {
+      renderCgdTemporalSummaryChart();
+    } catch (summaryChartError) {
+      console.error("Erro a renderizar grafico temporal CGD em fallback:", summaryChartError);
+      const summaryChartHost = document.getElementById("cgd-temporal-summary-chart");
+      if (summaryChartHost) {
+        summaryChartHost.innerHTML = "";
       }
     }
     try {
