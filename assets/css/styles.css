@@ -303,8 +303,9 @@ a {
   border-color: rgba(124, 190, 228, 0.48);
   background: rgba(11, 28, 39, 0.9);
   box-shadow:
-    0 0 0 1px rgba(139, 204, 236, 0.22),
-    0 0 18px rgba(0, 102, 179, 0.22),
+    0 0 0 1px rgba(152, 213, 242, 0.28),
+    0 0 22px rgba(0, 102, 179, 0.3),
+    0 0 44px rgba(0, 88, 155, 0.2),
     0 10px 24px rgba(3, 25, 43, 0.34);
   backdrop-filter: blur(10px);
 }
@@ -813,10 +814,10 @@ a {
   margin-top: 30px;
   margin-bottom: 30px;
   box-shadow:
-    0 0 0 1px rgba(136, 203, 236, 0.3),
-    0 0 30px rgba(0, 102, 179, 0.32),
-    0 0 62px rgba(0, 88, 155, 0.26),
-    0 0 92px rgba(10, 120, 200, 0.2),
+    0 0 0 1px rgba(148, 211, 241, 0.34),
+    0 0 36px rgba(0, 102, 179, 0.38),
+    0 0 72px rgba(0, 88, 155, 0.3),
+    0 0 108px rgba(10, 120, 200, 0.24),
     0 14px 28px rgba(3, 9, 13, 0.44);
 }
 
