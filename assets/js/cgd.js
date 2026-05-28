@@ -1082,22 +1082,22 @@ function renderCgdTopTiles() {
   const incomeAverage = averageOfSeries(sumRubricsValuesByMonth(incomeFilteredRubrics));
 
   host.innerHTML = `
-    <article class='stat-tile'>
+    <article class='stat-tile stat-tile--warning'>
       <h4>Poupanca IRS acumulada (Dez)</h4>
       <p>${formatTileMoney(irsSavingsAccumulatedDecember)}</p>
       <span class='stat-tile-meta'>Ano ${year}</span>
     </article>
-    <article class='stat-tile'>
+    <article class='stat-tile stat-tile--cyan'>
       <h4>Total disponivel (Dez)</h4>
       <p>${formatTileMoney(totalAvailableDecember)}</p>
       <span class='stat-tile-meta'>Ano ${year}</span>
     </article>
-    <article class='stat-tile'>
+    <article class='stat-tile stat-tile--green'>
       <h4>Media mensal de poupancas</h4>
       <p>${formatTileMoney(savingsAverage)}</p>
       <span class='stat-tile-meta'>Ano ${year}</span>
     </article>
-    <article class='stat-tile'>
+    <article class='stat-tile stat-tile--danger'>
       <h4>Media mensal de despesas</h4>
       <p>${formatTileMoney(outcomeAverage)}</p>
       <span class='stat-tile-meta'>Exclui movimentos e impostos</span>

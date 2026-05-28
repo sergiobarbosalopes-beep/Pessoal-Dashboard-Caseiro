@@ -559,33 +559,100 @@ a {
 }
 
 .stat-tile {
-  border-radius: var(--radius-lg);
-  padding: 12px;
-  border: 1px solid rgba(146, 204, 234, 0.36);
-  box-shadow: 0 0 0 1px rgba(112, 186, 224, 0.14), 0 12px 24px rgba(3, 20, 33, 0.32);
-  background: linear-gradient(135deg, rgba(12, 52, 78, 0.9), rgba(13, 39, 61, 0.88) 58%, rgba(14, 63, 93, 0.86));
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  padding: 16px 14px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(138deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.04));
+  box-shadow: 0 14px 30px rgba(2, 10, 18, 0.3);
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.stat-tile::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #e91e8c, #00d4ff);
+  opacity: 0.9;
+}
+
+.stat-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 34px rgba(2, 10, 18, 0.38);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .stat-tile h4 {
   margin: 0;
-  font-size: 0.67rem;
-  color: #9ec5da;
+  font-size: 0.68rem;
+  color: rgba(207, 230, 242, 0.84);
   text-transform: uppercase;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.08em;
 }
 
 .stat-tile p {
-  margin: 7px 0 0;
+  margin: 9px 0 0;
   font-family: "Inter", "Segoe UI", sans-serif;
-  font-size: 1.01rem;
-  font-weight: 700;
-  color: #f2fbff;
+  font-size: 1.06rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #e91e8c, #00d4ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .stat-tile .stat-tile-meta {
-  margin: 7px 0 0;
-  font-size: 0.69rem;
-  color: #83b5ce;
+  margin: 8px 0 0;
+  font-size: 0.7rem;
+  color: rgba(168, 197, 212, 0.86);
+}
+
+.stat-tile--danger {
+  border-color: rgba(229, 57, 53, 0.3);
+}
+
+.stat-tile--danger p {
+  background: linear-gradient(135deg, #e53935, #ef9a9a);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-tile--warning {
+  border-color: rgba(251, 140, 0, 0.32);
+}
+
+.stat-tile--warning p {
+  background: linear-gradient(135deg, #fb8c00, #ffcc80);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-tile--green {
+  border-color: rgba(0, 200, 83, 0.3);
+}
+
+.stat-tile--green p {
+  background: linear-gradient(135deg, #00c853, #b9f6ca);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-tile--cyan {
+  border-color: rgba(0, 212, 255, 0.28);
+}
+
+.stat-tile--cyan p {
+  background: linear-gradient(135deg, #00d4ff, #9be7ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .timeline-wrap {
