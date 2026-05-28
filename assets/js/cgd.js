@@ -2861,7 +2861,7 @@ function openRealValuePopup(monthIndex) {
   const input = modal.querySelector("[data-real-modal-input]");
   input.value = money(currentValue);
   input.setAttribute("data-real-modal-month", monthIndex);
-  modal.setAttribute("aria-hidden", "false");
+  modal.classList.add("show");
   input.focus();
   input.select();
 }
@@ -2869,7 +2869,7 @@ function openRealValuePopup(monthIndex) {
 function closeRealValuePopup() {
   const modal = document.getElementById("real-value-modal");
   if (modal) {
-    modal.setAttribute("aria-hidden", "true");
+    modal.classList.remove("show");
   }
 }
 
