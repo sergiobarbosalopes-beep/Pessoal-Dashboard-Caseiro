@@ -554,13 +554,13 @@ a {
 
 .cgd-top-tiles {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   column-gap: 18px;
   row-gap: 16px;
 }
 
 .cgd-top-tiles .stat-tile {
-  grid-column: span 3;
+  grid-column: span 1;
 }
 
 .cgd-top-tiles-card {

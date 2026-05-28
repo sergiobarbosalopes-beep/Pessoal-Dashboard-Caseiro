@@ -1111,13 +1111,13 @@ function renderCgdTopTiles() {
       <span class='stat-tile-meta'>Ano ${year}</span>
     </article>
     <article class='stat-tile stat-tile--blue'>
-      <h4>Poupanca acumulada Audi (Dez)</h4>
-      <p>${formatTileMoney(audiSavingsAccumulatedDecember)}</p>
+      <h4>Poupanca IRS acumulada (Dez)</h4>
+      <p>${formatTileMoney(irsSavingsAccumulatedDecember)}</p>
       <span class='stat-tile-meta'>Ano ${year}</span>
     </article>
     <article class='stat-tile stat-tile--blue'>
-      <h4>Poupanca IRS acumulada (Dez)</h4>
-      <p>${formatTileMoney(irsSavingsAccumulatedDecember)}</p>
+      <h4>Poupanca acumulada Audi (Dez)</h4>
+      <p>${formatTileMoney(audiSavingsAccumulatedDecember)}</p>
       <span class='stat-tile-meta'>Ano ${year}</span>
     </article>
   `;
