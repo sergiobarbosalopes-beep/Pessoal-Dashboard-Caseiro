@@ -1082,7 +1082,7 @@ function renderCgdTemporalSummaryChart() {
 
   if (!visibleSeries.length) {
     host.innerHTML = `
-      <div class='outcome-evolution'>
+      <div class='cgd-summary-map'>
         <div class='outcome-evolution-head'>
           <h3>Mapa ${year}</h3>
         </div>
@@ -1155,7 +1155,7 @@ function renderCgdTemporalSummaryChart() {
       .join("");
 
     host.innerHTML = `
-      <div class='outcome-evolution cgd-summary-outcome-evolution'>
+      <div class='cgd-summary-map'>
         <div class='outcome-evolution-head'>
           <h3>Mapa ${year}</h3>
         </div>

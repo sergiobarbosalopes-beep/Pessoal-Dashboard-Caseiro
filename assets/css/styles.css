@@ -759,21 +759,32 @@ a {
   box-shadow: none;
 }
 
+.cgd-summary-map {
+  display: grid;
+  gap: 10px;
+}
+
 .cgd-summary-outcome-evolution .outcome-evolution-area {
   animation: cgdSummaryAreaBreathe 3.2s ease-in-out infinite;
 }
 
 .cgd-summary-line-animated {
-  stroke-dasharray: 9 7;
-  animation: cgdSummaryLineFlow 14s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cgdSummaryLinePulse 3s ease-in-out infinite;
 }
 
-@keyframes cgdSummaryLineFlow {
-  from {
-    stroke-dashoffset: 0;
+@keyframes cgdSummaryLinePulse {
+  0%,
+  100% {
+    opacity: 0.9;
+    transform: translateY(0);
+    filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0));
   }
-  to {
-    stroke-dashoffset: -320;
+  50% {
+    opacity: 1;
+    transform: translateY(-0.6px);
+    filter: drop-shadow(0 0 3px rgba(220, 239, 250, 0.28));
   }
 }
 
