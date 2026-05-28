@@ -1,0 +1,11 @@
+# Local backups and recovery artifacts
+backups/
+.git_prealign/
+.git_prealign_*/
+
+# Supabase local CLI artifacts
+supabase/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
