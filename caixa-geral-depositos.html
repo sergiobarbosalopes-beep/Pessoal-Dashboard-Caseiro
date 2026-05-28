@@ -52,24 +52,7 @@
 
       <main class="page-grid fade-up delay-2">
         <section class="card" style="grid-column: span 12;">
-          <div class="cgd-top-tiles">
-            <article class="stat-tile">
-              <h4>Saldo ordem</h4>
-              <p>12 490.22 EUR</p>
-            </article>
-            <article class="stat-tile">
-              <h4>Poupanca associada</h4>
-              <p>9 180.40 EUR</p>
-            </article>
-            <article class="stat-tile">
-              <h4>Credito utilizado</h4>
-              <p>1 240.00 EUR</p>
-            </article>
-            <article class="stat-tile">
-              <h4>Cashflow medio</h4>
-              <p>+1 182.00 EUR</p>
-            </article>
-          </div>
+          <div class="cgd-top-tiles" id="cgd-top-tiles"></div>
         </section>
 
         <section class="card temporal-nav-card" style="grid-column: span 12;">
@@ -78,12 +61,16 @@
           </div>
         </section>
 
-        <section class="card sober-totalizer-card" style="grid-column: span 12;">
-          <div id="cgd-totalizer" aria-live="polite"></div>
-        </section>
-
         <section style="grid-column: span 12;">
           <div class="panel-stack" id="cgd-panels"></div>
+        </section>
+
+        <section class="card outcome-evolution-card" style="grid-column: span 12;">
+          <div class="outcome-evolution" id="outcome-evolution-chart" aria-live="polite"></div>
+        </section>
+
+        <section class="card outcome-evolution-card outcome-comparison-card" style="grid-column: span 12;">
+          <div class="outcome-evolution" id="outcome-comparison-chart" aria-live="polite"></div>
         </section>
       </main>
     </div>
@@ -134,17 +121,6 @@
                 </label>
               </div>
             </section>
-
-            <section class="expense-modal-section expense-estimated-section">
-              <h4>Modo de registo</h4>
-              <div class="expense-modal-checks">
-                <label class="toggle-control">
-                  <input type="checkbox" data-expense-estimated />
-                  <span class="toggle-ui" aria-hidden="true"></span>
-                  <span>Estimado</span>
-                </label>
-              </div>
-            </section>
           </div>
 
           <section class="expense-modal-section disabled-future-section expense-history-section">
@@ -171,7 +147,6 @@
         </div>
 
         <div class="modal-actions">
-          <button class="ghost-btn ghost-btn-danger" type="button" data-expense-zero>Zerar</button>
           <button class="ghost-btn" type="button" data-expense-save>Gravar</button>
           <button class="ghost-btn" type="button" data-close-modal>Fechar</button>
         </div>

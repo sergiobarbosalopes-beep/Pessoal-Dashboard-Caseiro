@@ -554,30 +554,38 @@ a {
 
 .cgd-top-tiles {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
 }
 
 .stat-tile {
   border-radius: var(--radius-lg);
   padding: 12px;
-  border: 1px solid rgba(145, 189, 208, 0.24);
-  box-shadow: var(--shadow-card);
-  background: linear-gradient(135deg, rgba(24, 54, 70, 0.95), rgba(19, 43, 56, 0.86));
+  border: 1px solid rgba(146, 204, 234, 0.36);
+  box-shadow: 0 0 0 1px rgba(112, 186, 224, 0.14), 0 12px 24px rgba(3, 20, 33, 0.32);
+  background: linear-gradient(135deg, rgba(12, 52, 78, 0.9), rgba(13, 39, 61, 0.88) 58%, rgba(14, 63, 93, 0.86));
 }
 
 .stat-tile h4 {
   margin: 0;
-  font-size: 0.72rem;
-  color: var(--ink-500);
+  font-size: 0.67rem;
+  color: #9ec5da;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
 }
 
 .stat-tile p {
-  margin: 6px 0 0;
+  margin: 7px 0 0;
   font-family: "Inter", "Segoe UI", sans-serif;
-  font-size: 1.05rem;
+  font-size: 1.01rem;
+  font-weight: 700;
+  color: #f2fbff;
+}
+
+.stat-tile .stat-tile-meta {
+  margin: 7px 0 0;
+  font-size: 0.69rem;
+  color: #83b5ce;
 }
 
 .timeline-wrap {
@@ -2723,7 +2731,7 @@ a {
   }
 
   .cgd-top-tiles {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .expense-detail-modal {
@@ -2813,6 +2821,10 @@ a {
 
   .kpi {
     grid-column: span 12;
+  }
+
+  .cgd-top-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .card {

@@ -1016,6 +1016,100 @@ function readonlyBalanceSummaryPills(values, labelPrefix) {
     .join("");
 }
 
+function normalizeComparableText(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function rubricNameMatchesAny(rubricName, terms) {
+  const normalizedName = normalizeComparableText(rubricName);
+  return (Array.isArray(terms) ? terms : []).some((term) => normalizedName.includes(normalizeComparableText(term)));
+}
+
+function averageOfSeries(values) {
+  const source = Array.isArray(values) ? values : [];
+  if (!source.length) {
+    return 0;
+  }
+  const total = source.reduce((acc, value) => acc + (Number(value) || 0), 0);
+  return total / source.length;
+}
+
+function formatTileMoney(value) {
+  const numeric = Number(value);
+  const safeValue = Number.isFinite(numeric) ? numeric : 0;
+  return `${money(safeValue)} EUR`;
+}
+
+function renderCgdTopTiles() {
+  const host = document.getElementById("cgd-top-tiles");
+  if (!host) {
+    return;
+  }
+
+  const year = Number(cgdState.selectedYear);
+  const savingsRubrics = Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
+  const incomeRubrics = Array.isArray(cgdState.data?.income) ? cgdState.data.income : [];
+  const outcomeRubrics = Array.isArray(cgdState.data?.outcome) ? cgdState.data.outcome : [];
+
+  const irsSavingsRubrics = savingsRubrics.filter((rubric) => rubricNameMatchesAny(rubric?.name, ["irs"]));
+  const irsSavingsAccumulatedDecember = irsSavingsRubrics.reduce((acc, rubric) => {
+    const rubricId = Number(rubric?.id);
+    if (Number.isFinite(rubricId)) {
+      const rubricSeries = computeSavingsRubricSeriesForYear(year, rubricId, cgdState.realComputationContexts);
+      return acc + (Number(rubricSeries?.[11]) || 0);
+    }
+    const rawValues = Array.isArray(rubric?.values) ? rubric.values.slice(0, 12) : emptyValues();
+    const fallbackAccumulated = rawValues.reduce((sum, monthValue) => sum + (Number(monthValue) || 0), 0);
+    return acc + fallbackAccumulated;
+  }, 0);
+
+  const realSeries = computeRealSeriesForYear(year, cgdState.realComputationContexts);
+  const savingsAccumulatedSeries = computeSavingsSeriesForYear(year, cgdState.realComputationContexts);
+  const totalAvailableDecember = (Number(realSeries?.values?.[11]) || 0) - (Number(savingsAccumulatedSeries?.[11]) || 0);
+
+  const savingsAverage = averageOfSeries(sumRubricsValuesByMonth(savingsRubrics));
+
+  const outcomeFilteredRubrics = outcomeRubrics.filter(
+    (rubric) => !rubricNameMatchesAny(rubric?.name, ["movimentos", "impostos"])
+  );
+  const outcomeAverage = averageOfSeries(sumRubricsValuesByMonth(outcomeFilteredRubrics));
+
+  const incomeFilteredRubrics = incomeRubrics.filter((rubric) => !rubricNameMatchesAny(rubric?.name, ["movimentos"]));
+  const incomeAverage = averageOfSeries(sumRubricsValuesByMonth(incomeFilteredRubrics));
+
+  host.innerHTML = `
+    <article class='stat-tile'>
+      <h4>Poupanca IRS acumulada (Dez)</h4>
+      <p>${formatTileMoney(irsSavingsAccumulatedDecember)}</p>
+      <span class='stat-tile-meta'>Ano ${year}</span>
+    </article>
+    <article class='stat-tile'>
+      <h4>Total disponivel (Dez)</h4>
+      <p>${formatTileMoney(totalAvailableDecember)}</p>
+      <span class='stat-tile-meta'>Ano ${year}</span>
+    </article>
+    <article class='stat-tile'>
+      <h4>Media mensal de poupancas</h4>
+      <p>${formatTileMoney(savingsAverage)}</p>
+      <span class='stat-tile-meta'>Ano ${year}</span>
+    </article>
+    <article class='stat-tile'>
+      <h4>Media mensal de despesas</h4>
+      <p>${formatTileMoney(outcomeAverage)}</p>
+      <span class='stat-tile-meta'>Exclui movimentos e impostos</span>
+    </article>
+    <article class='stat-tile'>
+      <h4>Media mensal de receitas</h4>
+      <p>${formatTileMoney(incomeAverage)}</p>
+      <span class='stat-tile-meta'>Exclui movimentos</span>
+    </article>
+  `;
+}
+
 function buildBalancePanel() {
   const incomeTotals = sumRubricsValuesByMonth(cgdState.data?.income || []);
   const savingsTotals = sumRubricsValuesByMonth(cgdState.data?.savings || []);
@@ -3210,6 +3304,7 @@ async function loadYearData(year) {
       [Number(year) - 1]: defaultRealComputationContext(),
       [Number(year) - 2]: defaultRealComputationContext()
     };
+    renderCgdTopTiles();
     renderSoberTotalizer();
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
@@ -3279,6 +3374,16 @@ async function loadYearData(year) {
     }
 
     try {
+      renderCgdTopTiles();
+    } catch (topTilesError) {
+      console.error("Erro a renderizar tiles de topo CGD:", topTilesError);
+      const tilesHost = document.getElementById("cgd-top-tiles");
+      if (tilesHost) {
+        tilesHost.innerHTML = "";
+      }
+    }
+
+    try {
       renderSoberTotalizer();
     } catch (totalizerError) {
       console.error("Erro a renderizar totalizador CGD:", totalizerError);
@@ -3297,6 +3402,15 @@ async function loadYearData(year) {
       [Number(year) - 1]: defaultRealComputationContext(),
       [Number(year) - 2]: defaultRealComputationContext()
     };
+    try {
+      renderCgdTopTiles();
+    } catch (topTilesError) {
+      console.error("Erro a renderizar tiles de topo CGD em fallback:", topTilesError);
+      const tilesHost = document.getElementById("cgd-top-tiles");
+      if (tilesHost) {
+        tilesHost.innerHTML = "";
+      }
+    }
     try {
       renderSoberTotalizer();
     } catch (totalizerError) {
