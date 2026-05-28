@@ -1082,15 +1082,10 @@ function renderCgdTopTiles() {
   const incomeAverage = averageOfSeries(sumRubricsValuesByMonth(incomeFilteredRubrics));
 
   host.innerHTML = `
-    <article class='stat-tile stat-tile--warning'>
-      <h4>Poupanca IRS acumulada (Dez)</h4>
-      <p>${formatTileMoney(irsSavingsAccumulatedDecember)}</p>
-      <span class='stat-tile-meta'>Ano ${year}</span>
-    </article>
-    <article class='stat-tile stat-tile--cyan'>
-      <h4>Total disponivel (Dez)</h4>
-      <p>${formatTileMoney(totalAvailableDecember)}</p>
-      <span class='stat-tile-meta'>Ano ${year}</span>
+    <article class='stat-tile'>
+      <h4>Media mensal de receitas</h4>
+      <p>${formatTileMoney(incomeAverage)}</p>
+      <span class='stat-tile-meta'>Exclui movimentos</span>
     </article>
     <article class='stat-tile stat-tile--green'>
       <h4>Media mensal de poupancas</h4>
@@ -1102,10 +1097,15 @@ function renderCgdTopTiles() {
       <p>${formatTileMoney(outcomeAverage)}</p>
       <span class='stat-tile-meta'>Exclui movimentos e impostos</span>
     </article>
-    <article class='stat-tile'>
-      <h4>Media mensal de receitas</h4>
-      <p>${formatTileMoney(incomeAverage)}</p>
-      <span class='stat-tile-meta'>Exclui movimentos</span>
+    <article class='stat-tile stat-tile--cyan'>
+      <h4>Total disponivel (Dez)</h4>
+      <p>${formatTileMoney(totalAvailableDecember)}</p>
+      <span class='stat-tile-meta'>Ano ${year}</span>
+    </article>
+    <article class='stat-tile stat-tile--warning'>
+      <h4>Poupanca IRS acumulada (Dez)</h4>
+      <p>${formatTileMoney(irsSavingsAccumulatedDecember)}</p>
+      <span class='stat-tile-meta'>Ano ${year}</span>
     </article>
   `;
 }
