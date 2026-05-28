@@ -3735,11 +3735,18 @@ window.cgdCreateRubric = async (kind) => {
 };
 
 window.cgdCreateExpense = async (rubricaId) => {
+  const rubricIdNumber = Number(rubricaId);
+  const entryLabel = cgdState.data.income.some((rubric) => Number(rubric.id) === rubricIdNumber)
+    ? "receita"
+    : cgdState.data.savings.some((rubric) => Number(rubric.id) === rubricIdNumber)
+      ? "poupanca"
+      : "despesa";
+
   const description = await requestEntityDescription({
-    title: "Adicionar despesa",
-    subtitle: "Indica o descritivo da nova despesa para a rubrica selecionada.",
-    label: "Descricao da despesa",
-    promptText: "Descricao da nova despesa"
+    title: `Adicionar ${entryLabel}`,
+    subtitle: `Indica o descritivo da nova ${entryLabel} para a rubrica selecionada.`,
+    label: `Descricao da ${entryLabel}`,
+    promptText: `Descricao da nova ${entryLabel}`
   });
   if (!description) {
     return false;
