@@ -2863,7 +2863,6 @@ function openRealValuePopup(monthIndex) {
   input.setAttribute("data-real-modal-month", monthIndex);
   modal.classList.add("show");
   input.focus();
-  input.select();
 }
 
 function closeRealValuePopup() {

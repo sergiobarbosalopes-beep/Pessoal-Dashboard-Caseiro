@@ -2485,6 +2485,17 @@ a {
   padding: 18px;
 }
 
+#real-value-modal .modal-card {
+  width: min(280px, calc(100% - 24px));
+  padding: 14px 16px;
+}
+
+#real-value-modal .modal-form input {
+  padding: 6px 8px;
+  font-size: 0.8rem;
+  max-width: 140px;
+}
+
 .modal-card h3 {
   margin-top: 0;
 }
