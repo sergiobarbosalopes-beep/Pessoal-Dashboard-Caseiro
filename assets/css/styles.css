@@ -769,6 +769,11 @@ a {
   filter: brightness(1.3);
 }
 
+.outcome-evolution-point.is-active-month {
+  r: 4.5;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
 .outcome-evolution-tooltip {
   position: absolute;
   background: rgba(8, 20, 28, 0.96);

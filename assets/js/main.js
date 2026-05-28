@@ -362,12 +362,11 @@ function initExpenseModal() {
       : null;
 
     if (inputValor) {
-      const valorForInput = detail?.valorInputValue;
-      const numericValorForInput = Number(valorForInput);
-      if (valorForInput == null || !Number.isFinite(numericValorForInput) || isZeroMoneyDisplayValue(numericValorForInput)) {
+      const numericValor = Number(detail?.valor);
+      if (!Number.isFinite(numericValor) || isZeroMoneyDisplayValue(numericValor)) {
         inputValor.value = "";
       } else {
-        inputValor.value = numericValorForInput.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        inputValor.value = numericValor.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       }
     }
     if (inputValorEstimado) {
@@ -507,7 +506,7 @@ function initExpenseModal() {
     const adjustmentValue = plusValue - minusValue;
     const registerAdjustment = plusValue !== 0 || minusValue !== 0;
     const valorChanged = !registerAdjustment && !estimatedMode && currentValor !== initialModalValues.valor;
-    const valorEstimadoChanged = !registerAdjustment && estimatedMode && currentValor !== initialModalValues.valorEstimado;
+    const valorEstimadoChanged = !registerAdjustment && estimatedMode && currentValorEstimado !== initialModalValues.valorEstimado;
     const totalizadorChanged = currentTotalizador !== initialModalValues.totalizador;
     const registerValueChangeNote =
       valorChanged
@@ -521,7 +520,7 @@ function initExpenseModal() {
     } else if (valorChanged || totalizadorChanged) {
       noteEntryValue = currentValor;
     } else if (valorEstimadoChanged) {
-      noteEntryValue = currentValor;
+      noteEntryValue = currentValorEstimado;
     }
 
     if (registerAdjustment) {
@@ -627,6 +626,11 @@ function highlightMonth(monthIndex) {
   if (typeof window.cgdSyncRealTotalizerEditableMonth === "function") {
     window.cgdSyncRealTotalizerEditableMonth(monthIndex);
   }
+
+  document.querySelectorAll(".outcome-evolution-point[data-point-month]").forEach((point) => {
+    const isActive = Number(point.getAttribute("data-point-month")) === monthIndex;
+    point.classList.toggle("is-active-month", isActive);
+  });
 }
 
 function syncExpensePastMonthsState() {

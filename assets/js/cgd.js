@@ -1139,7 +1139,7 @@ function renderCgdTemporalSummaryChart() {
         const pathData = buildSmoothPathData(points);
         const areaPath = `${pathData} L ${points[points.length - 1].x.toFixed(2)} ${zeroY.toFixed(2)} L ${points[0].x.toFixed(2)} ${zeroY.toFixed(2)} Z`;
         const pointsMarkup = points
-          .map((point) => `<circle class='outcome-evolution-point' cx='${point.x.toFixed(2)}' cy='${point.y.toFixed(2)}' r='2.2' fill='${entry.color}' tabindex='0' data-month-name='${escapeHtml(point.month)}' data-series-name='${escapeHtml(entry.label)}' data-value='${money(point.value)} EUR' data-series-color='${entry.color}'></circle>`)
+          .map((point, monthIndex) => `<circle class='outcome-evolution-point' cx='${point.x.toFixed(2)}' cy='${point.y.toFixed(2)}' r='2.2' fill='${entry.color}' tabindex='0' data-month-name='${escapeHtml(point.month)}' data-series-name='${escapeHtml(entry.label)}' data-value='${money(point.value)} EUR' data-series-color='${entry.color}' data-point-month='${monthIndex}'></circle>`)
           .join("");
 
         return `
