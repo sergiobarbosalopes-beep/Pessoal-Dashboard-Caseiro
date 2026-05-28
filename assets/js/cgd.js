@@ -864,17 +864,15 @@ function renderTotalizerMonthPills(values, options = {}) {
       if (editable) {
         return `
           <div class='money-pill totalizer-month-pill' data-month-col='${monthIndex}' data-totalizer-month='${monthIndex}'>
-            <input
-              data-money
-              data-real-total-input='true'
+            <button
+              type='button'
+              class='real-total-btn${isEstimated ? " is-estimated" : ""}'
+              data-real-total-btn='true'
               data-real-total-month='${monthIndex}'
-              data-last-valid='${money(safeValue)}'
+              data-real-total-value='${safeValue}'
               data-real-total-estimated='${isEstimated ? "true" : "false"}'
-              class='${isEstimated ? "is-estimated" : ""}'
-              type='text'
-              value='${money(safeValue)}'
               aria-label='${inputPrefix} ${monthName}'
-            />
+            >${money(safeValue)}</button>
           </div>
         `;
       }
@@ -2842,23 +2840,56 @@ function syncRealTotalizerEditableMonth(monthIndex) {
     ? activeMonth
     : Number(document.querySelector(".month-tile.active")?.getAttribute("data-month"));
 
-  document.querySelectorAll("input[data-real-total-input='true']").forEach((input) => {
-    const inputMonth = Number(input.getAttribute("data-real-total-month"));
-    const editable = Number.isInteger(validActiveMonth) && inputMonth === validActiveMonth;
-    input.readOnly = !editable;
-    input.classList.toggle("is-locked", !editable);
-    input.setAttribute("aria-readonly", String(!editable));
-    input.tabIndex = editable ? 0 : -1;
+  document.querySelectorAll("button[data-real-total-btn='true']").forEach((btn) => {
+    const btnMonth = Number(btn.getAttribute("data-real-total-month"));
+    const isActive = Number.isInteger(validActiveMonth) && btnMonth === validActiveMonth;
+    btn.classList.toggle("is-active-month", isActive);
+    btn.disabled = !isActive;
   });
 }
 
-function bindSoberTotalizerInputs() {
-  document.addEventListener("input", (event) => {
-    const input = event.target.closest("input[data-real-total-input='true']");
-    if (!input || input.readOnly) {
-      return;
-    }
+function openRealValuePopup(monthIndex) {
+  const modal = document.getElementById("real-value-modal");
+  if (!modal) return;
 
+  const year = Number(cgdState.selectedYear);
+  const monthName = months[monthIndex] || "";
+  const realSeries = computeRealSeriesForYear(year, cgdState.realComputationContexts);
+  const currentValue = Number(realSeries?.values?.[monthIndex]) || 0;
+
+  modal.querySelector("[data-real-modal-title]").textContent = `Real - ${monthName} ${year}`;
+  const input = modal.querySelector("[data-real-modal-input]");
+  input.value = money(currentValue);
+  input.setAttribute("data-real-modal-month", monthIndex);
+  modal.setAttribute("aria-hidden", "false");
+  input.focus();
+  input.select();
+}
+
+function closeRealValuePopup() {
+  const modal = document.getElementById("real-value-modal");
+  if (modal) {
+    modal.setAttribute("aria-hidden", "true");
+  }
+}
+
+function bindRealValuePopup() {
+  document.addEventListener("click", (event) => {
+    const btn = event.target.closest("button[data-real-total-btn='true']");
+    if (btn && !btn.disabled) {
+      const monthIndex = Number(btn.getAttribute("data-real-total-month"));
+      if (Number.isInteger(monthIndex) && monthIndex >= 0 && monthIndex <= 11) {
+        openRealValuePopup(monthIndex);
+      }
+    }
+  });
+
+  const modal = document.getElementById("real-value-modal");
+  if (!modal) return;
+
+  const input = modal.querySelector("[data-real-modal-input]");
+
+  input.addEventListener("input", () => {
     const normalized = String(input.value || "")
       .replace(/[^0-9,\.-]/g, "")
       .replace(/(?!^)-/g, "");
@@ -2867,38 +2898,50 @@ function bindSoberTotalizerInputs() {
     }
   });
 
-  document.addEventListener("focusout", (event) => {
-    const input = event.target.closest("input[data-real-total-input='true']");
-    if (!input || input.readOnly) {
-      return;
-    }
-
-    const monthIndex = Number(input.getAttribute("data-real-total-month"));
-    if (!Number.isInteger(monthIndex) || monthIndex < 0 || monthIndex > 11) {
-      return;
-    }
+  modal.querySelector("[data-real-modal-save]").addEventListener("click", async () => {
+    const monthIndex = Number(input.getAttribute("data-real-modal-month"));
+    const realValue = normalizeBoundedRealInputValue(input.value);
+    if (realValue === null) return;
 
     const year = Number(cgdState.selectedYear);
-    const lastValidValue = input.getAttribute("data-last-valid") || "";
-    const realValue = normalizeBoundedRealInputValue(input.value);
-    if (realValue === null && String(input.value || "").trim() !== "") {
-      input.value = lastValidValue || money(0);
-      return;
+    try {
+      await upsertRealValueForMonth({ ano: year, mes: monthIndex + 1, real: realValue });
+      closeRealValuePopup();
+      await loadYearData(cgdState.selectedYear);
+    } catch (error) {
+      console.error("Erro ao guardar valor real em cgd_real:", error);
     }
-
-    input.value = realValue == null ? "" : money(realValue);
-    input.setAttribute("data-last-valid", input.value);
-
-    upsertRealValueForMonth({
-      ano: year,
-      mes: monthIndex + 1,
-      real: realValue
-    })
-      .then(() => loadYearData(cgdState.selectedYear))
-      .catch((error) => {
-        console.error("Erro ao guardar valor real em cgd_real:", error);
-      });
   });
+
+  modal.querySelector("[data-real-modal-estimate]").addEventListener("click", async () => {
+    const monthIndex = Number(input.getAttribute("data-real-modal-month"));
+    const year = Number(cgdState.selectedYear);
+    try {
+      await supabaseClient
+        .from("cgd_real")
+        .delete()
+        .eq("ano", year)
+        .eq("mes", monthIndex + 1);
+      closeRealValuePopup();
+      await loadYearData(cgdState.selectedYear);
+    } catch (error) {
+      console.error("Erro ao estimar valor real (remover cgd_real):", error);
+    }
+  });
+
+  modal.querySelector("[data-real-modal-close]").addEventListener("click", () => {
+    closeRealValuePopup();
+  });
+
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      closeRealValuePopup();
+    }
+  });
+}
+
+function bindSoberTotalizerInputs() {
+  bindRealValuePopup();
 }
 
 function buildComparisonSeriesForKind(kind) {

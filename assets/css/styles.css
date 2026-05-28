@@ -1132,15 +1132,34 @@ a {
   padding: 8px 10px;
 }
 
-.totalizer-row-real .money-pill input {
+.real-total-btn {
+  all: unset;
+  box-sizing: border-box;
+  width: 100%;
+  text-align: right;
   font-size: 0.76rem;
   font-weight: 800;
   color: #ecf6fb;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 160ms ease, box-shadow 160ms ease;
 }
 
-.totalizer-row-real .money-pill input.is-estimated {
-  font-size: 0.76rem;
-  font-weight: 800;
+.real-total-btn:disabled {
+  opacity: 0.9;
+  cursor: default;
+}
+
+.real-total-btn.is-active-month {
+  background: rgba(152, 213, 242, 0.08);
+  box-shadow: 0 0 0 1px rgba(152, 213, 242, 0.22);
+}
+
+.real-total-btn.is-active-month:hover {
+  background: rgba(152, 213, 242, 0.14);
+}
+
+.real-total-btn.is-estimated {
   font-style: italic;
   text-decoration: underline;
 }
@@ -1439,6 +1458,7 @@ a {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
+  justify-content: center;
 }
 
 .outcome-evolution-top-series {
