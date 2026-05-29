@@ -607,6 +607,25 @@ a {
   animation: cgdNavShimmer 1.25s ease-out;
 }
 
+.coverflex-theme .topbar {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1380px, calc(100% - 28px));
+  z-index: 20010;
+}
+
+.coverflex-theme .topbar.fade-up {
+  animation: none;
+  opacity: 1;
+  transform: translateX(-50%);
+}
+
+.coverflex-theme .site-shell {
+  padding-top: 72px;
+}
+
 .coverflex-theme .coverflex-hero {
   display: block;
   position: relative;
@@ -3290,6 +3309,15 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
     border-radius: 18px;
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .coverflex-theme .topbar {
+    width: calc(100% - 16px);
+    top: 8px;
+  }
+
+  .coverflex-theme .site-shell {
+    padding-top: 110px;
   }
 
   .temporal-nav-card {
