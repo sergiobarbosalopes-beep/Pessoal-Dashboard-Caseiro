@@ -40,6 +40,40 @@ const cgdState = {
 const SUPABASE_URL = window.CGD_SUPABASE_URL || "https://uooovgxrexpstrtfktst.supabase.co";
 const SUPABASE_ANON_KEY = window.CGD_SUPABASE_ANON_KEY || "";
 const supabaseClient = window.supabase?.createClient && SUPABASE_ANON_KEY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const TABLE_PREFIX = String(window.DASHBOARD_TABLE_PREFIX || "cgd").trim().toLowerCase();
+const tableName = (suffix) => `${TABLE_PREFIX}_${suffix}`;
+const IS_COVERFLEX_THEME = TABLE_PREFIX === "coverflex" || Boolean(document.body?.classList.contains("coverflex-theme"));
+const RUBRIC_TABLE = tableName("rubrica");
+const EXPENSE_TABLE = tableName("despesa");
+const REAL_TABLE = tableName("real");
+const EXPENSE_NOTES_TABLE = tableName("despesa_notas");
+const EXPENSE_NOTES_TABLE_LEGACY = tableName("despesas_notas");
+
+const THEME_COLORS = IS_COVERFLEX_THEME
+  ? {
+      summary: { real: "#fff2e6", available: "#ffc894", savings: "#ff944d" },
+      outcomeRubrics: ["#ff9c5a", "#ffb77e", "#ff7e3d", "#ffcf9e", "#ff8a4a", "#ffdcb5", "#ffb06e", "#ff9953", "#ffd2a2", "#ffab6b"],
+      incomeRubrics: ["#ffc082", "#ffd0a3", "#ffb46f", "#ffe0bf", "#ffca93", "#ffbb78", "#ffd8ae", "#ffb97a", "#ffe8cf", "#ffcc97"],
+      savingsRubrics: ["#ffae6b", "#ffc992", "#ff9951", "#ffd4a8", "#ffb77c", "#ff8743", "#ffe1be", "#ffca8e", "#ff9f5c", "#ffd8b0"],
+      outcomeExpenses: ["#ffc690", "#ff9c5b", "#ffd8b1", "#ffad70", "#ffe4c6", "#ffb87e", "#ff8f49", "#ffd0a0", "#ffc08c", "#ff9a58"],
+      incomeExpenses: ["#ffd3a8", "#ffbc82", "#ffe5c8", "#ffcc98", "#ffb273", "#ffdcb6", "#ff9f5f", "#ffe9d1", "#ffc087", "#ffb67b"],
+      savingsExpenses: ["#ffbe83", "#ffd5aa", "#ff9b58", "#ffe2c1", "#ffb97e", "#ffc890", "#ffdcb5", "#ffad6b", "#ffe7cd", "#ffbf88"],
+      tooltipFallback: "#e4b189"
+    }
+  : {
+      summary: { real: "#ecf6fb", available: "#7fd7a8", savings: "#8ccbf3" },
+      outcomeRubrics: ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"],
+      incomeRubrics: ["#6ecf9a", "#7cc4ff", "#9ed86b", "#58d2c3", "#8bcf7a", "#5fb3de", "#9edfb7", "#71d0ff", "#77c87f", "#79bdf0"],
+      savingsRubrics: ["#70c3ff", "#5fc8b6", "#f2c46a", "#7cc4ff", "#84d56b", "#f08b5f", "#58d2c3", "#9ad9ff", "#9ed86b", "#a9e46f"],
+      outcomeExpenses: ["#9ad9ff", "#a9e46f", "#f7c86a", "#f3a47d", "#95c7ff", "#84d56b", "#e8a0b4", "#7acfc6", "#eac17a", "#a6d8b5"],
+      incomeExpenses: ["#8fdcb3", "#8bc8f5", "#9fdc88", "#7fded2", "#95d889", "#79bfe3", "#abdcc6", "#8fd7ff", "#8bcf96", "#93c4eb"],
+      savingsExpenses: ["#9ad9ff", "#a9e46f", "#f7c86a", "#7acfc6", "#95c7ff", "#e8a0b4", "#84d56b", "#eac17a", "#8fdcb3", "#8bc8f5"],
+      tooltipFallback: "#b8ced9"
+    };
+
+function getAlternateNotesTable(tableNameValue) {
+  return tableNameValue === EXPENSE_NOTES_TABLE ? EXPENSE_NOTES_TABLE_LEGACY : EXPENSE_NOTES_TABLE;
+}
 
 function normalizeMonth(value) {
   const numeric = Number(value);
@@ -148,7 +182,7 @@ async function fetchRubricsForYear(year) {
   }
 
   const { data, error } = await supabaseClient
-    .from("cgd_rubrica")
+    .from(RUBRIC_TABLE)
     .select("ano,mes,rubrica_id,rubrica_desc,rubrica_seq,rubrica_tipo")
     .eq("ano", year)
     .order("rubrica_seq", { ascending: true })
@@ -167,7 +201,7 @@ async function fetchExpensesForYear(year) {
   }
 
   const { data, error } = await supabaseClient
-    .from("cgd_despesa")
+    .from(EXPENSE_TABLE)
     .select("*")
     .eq("ano", year)
     .order("despesa_seq", { ascending: true })
@@ -186,7 +220,7 @@ async function fetchRealValuesForYear(year) {
   }
 
   const { data, error } = await supabaseClient
-    .from("cgd_real")
+    .from(REAL_TABLE)
     .select("ano,mes,real")
     .eq("ano", Number(year))
     .order("mes", { ascending: true });
@@ -213,7 +247,7 @@ async function upsertRealValueForMonth({ ano, mes, real }) {
   };
 
   const { error } = await supabaseClient
-    .from("cgd_real")
+    .from(REAL_TABLE)
     .upsert(payload, { onConflict: "ano,mes" });
 
   if (error) {
@@ -238,14 +272,14 @@ async function fetchExpenseNotesForKey({ ano, rubricaId, despesaId, mes }) {
       .eq("despesa_id", Number(despesaId))
       .order("contador_id", { ascending: true });
 
-  const preferredTable = cgdState.notesTableName || "cgd_despesa_notas";
+  const preferredTable = cgdState.notesTableName || EXPENSE_NOTES_TABLE;
   const { data: primaryData, error: primaryError } = await keyQuery(preferredTable);
   if (!primaryError) {
     cgdState.notesTableName = preferredTable;
     return Array.isArray(primaryData) ? primaryData : [];
   }
 
-  const fallbackTable = preferredTable === "cgd_despesa_notas" ? "cgd_despesas_notas" : "cgd_despesa_notas";
+  const fallbackTable = getAlternateNotesTable(preferredTable);
   const { data: fallbackData, error: fallbackError } = await keyQuery(fallbackTable);
   if (fallbackError) {
     throw primaryError;
@@ -296,13 +330,13 @@ async function fetchExpenseHistoryMonthKeysForYear(year) {
         .filter((key) => !key.includes("NaN"))
     );
 
-  const preferredTable = cgdState.notesTableName || "cgd_despesa_notas";
+  const preferredTable = cgdState.notesTableName || EXPENSE_NOTES_TABLE;
   try {
     const preferredResult = await fetchRowsWithNoteColumn(preferredTable);
     cgdState.notesTableName = preferredTable;
     return buildHistorySet(preferredResult.rows, preferredResult.noteColumn);
   } catch (primaryError) {
-    const fallbackTable = preferredTable === "cgd_despesa_notas" ? "cgd_despesas_notas" : "cgd_despesa_notas";
+    const fallbackTable = getAlternateNotesTable(preferredTable);
     try {
       const fallbackResult = await fetchRowsWithNoteColumn(fallbackTable);
       cgdState.notesTableName = fallbackTable;
@@ -318,8 +352,8 @@ async function createExpenseNoteEntry({ ano, rubricaId, despesaId, mes, valor, n
     return;
   }
 
-  let notesTableName = cgdState.notesTableName || "cgd_despesa_notas";
-  const alternateTableName = notesTableName === "cgd_despesa_notas" ? "cgd_despesas_notas" : "cgd_despesa_notas";
+  let notesTableName = cgdState.notesTableName || EXPENSE_NOTES_TABLE;
+  const alternateTableName = getAlternateNotesTable(notesTableName);
 
   const filters = (query) =>
     query
@@ -415,14 +449,14 @@ async function deleteExpenseNoteEntry({ ano, rubricaId, despesaId, mes, contador
       .eq("despesa_id", Number(despesaId))
       .eq("contador_id", Number(contadorId));
 
-  const preferredTable = cgdState.notesTableName || "cgd_despesa_notas";
+  const preferredTable = cgdState.notesTableName || EXPENSE_NOTES_TABLE;
   const { error: primaryError } = await filterDelete(preferredTable);
   if (!primaryError) {
     cgdState.notesTableName = preferredTable;
     return true;
   }
 
-  const fallbackTable = preferredTable === "cgd_despesa_notas" ? "cgd_despesas_notas" : "cgd_despesa_notas";
+  const fallbackTable = getAlternateNotesTable(preferredTable);
   const { error: fallbackError } = await filterDelete(fallbackTable);
   if (fallbackError) {
     throw primaryError;
@@ -1062,9 +1096,9 @@ function renderCgdTemporalSummaryChart() {
   });
 
   const allSeries = [
-    { key: "real", label: "Real", color: "#ecf6fb", values: realValues },
-    { key: "available", label: "Disponivel", color: "#7fd7a8", values: availableValues },
-    { key: "savings", label: "Poupancas", color: "#8ccbf3", values: savingsValues }
+    { key: "real", label: "Real", color: THEME_COLORS.summary.real, values: realValues },
+    { key: "available", label: "Disponivel", color: THEME_COLORS.summary.available, values: availableValues },
+    { key: "savings", label: "Poupancas", color: THEME_COLORS.summary.savings, values: savingsValues }
   ];
 
   const hiddenSeries = cgdState.temporalSummaryHiddenSeries;
@@ -1724,7 +1758,7 @@ function bindOutcomeChartHover(host) {
         const monthName = point.getAttribute("data-month-name") || "";
         const seriesName = point.getAttribute("data-series-name") || "";
         const value = point.getAttribute("data-value") || "0.00";
-        const color = point.getAttribute("data-series-color") || "#b8ced9";
+        const color = point.getAttribute("data-series-color") || THEME_COLORS.tooltipFallback;
 
         tooltip.innerHTML = `
           <div class='outcome-evolution-tooltip-month'>${escapeHtml(monthName)}</div>
@@ -1747,7 +1781,7 @@ function bindOutcomeChartHover(host) {
 }
 
 function buildOutcomeRubricSeries() {
-  const palette = ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"];
+  const palette = THEME_COLORS.outcomeRubrics;
   const sourceRubrics = Array.isArray(cgdState.data?.outcome) ? cgdState.data.outcome : [];
 
   return sourceRubrics
@@ -1780,7 +1814,7 @@ function buildOutcomeRubricSeries() {
 }
 
 function buildIncomeRubricSeries() {
-  const palette = ["#6ecf9a", "#7cc4ff", "#9ed86b", "#58d2c3", "#8bcf7a", "#5fb3de", "#9edfb7", "#71d0ff", "#77c87f", "#79bdf0"];
+  const palette = THEME_COLORS.incomeRubrics;
   const sourceRubrics = Array.isArray(cgdState.data?.income) ? cgdState.data.income : [];
 
   return sourceRubrics
@@ -1813,7 +1847,7 @@ function buildIncomeRubricSeries() {
 }
 
 function buildSavingsRubricSeries() {
-  const palette = ["#70c3ff", "#5fc8b6", "#f2c46a", "#7cc4ff", "#84d56b", "#f08b5f", "#58d2c3", "#9ad9ff", "#9ed86b", "#a9e46f"];
+  const palette = THEME_COLORS.savingsRubrics;
   const sourceRubrics = Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
 
   return sourceRubrics
@@ -1850,7 +1884,7 @@ function buildOutcomeExpenseSeriesForRubric(rubric) {
     return [];
   }
 
-  const palette = ["#9ad9ff", "#a9e46f", "#f7c86a", "#f3a47d", "#95c7ff", "#84d56b", "#e8a0b4", "#7acfc6", "#eac17a", "#a6d8b5"];
+  const palette = THEME_COLORS.outcomeExpenses;
   return (rubric.expenses || [])
     .map((expense, index) => ({
       key: expense.key || `expense-${index}`,
@@ -1869,7 +1903,7 @@ function buildIncomeExpenseSeriesForRubric(rubric) {
     return [];
   }
 
-  const palette = ["#8fdcb3", "#8bc8f5", "#9fdc88", "#7fded2", "#95d889", "#79bfe3", "#abdcc6", "#8fd7ff", "#8bcf96", "#93c4eb"];
+  const palette = THEME_COLORS.incomeExpenses;
   return (rubric.expenses || [])
     .map((expense, index) => ({
       key: expense.key || `expense-${index}`,
@@ -1888,7 +1922,7 @@ function buildSavingsExpenseSeriesForRubric(rubric) {
     return [];
   }
 
-  const palette = ["#9ad9ff", "#a9e46f", "#f7c86a", "#7acfc6", "#95c7ff", "#e8a0b4", "#84d56b", "#eac17a", "#8fdcb3", "#8bc8f5"];
+  const palette = THEME_COLORS.savingsExpenses;
   return (rubric.expenses || [])
     .map((expense, index) => ({
       key: expense.key || `expense-${index}`,
@@ -2924,14 +2958,14 @@ function bindRealValuePopup() {
     const year = Number(cgdState.selectedYear);
     try {
       await supabaseClient
-        .from("cgd_real")
+        .from(REAL_TABLE)
         .delete()
         .eq("ano", year)
         .eq("mes", monthIndex + 1);
       closeRealValuePopup();
       await loadYearData(cgdState.selectedYear);
     } catch (error) {
-      console.error("Erro ao estimar valor real (remover cgd_real):", error);
+      console.error("Erro ao estimar valor real:", error);
     }
   });
 
@@ -2952,10 +2986,10 @@ function bindSoberTotalizerInputs() {
 
 function buildComparisonSeriesForKind(kind) {
   const palette = kind === "income"
-    ? ["#6ecf9a", "#7cc4ff", "#9ed86b", "#58d2c3", "#8bcf7a", "#5fb3de", "#9edfb7", "#71d0ff", "#77c87f", "#79bdf0"]
+    ? THEME_COLORS.incomeRubrics
     : kind === "savings"
-      ? ["#70c3ff", "#5fc8b6", "#f2c46a", "#7cc4ff", "#84d56b", "#f08b5f", "#58d2c3", "#9ad9ff", "#9ed86b", "#a9e46f"]
-      : ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"];
+      ? THEME_COLORS.savingsRubrics
+      : THEME_COLORS.outcomeRubrics;
   const sourceRubrics = kind === "income" ? cgdState.data?.income : kind === "savings" ? cgdState.data?.savings : cgdState.data?.outcome;
   const rubrics = Array.isArray(sourceRubrics) ? sourceRubrics : [];
 
@@ -3015,10 +3049,10 @@ function buildComparisonExpenseSeriesForRubric(rubric, kind) {
   }
 
   const palette = kind === "income"
-    ? ["#8fdcb3", "#8bc8f5", "#9fdc88", "#7fded2", "#95d889", "#79bfe3", "#abdcc6", "#8fd7ff", "#8bcf96", "#93c4eb"]
+    ? THEME_COLORS.incomeExpenses
     : kind === "savings"
-      ? ["#9ad9ff", "#a9e46f", "#f7c86a", "#7acfc6", "#95c7ff", "#e8a0b4", "#84d56b", "#eac17a", "#8fdcb3", "#8bc8f5"]
-      : ["#9ad9ff", "#a9e46f", "#f7c86a", "#f3a47d", "#95c7ff", "#84d56b", "#e8a0b4", "#7acfc6", "#eac17a", "#a6d8b5"];
+      ? THEME_COLORS.savingsExpenses
+      : THEME_COLORS.outcomeExpenses;
 
   const expenses = Array.isArray(rubric.expenses) ? rubric.expenses : [];
   return expenses.map((expense, index) => ({
@@ -3052,7 +3086,7 @@ function bindComparisonChartHover(host) {
         const monthName = point.getAttribute("data-month-name") || "";
         const seriesName = point.getAttribute("data-series-name") || "";
         const value = point.getAttribute("data-value") || "0.00";
-        const color = point.getAttribute("data-series-color") || "#b8ced9";
+        const color = point.getAttribute("data-series-color") || THEME_COLORS.tooltipFallback;
 
         tooltip.innerHTML = `
           <div class='outcome-evolution-tooltip-month'>${escapeHtml(monthName)}</div>
@@ -3710,7 +3744,7 @@ async function persistRubricOrder(rubricRows) {
   await Promise.all(
     updates.map((item) =>
       supabaseClient
-        .from("cgd_rubrica")
+        .from(RUBRIC_TABLE)
         .update({ rubrica_seq: item.seq })
         .eq("rubrica_id", item.id)
         .eq("ano", cgdState.selectedYear)
@@ -3740,7 +3774,7 @@ async function persistExpenseOrder(expenseRows, rubricId) {
   await Promise.all(
     updates.map((item) =>
       supabaseClient
-        .from("cgd_despesa")
+        .from(EXPENSE_TABLE)
         .update({ despesa_seq: item.seq })
         .eq("despesa_id", item.id)
         .eq("rubrica_id", rubricId)
@@ -3753,7 +3787,7 @@ async function persistExpenseOrder(expenseRows, rubricId) {
 
 async function getNextRubricaId() {
   const { data, error } = await supabaseClient
-    .from("cgd_rubrica")
+    .from(RUBRIC_TABLE)
     .select("rubrica_id")
     .order("rubrica_id", { ascending: false })
     .limit(1);
@@ -3786,7 +3820,7 @@ async function createRubricaForYear(kind, description) {
     rubrica_tipo: rubricaTipo
   }));
 
-  const { error } = await supabaseClient.from("cgd_rubrica").insert(rows);
+  const { error } = await supabaseClient.from(RUBRIC_TABLE).insert(rows);
   if (error) {
     throw error;
   }
@@ -3794,7 +3828,7 @@ async function createRubricaForYear(kind, description) {
 
 async function getNextDespesaId() {
   const { data, error } = await supabaseClient
-    .from("cgd_despesa")
+    .from(EXPENSE_TABLE)
     .select("despesa_id")
     .order("despesa_id", { ascending: false })
     .limit(1);
@@ -3838,7 +3872,7 @@ async function createDespesaForRubrica(rubricaId, description) {
     totalizador: true
   }));
 
-  const { error } = await supabaseClient.from("cgd_despesa").insert(rows);
+  const { error } = await supabaseClient.from(EXPENSE_TABLE).insert(rows);
   if (error) {
     throw error;
   }
@@ -3966,7 +4000,7 @@ async function deleteDespesaForYear(rubricaId, despesaId) {
   }
 
   const { error } = await supabaseClient
-    .from("cgd_despesa")
+    .from(EXPENSE_TABLE)
     .delete()
     .eq("ano", cgdState.selectedYear)
     .eq("rubrica_id", rubricaId)
@@ -3983,7 +4017,7 @@ async function deleteRubricaForYear(rubricaId) {
   }
 
   const { error: expenseError } = await supabaseClient
-    .from("cgd_despesa")
+    .from(EXPENSE_TABLE)
     .delete()
     .eq("ano", cgdState.selectedYear)
     .eq("rubrica_id", rubricaId);
@@ -3993,7 +4027,7 @@ async function deleteRubricaForYear(rubricaId) {
   }
 
   const { error: rubricError } = await supabaseClient
-    .from("cgd_rubrica")
+    .from(RUBRIC_TABLE)
     .delete()
     .eq("ano", cgdState.selectedYear)
     .eq("rubrica_id", rubricaId);
@@ -4295,7 +4329,7 @@ window.cgdSaveExpenseDetail = async ({
 
   if (applyToEndYear) {
     await supabaseClient
-      .from("cgd_despesa")
+      .from(EXPENSE_TABLE)
       .update(payload)
       .eq("ano", selectedKey.ano)
       .eq("rubrica_id", selectedKey.rubricaId)
@@ -4303,7 +4337,7 @@ window.cgdSaveExpenseDetail = async ({
       .gte("mes", startMonth);
   } else {
     await supabaseClient
-      .from("cgd_despesa")
+      .from(EXPENSE_TABLE)
       .update(payload)
       .eq("ano", selectedKey.ano)
       .eq("rubrica_id", selectedKey.rubricaId)
@@ -4362,7 +4396,7 @@ window.cgdZeroExpenseDetail = async ({ rubricaId, despesaId, monthIndex }) => {
   }
 
   await supabaseClient
-    .from("cgd_despesa")
+    .from(EXPENSE_TABLE)
     .update(payload)
     .eq("ano", selectedKey.ano)
     .eq("rubrica_id", selectedKey.rubricaId)

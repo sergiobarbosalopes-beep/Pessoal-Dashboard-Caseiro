@@ -552,6 +552,189 @@ a {
   color: #10273b;
 }
 
+body.coverflex-theme {
+  --bg-0: #2c1204;
+  --bg-1: #3b1706;
+  --bg-2: #231005;
+  --surface: rgba(58, 27, 13, 0.78);
+  --surface-strong: #4a200f;
+  --ink-900: #fff0e5;
+  --ink-700: #ffd6ba;
+  --ink-500: #d5ad8f;
+  --line: rgba(255, 180, 124, 0.28);
+  --blue-500: #ff8f48;
+  --blue-700: #de6428;
+  --green-500: #ffb067;
+  --green-700: #ff7a2f;
+  --gold-500: #ffc56f;
+  --gold-600: #f7a43e;
+  --orange-200: #472111;
+  --green-100: #5a2a12;
+}
+
+body.coverflex-theme {
+  background:
+    radial-gradient(1200px 700px at -8% -6%, rgba(255, 138, 61, 0.24), transparent 60%),
+    radial-gradient(900px 560px at 110% 0%, rgba(255, 186, 122, 0.2), transparent 64%),
+    linear-gradient(180deg, var(--bg-0), var(--bg-1) 45%, var(--bg-2));
+}
+
+body.coverflex-theme::before {
+  background-image: linear-gradient(120deg, rgba(255, 188, 141, 0.1) 25%, transparent 25%, transparent 50%, rgba(255, 188, 141, 0.1) 50%, rgba(255, 188, 141, 0.1) 75%, transparent 75%, transparent);
+  opacity: 0.18;
+}
+
+.coverflex-theme .brand-mark {
+  background: linear-gradient(135deg, #ff8a3d, #ff6d1f 62%, #ffc26a);
+}
+
+.coverflex-theme .menu-link:hover,
+.coverflex-theme .menu-link:focus-visible {
+  background: rgba(255, 138, 61, 0.2);
+  color: #fff5ef;
+}
+
+.coverflex-theme .menu-link.active {
+  background: linear-gradient(135deg, #e56a2a, #ff8f48);
+}
+
+.coverflex-theme .menu-link[href="caixa-geral-depositos.html"],
+.coverflex-theme .menu-link[href="caixa-geral-depositos.html"]:hover,
+.coverflex-theme .menu-link[href="caixa-geral-depositos.html"]:focus-visible,
+.coverflex-theme .menu-link[href="caixa-geral-depositos.html"].active {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink-700);
+  animation: none;
+}
+
+.coverflex-theme .menu-link[href="caixa-geral-depositos.html"]::before {
+  content: none;
+}
+
+.coverflex-theme .menu-link[href="coverflex.html"] {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgba(255, 174, 113, 0.46);
+  background: linear-gradient(135deg, rgba(207, 95, 36, 0.36), rgba(255, 122, 47, 0.3) 52%, rgba(255, 166, 85, 0.24));
+  background-size: 165% 165%;
+  color: #ffe8d7;
+  box-shadow: 0 0 0 1px rgba(255, 180, 124, 0.2);
+  animation: cgdNavGradientShift 6.2s ease-in-out infinite;
+}
+
+.coverflex-theme .menu-link[href="coverflex.html"]::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(112deg, transparent 16%, rgba(255, 233, 213, 0.28) 46%, transparent 70%);
+  transform: translateX(-140%);
+  opacity: 0.6;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.coverflex-theme .menu-link[href="coverflex.html"]:hover,
+.coverflex-theme .menu-link[href="coverflex.html"]:focus-visible,
+.coverflex-theme .menu-link[href="coverflex.html"].active {
+  color: #fff9f3;
+  border-color: rgba(255, 198, 156, 0.72);
+  box-shadow: 0 0 0 1px rgba(255, 198, 156, 0.34), 0 10px 20px rgba(120, 51, 19, 0.32);
+}
+
+.coverflex-theme .menu-link[href="coverflex.html"]:hover::before,
+.coverflex-theme .menu-link[href="coverflex.html"]:focus-visible::before,
+.coverflex-theme .menu-link[href="coverflex.html"].active::before {
+  opacity: 0.95;
+  animation: cgdNavShimmer 1.25s ease-out;
+}
+
+.coverflex-theme .coverflex-hero {
+  border: 1px solid rgba(255, 180, 126, 0.44);
+  background:
+    radial-gradient(580px 280px at 96% -6%, rgba(255, 188, 119, 0.34), transparent 72%),
+    radial-gradient(640px 320px at -10% 112%, rgba(255, 120, 46, 0.38), transparent 70%),
+    linear-gradient(124deg, #5a210d, #7a2d0f 44%, #b04816 72%, #6b290f);
+  animation: cgdHeroPulse 5.2s ease-in-out infinite;
+}
+
+.coverflex-theme .coverflex-hero::after {
+  background: radial-gradient(circle at 35% 30%, rgba(255, 198, 130, 0.44), rgba(207, 95, 36, 0.34), transparent 70%);
+}
+
+.coverflex-theme .coverflex-hero h1 {
+  color: #fff6ef;
+}
+
+.coverflex-theme .coverflex-hero p {
+  color: #ffd9c0;
+}
+
+.coverflex-theme .cgd-top-tiles-section-title,
+.coverflex-theme .cgd-tile-group-head h3 {
+  color: #ffe4d2;
+}
+
+.coverflex-theme .cgd-tile-group {
+  border-color: rgba(255, 174, 113, 0.24);
+  background: rgba(57, 25, 12, 0.64);
+}
+
+.coverflex-theme .stat-tile::before {
+  background: linear-gradient(90deg, #cf5f24, #ff7a2f, #ffbb76);
+}
+
+.coverflex-theme .stat-tile p {
+  background: linear-gradient(135deg, #ff9e5c, #ffe0bf);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.coverflex-theme .temporal-nav-card {
+  border-color: rgba(255, 176, 117, 0.54);
+  box-shadow:
+    0 0 0 1px rgba(255, 190, 140, 0.3),
+    0 0 22px rgba(207, 95, 36, 0.3),
+    0 0 44px rgba(176, 72, 22, 0.24),
+    0 10px 24px rgba(43, 18, 7, 0.36);
+}
+
+.coverflex-theme .year-nav,
+.coverflex-theme .year-btn,
+.coverflex-theme .year-nav [data-year-label],
+.coverflex-theme .month-tile {
+  border-color: rgba(255, 176, 117, 0.28);
+  background: #53250f;
+  color: #ffd8bf;
+}
+
+.coverflex-theme .year-btn:hover,
+.coverflex-theme .month-tile:not(.active):hover {
+  background: linear-gradient(135deg, rgba(207, 95, 36, 0.5), rgba(255, 122, 47, 0.44) 55%, rgba(255, 177, 112, 0.36));
+  border-color: rgba(255, 198, 156, 0.6);
+  color: #fff3ea;
+}
+
+.coverflex-theme .month-tile.active {
+  background: linear-gradient(135deg, #cf5f24 0%, #ff7a2f 42%, #ff984e 70%, #e56a2a 100%);
+  border-color: rgba(255, 200, 161, 0.62);
+  box-shadow: 0 0 0 1px rgba(255, 200, 161, 0.34), 0 10px 20px rgba(120, 51, 19, 0.36);
+}
+
+.coverflex-theme .sober-totalizer-card {
+  border-color: rgba(255, 178, 120, 0.5);
+  background: linear-gradient(180deg, rgba(42, 18, 8, 0.95), rgba(40, 17, 8, 0.92));
+  box-shadow:
+    0 0 0 1px rgba(255, 192, 143, 0.32),
+    0 0 36px rgba(207, 95, 36, 0.34),
+    0 0 72px rgba(176, 72, 22, 0.28),
+    0 0 108px rgba(138, 54, 17, 0.22),
+    0 14px 28px rgba(10, 5, 3, 0.46);
+}
+
 .cgd-top-tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
