@@ -1588,7 +1588,7 @@ function renderCgdTopTiles() {
       ${IS_COVERFLEX
         ? `
       <article class='stat-tile stat-tile--danger'>
-        <h4>IRS (ano seguinte)</h4>
+        <h4>IRS ${projectionYear}</h4>
         <p>${formatTileMoney(estimatedIrsYearTotal)}</p>
       </article>`
         : ""}
