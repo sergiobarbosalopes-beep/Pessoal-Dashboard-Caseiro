@@ -1512,18 +1512,15 @@ function renderCgdTopTiles() {
       <article class='stat-tile stat-tile--sergio'>
         <h4>${escapeHtml(sergioName)} Janeiro ${projectionYear}</h4>
         <p>${formatTileMoney(sergioJanuaryNextYear)}</p>
-        <span class='stat-tile-meta'>Calculado pelo totalizador mensal</span>
       </article>
       <article class='stat-tile stat-tile--carina'>
         <h4>${escapeHtml(carinaName)} Janeiro ${projectionYear}</h4>
         <p>${formatTileMoney(carinaJanuaryNextYear)}</p>
-        <span class='stat-tile-meta'>Calculado pelo totalizador mensal</span>
       </article>`
       : `
       <article class='stat-tile stat-tile--green'>
         <h4>Total disponivel Janeiro ${projectionYear}</h4>
         <p>${formatTileMoney(totalAvailableJanuaryNextYear)}</p>
-        <span class='stat-tile-meta'>Calculado pelo totalizador mensal</span>
       </article>`;
 
     const projectionTitle = document.querySelector(".cgd-top-tiles-projection-card .cgd-top-tiles-section-title");
@@ -1535,7 +1532,6 @@ function renderCgdTopTiles() {
       <article class='stat-tile stat-tile--cyan'>
         <h4>Real Janeiro ${projectionYear}</h4>
         <p>${formatTileMoney(realJanuaryNextYear)}</p>
-        <span class='stat-tile-meta'>Calculado pelo totalizador mensal</span>
       </article>
       ${availableProjectionMarkup}
       ${HIDE_SAVINGS
@@ -1544,7 +1540,6 @@ function renderCgdTopTiles() {
       <article class='stat-tile stat-tile--blue'>
         <h4>Poupanca IRS Janeiro ${projectionYear}</h4>
         <p>${formatTileMoney(irsSavingsJanuaryNextYear)}</p>
-        <span class='stat-tile-meta'>Calculado pelo totalizador mensal</span>
       </article>
       <article class='stat-tile stat-tile--blue'>
         <h4>Poupanca Audi Janeiro ${projectionYear}</h4>
