@@ -802,6 +802,12 @@ a {
   font-weight: 800;
 }
 
+body:not(.coverflex-theme) .cgd-top-tiles-projection-card .stat-tile p,
+body:not(.coverflex-theme) .cgd-top-tiles-projection-card .stat-tile .stat-tile-meta {
+  width: 100%;
+  text-align: right;
+}
+
 .stat-tile--danger {
   border-color: rgba(229, 57, 53, 0.3);
 }
