@@ -2552,11 +2552,8 @@ a {
 }
 
 .rubric-head .money-pill.readonly.rubric-total-cell > span {
-  display: flex;
+  display: block;
   width: 100%;
-  min-height: 32px;
-  align-items: center;
-  justify-content: flex-end;
   text-align: right;
 }
 
