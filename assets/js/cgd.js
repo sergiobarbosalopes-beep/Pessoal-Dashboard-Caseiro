@@ -1444,10 +1444,6 @@ function renderCgdTopTiles() {
   const peopleRows = TOTALIZER_PEOPLE.length ? TOTALIZER_PEOPLE : ["Sergio", "Carina"];
   const sergioName = peopleRows[0] || "Sergio";
   const carinaName = peopleRows[1] || "Carina";
-  const sergioSeries = computePersonTotalizerSeriesForYear(year, sergioName);
-  const carinaSeries = computePersonTotalizerSeriesForYear(year, carinaName);
-  const sergioDecemberAvailable = Number(sergioSeries?.[11]) || 0;
-  const carinaDecemberAvailable = Number(carinaSeries?.[11]) || 0;
 
   const savingsAverage = averageOfSeries(sumRubricsValuesByMonth(savingsRubrics));
 
@@ -1484,17 +1480,22 @@ function renderCgdTopTiles() {
 
   if (projectionHost) {
     const realDecember = Number(realSeries?.values?.[11]) || 0;
+    const projectionYear = year + 1;
+    const nextYearRealSeries = computeRealSeriesForYear(projectionYear, cgdState.realComputationContexts);
+    const realJanuaryNextYear = Number(nextYearRealSeries?.values?.[0]) || 0;
+    const sergioJanuaryNextYear = Number(computePersonTotalizerSeriesForYear(projectionYear, sergioName)?.[0]) || 0;
+    const carinaJanuaryNextYear = Number(computePersonTotalizerSeriesForYear(projectionYear, carinaName)?.[0]) || 0;
     const availableProjectionMarkup = IS_COVERFLEX
       ? `
       <article class='stat-tile stat-tile--sergio'>
-        <h4>${escapeHtml(sergioName)} Disponivel Dezembro ${year}</h4>
-        <p>${formatTileMoney(sergioDecemberAvailable)}</p>
-        <span class='stat-tile-meta'>Valor da linha do totalizador mensal</span>
+        <h4>${escapeHtml(sergioName)} Disponivel Janeiro ${projectionYear}</h4>
+        <p>${formatTileMoney(sergioJanuaryNextYear)}</p>
+        <span class='stat-tile-meta'>Calculado pelo totalizador mensal</span>
       </article>
       <article class='stat-tile stat-tile--carina'>
-        <h4>${escapeHtml(carinaName)} Disponivel Dezembro ${year}</h4>
-        <p>${formatTileMoney(carinaDecemberAvailable)}</p>
-        <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
+        <h4>${escapeHtml(carinaName)} Disponivel Janeiro ${projectionYear}</h4>
+        <p>${formatTileMoney(carinaJanuaryNextYear)}</p>
+        <span class='stat-tile-meta'>Calculado pelo totalizador mensal</span>
       </article>`
       : `
       <article class='stat-tile stat-tile--green'>
@@ -1505,9 +1506,9 @@ function renderCgdTopTiles() {
 
     projectionHost.innerHTML = `
       <article class='stat-tile stat-tile--cyan'>
-        <h4>Real Dezembro ${year}</h4>
-        <p>${formatTileMoney(realDecember)}</p>
-        <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
+        <h4>${IS_COVERFLEX ? `Real Janeiro ${projectionYear}` : `Real Dezembro ${year}`}</h4>
+        <p>${formatTileMoney(IS_COVERFLEX ? realJanuaryNextYear : realDecember)}</p>
+        <span class='stat-tile-meta'>${IS_COVERFLEX ? "Calculado pelo totalizador mensal" : "Atualizado pelo totalizador"}</span>
       </article>
       ${availableProjectionMarkup}
       ${HIDE_SAVINGS
