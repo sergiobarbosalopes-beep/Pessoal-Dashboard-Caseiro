@@ -669,6 +669,9 @@ a {
 }
 
 .coverflex-theme .temporal-nav-card {
+  position: sticky;
+  top: 92px;
+  z-index: 20000;
   border-color: rgba(255, 176, 117, 0.52);
   box-shadow:
     0 0 0 1px rgba(255, 196, 150, 0.3),
@@ -3318,6 +3321,10 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
 
   .coverflex-theme .site-shell {
     padding-top: 110px;
+  }
+
+  .coverflex-theme .temporal-nav-card {
+    top: 126px;
   }
 
   .temporal-nav-card {
