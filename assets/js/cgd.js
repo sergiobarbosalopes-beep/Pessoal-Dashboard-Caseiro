@@ -1486,7 +1486,6 @@ function renderCgdTopTiles() {
       <article class='stat-tile stat-tile--blue'>
         <h4>Media de poupancas</h4>
         <p>${formatTileMoney(savingsAverage)}</p>
-        <span class='stat-tile-meta'>Ano ${year}</span>
       </article>`}
       <article class='stat-tile stat-tile--danger'>
         <h4>Media de despesas</h4>
