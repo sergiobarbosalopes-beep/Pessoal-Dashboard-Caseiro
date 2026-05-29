@@ -3090,7 +3090,7 @@ function renderPanels() {
   `;
 
   if (isCoverflexPage) {
-    panels.querySelectorAll(".panel.balance").forEach((node) => node.remove());
+    panels.querySelectorAll(".panel.balance:not(.panel-estimated-irs)").forEach((node) => node.remove());
   }
 
   restoreCollapseState(collapseState);
