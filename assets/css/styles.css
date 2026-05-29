@@ -792,6 +792,7 @@ a {
 }
 
 .stat-tile .stat-tile-meta--right {
+  display: block;
   width: 100%;
   text-align: right;
 }

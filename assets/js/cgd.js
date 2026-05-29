@@ -1478,7 +1478,7 @@ function renderCgdTopTiles() {
       <article class='stat-tile stat-tile--green'>
         <h4>Media de receitas</h4>
         <p>${formatTileMoney(incomeAverage)}</p>
-        <span class='stat-tile-meta'>Exclui movimentos</span>
+        <span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos</span>
       </article>
       ${HIDE_SAVINGS
         ? ""
@@ -1490,7 +1490,7 @@ function renderCgdTopTiles() {
       <article class='stat-tile stat-tile--danger'>
         <h4>Media de despesas</h4>
         <p>${formatTileMoney(outcomeAverage)}</p>
-        <span class='stat-tile-meta'>Exclui movimentos e impostos</span>
+        <span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos e impostos</span>
       </article>
     `;
   }
