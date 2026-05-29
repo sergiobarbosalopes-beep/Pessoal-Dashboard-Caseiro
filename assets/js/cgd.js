@@ -1420,6 +1420,24 @@ function calculateAccumulatedSavingsToDecember(rubrics, year) {
   }, 0);
 }
 
+function calculateAccumulatedSavingsForMonth(rubrics, year, monthIndex) {
+  const source = Array.isArray(rubrics) ? rubrics : [];
+  const normalizedMonthIndex = Number(monthIndex);
+  if (!Number.isInteger(normalizedMonthIndex) || normalizedMonthIndex < 0 || normalizedMonthIndex > 11) {
+    return 0;
+  }
+
+  return source.reduce((acc, rubric) => {
+    const rubricId = Number(rubric?.id);
+    if (Number.isFinite(rubricId)) {
+      const rubricSeries = computeSavingsRubricSeriesForYear(year, rubricId, cgdState.realComputationContexts);
+      return acc + (Number(rubricSeries?.[normalizedMonthIndex]) || 0);
+    }
+    const rawValues = Array.isArray(rubric?.values) ? rubric.values.slice(0, 12) : emptyValues();
+    return acc + (Number(rawValues?.[normalizedMonthIndex]) || 0);
+  }, 0);
+}
+
 function renderCgdTopTiles() {
   const averagesHost = document.getElementById("cgd-top-tiles-averages");
   const projectionHost = document.getElementById("cgd-top-tiles-projection");
@@ -1482,9 +1500,13 @@ function renderCgdTopTiles() {
     const realDecember = Number(realSeries?.values?.[11]) || 0;
     const projectionYear = year + 1;
     const nextYearRealSeries = computeRealSeriesForYear(projectionYear, cgdState.realComputationContexts);
+    const nextYearSavingsSeries = computeSavingsSeriesForYear(projectionYear, cgdState.realComputationContexts);
     const realJanuaryNextYear = Number(nextYearRealSeries?.values?.[0]) || 0;
     const sergioJanuaryNextYear = Number(computePersonTotalizerSeriesForYear(projectionYear, sergioName)?.[0]) || 0;
     const carinaJanuaryNextYear = Number(computePersonTotalizerSeriesForYear(projectionYear, carinaName)?.[0]) || 0;
+    const totalAvailableJanuaryNextYear = realJanuaryNextYear - (Number(nextYearSavingsSeries?.[0]) || 0);
+    const irsSavingsJanuaryNextYear = calculateAccumulatedSavingsForMonth(irsSavingsRubrics, projectionYear, 0);
+    const audiSavingsJanuaryNextYear = calculateAccumulatedSavingsForMonth(audiSavingsRubrics, projectionYear, 0);
     const availableProjectionMarkup = IS_COVERFLEX
       ? `
       <article class='stat-tile stat-tile--sergio'>
@@ -1499,14 +1521,14 @@ function renderCgdTopTiles() {
       </article>`
       : `
       <article class='stat-tile stat-tile--green'>
-        <h4>Total disponivel Dezembro ${year}</h4>
-        <p>${formatTileMoney(totalAvailableDecember)}</p>
-        <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
+        <h4>Total disponivel Janeiro ${projectionYear}</h4>
+        <p>${formatTileMoney(totalAvailableJanuaryNextYear)}</p>
+        <span class='stat-tile-meta'>Calculado pelo totalizador mensal</span>
       </article>`;
 
     const projectionTitle = document.querySelector(".cgd-top-tiles-projection-card .cgd-top-tiles-section-title");
     if (projectionTitle) {
-      projectionTitle.textContent = IS_COVERFLEX ? `Projeccao ${projectionYear}` : `Projeccao Dezembro`;
+      projectionTitle.textContent = `Projeccao (${projectionYear})`;
     }
 
     projectionHost.innerHTML = `
@@ -1520,13 +1542,13 @@ function renderCgdTopTiles() {
         ? ""
         : `
       <article class='stat-tile stat-tile--blue'>
-        <h4>Poupanca IRS Dezembro ${year}</h4>
-        <p>${formatTileMoney(irsSavingsAccumulatedDecember)}</p>
-        <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
+        <h4>Poupanca IRS Janeiro ${projectionYear}</h4>
+        <p>${formatTileMoney(irsSavingsJanuaryNextYear)}</p>
+        <span class='stat-tile-meta'>Calculado pelo totalizador mensal</span>
       </article>
       <article class='stat-tile stat-tile--blue'>
-        <h4>Poupanca Audi Dezembro ${year}</h4>
-        <p>${formatTileMoney(audiSavingsAccumulatedDecember)}</p>
+        <h4>Poupanca Audi Janeiro ${projectionYear}</h4>
+        <p>${formatTileMoney(audiSavingsJanuaryNextYear)}</p>
         <span class='stat-tile-meta stat-tile-meta--right'>Meta Setembro 2028</span>
         <span class='stat-tile-meta stat-tile-meta--right stat-tile-meta-target'>${formatTileMoney(5900)}</span>
       </article>`}
