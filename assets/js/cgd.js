@@ -1439,8 +1439,13 @@ function renderCgdTopTiles() {
   const audiSavingsAccumulatedDecember = calculateAccumulatedSavingsToDecember(audiSavingsRubrics, year);
 
   const realSeries = computeRealSeriesForYear(year, cgdState.realComputationContexts);
-  const savingsAccumulatedSeries = computeSavingsSeriesForYear(year, cgdState.realComputationContexts);
-  const totalAvailableDecember = (Number(realSeries?.values?.[11]) || 0) - (Number(savingsAccumulatedSeries?.[11]) || 0);
+  const peopleRows = TOTALIZER_PEOPLE.length ? TOTALIZER_PEOPLE : ["Sergio", "Carina"];
+  const sergioName = peopleRows[0] || "Sergio";
+  const carinaName = peopleRows[1] || "Carina";
+  const sergioSeries = computePersonTotalizerSeriesForYear(year, sergioName);
+  const carinaSeries = computePersonTotalizerSeriesForYear(year, carinaName);
+  const sergioDecemberAvailable = Number(sergioSeries?.[11]) || 0;
+  const carinaDecemberAvailable = Number(carinaSeries?.[11]) || 0;
 
   const savingsAverage = averageOfSeries(sumRubricsValuesByMonth(savingsRubrics));
 
@@ -1483,9 +1488,14 @@ function renderCgdTopTiles() {
         <p>${formatTileMoney(realDecember)}</p>
         <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
       </article>
-      <article class='stat-tile stat-tile--green'>
-        <h4>Total disponivel Dezembro ${year}</h4>
-        <p>${formatTileMoney(totalAvailableDecember)}</p>
+      <article class='stat-tile stat-tile--sergio'>
+        <h4>${escapeHtml(sergioName)} Disponivel Dezembro ${year}</h4>
+        <p>${formatTileMoney(sergioDecemberAvailable)}</p>
+        <span class='stat-tile-meta'>Valor da linha do totalizador mensal</span>
+      </article>
+      <article class='stat-tile stat-tile--carina'>
+        <h4>${escapeHtml(carinaName)} Disponivel Dezembro ${year}</h4>
+        <p>${formatTileMoney(carinaDecemberAvailable)}</p>
         <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
       </article>
       ${HIDE_SAVINGS

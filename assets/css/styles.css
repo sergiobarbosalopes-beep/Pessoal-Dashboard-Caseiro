@@ -986,6 +986,36 @@ a {
   background-clip: text;
 }
 
+.stat-tile--sergio {
+  border-color: rgba(65, 179, 122, 0.34);
+}
+
+.stat-tile--sergio::before {
+  background: linear-gradient(90deg, #2f8e61, #41b37a, #9edfb7);
+}
+
+.stat-tile--sergio p {
+  background: linear-gradient(135deg, #41b37a, #9edfb7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-tile--carina {
+  border-color: rgba(47, 154, 212, 0.34);
+}
+
+.stat-tile--carina::before {
+  background: linear-gradient(90deg, #1d6f9f, #2f9ad4, #8bc8f5);
+}
+
+.stat-tile--carina p {
+  background: linear-gradient(135deg, #2f9ad4, #8bc8f5);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .timeline-grid,
 .data-row {
   display: grid;
