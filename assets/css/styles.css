@@ -649,6 +649,15 @@ a {
   color: #ffd8bf;
 }
 
+.coverflex-theme .temporal-nav-card {
+  border-color: rgba(255, 176, 117, 0.52);
+  box-shadow:
+    0 0 0 1px rgba(255, 196, 150, 0.3),
+    0 0 24px rgba(228, 105, 39, 0.34),
+    0 0 44px rgba(176, 72, 22, 0.25),
+    0 10px 24px rgba(43, 18, 7, 0.34);
+}
+
 .coverflex-theme .year-btn:hover,
 .coverflex-theme .month-tile:not(.active):hover {
   background: linear-gradient(135deg, rgba(207, 95, 36, 0.5), rgba(255, 122, 47, 0.44) 55%, rgba(255, 177, 112, 0.36));

@@ -43,11 +43,13 @@ const supabaseClient = window.supabase?.createClient && SUPABASE_ANON_KEY ? wind
 const TABLE_PREFIX = String(window.DASHBOARD_TABLE_PREFIX || "cgd").trim().toLowerCase();
 const tableName = (suffix) => `${TABLE_PREFIX}_${suffix}`;
 const HIDE_SAVINGS = TABLE_PREFIX === "coverflex" || Boolean(window.DASHBOARD_HIDE_SAVINGS);
-const RUBRIC_TABLE = tableName("rubrica");
-const EXPENSE_TABLE = tableName("despesa");
-const REAL_TABLE = tableName("real");
-const EXPENSE_NOTES_TABLE = tableName("despesa_notas");
-const EXPENSE_NOTES_TABLE_LEGACY = tableName("despesas_notas");
+let RUBRIC_TABLE = String(window.DASHBOARD_RUBRIC_TABLE || tableName("rubrica")).trim();
+let EXPENSE_TABLE = String(window.DASHBOARD_EXPENSE_TABLE || tableName("despesa")).trim();
+let REAL_TABLE = String(window.DASHBOARD_REAL_TABLE || tableName("real")).trim();
+let EXPENSE_NOTES_TABLE = String(window.DASHBOARD_EXPENSE_NOTES_TABLE || tableName("despesa_notas")).trim();
+let EXPENSE_NOTES_TABLE_LEGACY = String(window.DASHBOARD_EXPENSE_NOTES_TABLE_LEGACY || tableName("despesas_notas")).trim();
+let tableNamesResolved = false;
+let tableResolutionPromise = null;
 
 const THEME_COLORS = {
   summary: { real: "#ecf6fb", available: "#7fd7a8", savings: "#8ccbf3" },
@@ -62,6 +64,50 @@ const THEME_COLORS = {
 
 function getAlternateNotesTable(tableNameValue) {
   return tableNameValue === EXPENSE_NOTES_TABLE ? EXPENSE_NOTES_TABLE_LEGACY : EXPENSE_NOTES_TABLE;
+}
+
+function isMissingTableError(error) {
+  return String(error?.code || "").trim() === "42P01";
+}
+
+function isPermissionError(error) {
+  const code = String(error?.code || "").trim();
+  return code === "42501" || code === "PGRST301";
+}
+
+async function pickExistingTable(candidates) {
+  const uniqueCandidates = Array.from(new Set((Array.isArray(candidates) ? candidates : []).map((name) => String(name || "").trim()).filter(Boolean)));
+  if (!supabaseClient || !uniqueCandidates.length) {
+    return uniqueCandidates[0] || "";
+  }
+
+  for (const candidate of uniqueCandidates) {
+    const { error } = await supabaseClient.from(candidate).select("*").limit(1);
+    if (!error || isPermissionError(error) || !isMissingTableError(error)) {
+      return candidate;
+    }
+  }
+
+  return uniqueCandidates[0];
+}
+
+async function ensureResolvedTableNames() {
+  if (!supabaseClient || tableNamesResolved) {
+    return;
+  }
+
+  if (!tableResolutionPromise) {
+    tableResolutionPromise = (async () => {
+      RUBRIC_TABLE = await pickExistingTable([RUBRIC_TABLE, tableName("rubricas")]);
+      EXPENSE_TABLE = await pickExistingTable([EXPENSE_TABLE, tableName("despesas")]);
+      REAL_TABLE = await pickExistingTable([REAL_TABLE, tableName("reais")]);
+      EXPENSE_NOTES_TABLE = await pickExistingTable([EXPENSE_NOTES_TABLE, tableName("despesa_notas"), tableName("despesas_notas")]);
+      EXPENSE_NOTES_TABLE_LEGACY = await pickExistingTable([EXPENSE_NOTES_TABLE_LEGACY, tableName("despesas_notas"), tableName("despesa_notas")]);
+      tableNamesResolved = true;
+    })();
+  }
+
+  await tableResolutionPromise;
 }
 
 function normalizeMonth(value) {
@@ -3588,6 +3634,12 @@ async function loadYearData(year) {
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
     return;
+  }
+
+  try {
+    await ensureResolvedTableNames();
+  } catch (tableResolutionError) {
+    console.error("Erro ao resolver nomes de tabelas no Supabase:", tableResolutionError);
   }
 
   try {
