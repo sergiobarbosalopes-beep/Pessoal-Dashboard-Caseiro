@@ -593,6 +593,8 @@ a {
 .coverflex-theme .menu-link[href="coverflex.html"]:hover,
 .coverflex-theme .menu-link[href="coverflex.html"]:focus-visible,
 .coverflex-theme .menu-link[href="coverflex.html"].active {
+  background: linear-gradient(135deg, rgba(228, 105, 39, 0.5), rgba(255, 122, 47, 0.44) 54%, rgba(255, 181, 116, 0.34));
+  background-size: 170% 170%;
   color: #fff9f3;
   border-color: rgba(255, 198, 156, 0.72);
   box-shadow: 0 0 0 1px rgba(255, 198, 156, 0.34), 0 10px 20px rgba(120, 51, 19, 0.32);
@@ -606,11 +608,15 @@ a {
 }
 
 .coverflex-theme .coverflex-hero {
+  display: block;
+  position: relative;
+  overflow: hidden;
   border: 1px solid rgba(255, 180, 126, 0.44);
   background:
     radial-gradient(580px 280px at 96% -6%, rgba(255, 188, 119, 0.34), transparent 72%),
     radial-gradient(640px 320px at -10% 112%, rgba(255, 120, 46, 0.38), transparent 70%),
     linear-gradient(124deg, #5a210d, #7a2d0f 44%, #b04816 72%, #6b290f);
+  box-shadow: 0 0 0 1px rgba(255, 188, 142, 0.2), 0 18px 34px rgba(36, 13, 5, 0.44);
   animation: cgdHeroPulse 5.2s ease-in-out infinite;
 }
 

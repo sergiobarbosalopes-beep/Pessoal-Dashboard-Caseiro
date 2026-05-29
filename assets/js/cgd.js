@@ -42,6 +42,7 @@ const SUPABASE_ANON_KEY = window.CGD_SUPABASE_ANON_KEY || "";
 const supabaseClient = window.supabase?.createClient && SUPABASE_ANON_KEY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 const TABLE_PREFIX = String(window.DASHBOARD_TABLE_PREFIX || "cgd").trim().toLowerCase();
 const tableName = (suffix) => `${TABLE_PREFIX}_${suffix}`;
+const HIDE_SAVINGS = TABLE_PREFIX === "coverflex" || Boolean(window.DASHBOARD_HIDE_SAVINGS);
 const RUBRIC_TABLE = tableName("rubrica");
 const EXPENSE_TABLE = tableName("despesa");
 const REAL_TABLE = tableName("real");
@@ -543,9 +544,10 @@ function buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys = new S
   });
 
   const allRubrics = Array.from(rubricsByKey.values()).sort((a, b) => a.seq - b.seq || a.name.localeCompare(b.name));
+  const savingsRubrics = HIDE_SAVINGS ? [] : allRubrics.filter((rubric) => rubric.type === "savings");
   return {
     income: allRubrics.filter((rubric) => rubric.type === "income"),
-    savings: allRubrics.filter((rubric) => rubric.type === "savings"),
+    savings: savingsRubrics,
     outcome: allRubrics.filter((rubric) => rubric.type === "outcome")
   };
 }
@@ -628,12 +630,15 @@ function buildRealValuesFromRows(realRows) {
 function buildTotalsForModel(model) {
   return {
     income: sumAllIncomeRubricsByMonth(model?.income),
-    savings: sumRubricsValuesByMonth(model?.savings),
+    savings: HIDE_SAVINGS ? emptyValues() : sumRubricsValuesByMonth(model?.savings),
     outcome: sumAllOutcomeRubricsByMonth(model?.outcome)
   };
 }
 
 function buildSavingsRubricsById(model) {
+  if (HIDE_SAVINGS) {
+    return {};
+  }
   const savingsRubrics = Array.isArray(model?.savings) ? model.savings : [];
   return savingsRubrics.reduce((acc, rubric) => {
     const rubricId = rubric?.id;
@@ -665,6 +670,9 @@ function previousMonthContext(year, monthIndex) {
 }
 
 function computeSavingsSeriesForYear(targetYear, contexts) {
+  if (HIDE_SAVINGS) {
+    return emptyValues();
+  }
   const memo = new Map();
   const resolving = new Set();
   const maxDepth = 120;
@@ -699,6 +707,9 @@ function computeSavingsSeriesForYear(targetYear, contexts) {
 }
 
 function computeSavingsRubricSeriesForYear(targetYear, rubricId, contexts) {
+  if (HIDE_SAVINGS) {
+    return emptyValues();
+  }
   const memo = new Map();
   const resolving = new Set();
   const maxDepth = 120;
@@ -752,7 +763,7 @@ function computeRealSeriesForYear(targetYear, contexts) {
     const normalizedYear = Number(year);
     const context = yearContexts[normalizedYear] || defaultRealComputationContext();
     const income = Number(context.totals?.income?.[monthIndex]) || 0;
-    const savings = Number(context.totals?.savings?.[monthIndex]) || 0;
+    const savings = HIDE_SAVINGS ? 0 : Number(context.totals?.savings?.[monthIndex]) || 0;
     const outcome = Number(context.totals?.outcome?.[monthIndex]) || 0;
     return income + savings - outcome;
   };
@@ -921,10 +932,10 @@ function renderSoberTotalizer() {
   const savingsTotals = computeSavingsSeriesForYear(year, cgdState.realComputationContexts);
   const availableTotals = months.map((_, monthIndex) => {
     const real = Number(realValues?.[monthIndex]) || 0;
-    const savings = Number(savingsTotals?.[monthIndex]) || 0;
+    const savings = HIDE_SAVINGS ? 0 : Number(savingsTotals?.[monthIndex]) || 0;
     return real - savings;
   });
-  const savingsRubrics = Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
+  const savingsRubrics = HIDE_SAVINGS ? [] : Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
 
   const savingsRubricRows = savingsRubrics
     .map((rubric) => {
@@ -960,13 +971,16 @@ function renderSoberTotalizer() {
             </div>
             ${renderTotalizerMonthPills(availableTotals)}
           </div>
+          ${HIDE_SAVINGS
+            ? ""
+            : `
           <div class='data-row totalizer-row totalizer-row-savings'>
             <div class='desc-cell totalizer-desc-cell'>
               <span class='totalizer-row-label'>Poupancas</span>
             </div>
             ${renderTotalizerMonthPills(savingsTotals)}
           </div>
-          ${savingsRubricRows}
+          ${savingsRubricRows}`}
         </div>
       </div>
     </section>
@@ -1079,14 +1093,14 @@ function renderCgdTemporalSummaryChart() {
   const savingsValues = computeSavingsSeriesForYear(year, cgdState.realComputationContexts);
   const availableValues = months.map((_, monthIndex) => {
     const real = Number(realValues?.[monthIndex]) || 0;
-    const savings = Number(savingsValues?.[monthIndex]) || 0;
+    const savings = HIDE_SAVINGS ? 0 : Number(savingsValues?.[monthIndex]) || 0;
     return real - savings;
   });
 
   const allSeries = [
     { key: "real", label: "Real", color: THEME_COLORS.summary.real, values: realValues },
     { key: "available", label: "Disponivel", color: THEME_COLORS.summary.available, values: availableValues },
-    { key: "savings", label: "Poupancas", color: THEME_COLORS.summary.savings, values: savingsValues }
+    ...(HIDE_SAVINGS ? [] : [{ key: "savings", label: "Poupancas", color: THEME_COLORS.summary.savings, values: savingsValues }])
   ];
 
   const hiddenSeries = cgdState.temporalSummaryHiddenSeries;
@@ -1181,7 +1195,7 @@ function renderCgdTemporalSummaryChart() {
         </div>
         <div class='outcome-evolution-legend'>${legend}</div>
         <div class='outcome-evolution-svg-wrap cgd-summary-svg-wrap'>
-          <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='Grafico temporal com Real, Disponivel e Poupancas'>
+          <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${HIDE_SAVINGS ? "Grafico temporal com Real e Disponivel" : "Grafico temporal com Real, Disponivel e Poupancas"}'>
             ${gridLines}
             ${monthGridLines}
             ${seriesMarkup}
@@ -1241,7 +1255,7 @@ function renderCgdTopTiles() {
   }
 
   const year = Number(cgdState.selectedYear);
-  const savingsRubrics = Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
+  const savingsRubrics = HIDE_SAVINGS ? [] : Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
   const incomeRubrics = Array.isArray(cgdState.data?.income) ? cgdState.data.income : [];
   const outcomeRubrics = Array.isArray(cgdState.data?.outcome) ? cgdState.data.outcome : [];
 
@@ -1272,11 +1286,14 @@ function renderCgdTopTiles() {
         <p>${formatTileMoney(incomeAverage)}</p>
         <span class='stat-tile-meta'>Exclui movimentos</span>
       </article>
+      ${HIDE_SAVINGS
+        ? ""
+        : `
       <article class='stat-tile stat-tile--blue'>
         <h4>Media de poupancas</h4>
         <p>${formatTileMoney(savingsAverage)}</p>
         <span class='stat-tile-meta'>Ano ${year}</span>
-      </article>
+      </article>`}
       <article class='stat-tile stat-tile--danger'>
         <h4>Media de despesas</h4>
         <p>${formatTileMoney(outcomeAverage)}</p>
@@ -1298,6 +1315,9 @@ function renderCgdTopTiles() {
         <p>${formatTileMoney(totalAvailableDecember)}</p>
         <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
       </article>
+      ${HIDE_SAVINGS
+        ? ""
+        : `
       <article class='stat-tile stat-tile--blue'>
         <h4>Poupanca IRS Dezembro ${year}</h4>
         <p>${formatTileMoney(irsSavingsAccumulatedDecember)}</p>
@@ -1308,7 +1328,7 @@ function renderCgdTopTiles() {
         <p>${formatTileMoney(audiSavingsAccumulatedDecember)}</p>
         <span class='stat-tile-meta stat-tile-meta--right'>Meta Setembro 2028</span>
         <span class='stat-tile-meta stat-tile-meta--right stat-tile-meta-target'>${formatTileMoney(5900)}</span>
-      </article>
+      </article>`}
     `;
   }
 }
@@ -1319,7 +1339,7 @@ function buildBalancePanel() {
   const outcomeTotals = sumRubricsValuesByMonth(cgdState.data?.outcome || []);
   const balanceTotals = months.map((_, monthIndex) => {
     const income = Number(incomeTotals?.[monthIndex]) || 0;
-    const savings = Number(savingsTotals?.[monthIndex]) || 0;
+    const savings = HIDE_SAVINGS ? 0 : Number(savingsTotals?.[monthIndex]) || 0;
     const outcome = Number(outcomeTotals?.[monthIndex]) || 0;
     return income + savings - outcome;
   });
@@ -2803,13 +2823,15 @@ function renderPanels() {
     <section class='outcome-evolution-card income-comparison-card'>
       <div class='outcome-evolution' id='income-comparison-chart' aria-live='polite'></div>
     </section>
-    ${buildPanel("Poupancas", "savings", cgdState.data.savings)}
+    ${HIDE_SAVINGS
+      ? ""
+      : `${buildPanel("Poupancas", "savings", cgdState.data.savings)}
     <section class='outcome-evolution-card savings-evolution-card'>
       <div class='outcome-evolution' id='savings-evolution-chart' aria-live='polite'></div>
     </section>
     <section class='outcome-evolution-card savings-comparison-card'>
       <div class='outcome-evolution' id='savings-comparison-chart' aria-live='polite'></div>
-    </section>
+    </section>`}
     ${buildPanel("Despesas", "outcome", cgdState.data.outcome)}
     <section class='outcome-evolution-card outcome-evolution-card-main'>
       <div class='outcome-evolution' id='outcome-evolution-chart' aria-live='polite'></div>
@@ -2823,8 +2845,10 @@ function renderPanels() {
 
   renderIncomeEvolutionChart();
   renderIncomeComparisonChart();
-  renderSavingsEvolutionChart();
-  renderSavingsComparisonChart();
+  if (!HIDE_SAVINGS) {
+    renderSavingsEvolutionChart();
+    renderSavingsComparisonChart();
+  }
   renderOutcomeEvolutionChart();
   renderOutcomeComparisonChart();
 }
