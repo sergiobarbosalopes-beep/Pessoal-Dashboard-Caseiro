@@ -1439,6 +1439,8 @@ function renderCgdTopTiles() {
   const audiSavingsAccumulatedDecember = calculateAccumulatedSavingsToDecember(audiSavingsRubrics, year);
 
   const realSeries = computeRealSeriesForYear(year, cgdState.realComputationContexts);
+  const savingsAccumulatedSeries = computeSavingsSeriesForYear(year, cgdState.realComputationContexts);
+  const totalAvailableDecember = (Number(realSeries?.values?.[11]) || 0) - (Number(savingsAccumulatedSeries?.[11]) || 0);
   const peopleRows = TOTALIZER_PEOPLE.length ? TOTALIZER_PEOPLE : ["Sergio", "Carina"];
   const sergioName = peopleRows[0] || "Sergio";
   const carinaName = peopleRows[1] || "Carina";
@@ -1482,12 +1484,8 @@ function renderCgdTopTiles() {
 
   if (projectionHost) {
     const realDecember = Number(realSeries?.values?.[11]) || 0;
-    projectionHost.innerHTML = `
-      <article class='stat-tile stat-tile--cyan'>
-        <h4>Real Dezembro ${year}</h4>
-        <p>${formatTileMoney(realDecember)}</p>
-        <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
-      </article>
+    const availableProjectionMarkup = IS_COVERFLEX
+      ? `
       <article class='stat-tile stat-tile--sergio'>
         <h4>${escapeHtml(sergioName)} Disponivel Dezembro ${year}</h4>
         <p>${formatTileMoney(sergioDecemberAvailable)}</p>
@@ -1497,7 +1495,21 @@ function renderCgdTopTiles() {
         <h4>${escapeHtml(carinaName)} Disponivel Dezembro ${year}</h4>
         <p>${formatTileMoney(carinaDecemberAvailable)}</p>
         <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
+      </article>`
+      : `
+      <article class='stat-tile stat-tile--green'>
+        <h4>Total disponivel Dezembro ${year}</h4>
+        <p>${formatTileMoney(totalAvailableDecember)}</p>
+        <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
+      </article>`;
+
+    projectionHost.innerHTML = `
+      <article class='stat-tile stat-tile--cyan'>
+        <h4>Real Dezembro ${year}</h4>
+        <p>${formatTileMoney(realDecember)}</p>
+        <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
       </article>
+      ${availableProjectionMarkup}
       ${HIDE_SAVINGS
         ? ""
         : `
