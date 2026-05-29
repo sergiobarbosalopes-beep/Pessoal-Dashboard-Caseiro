@@ -636,7 +636,12 @@ function sumByMonth(expenses) {
 }
 
 function money(value) {
-  return Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return Number(0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  const normalized = Math.abs(numeric) < 0.005 ? 0 : numeric;
+  return normalized.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function isZeroMoneyDisplayValue(value) {
