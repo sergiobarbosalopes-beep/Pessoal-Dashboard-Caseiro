@@ -1584,22 +1584,53 @@ function buildBalancePanel() {
 }
 
 function buildEstimatedIrsPanel() {
-  const estimatedTotals = emptyValues();
+  const estimatedIrsRate = 0.45;
+  const excludedTerms = ["chica beni"];
+  const outcomeRubrics = Array.isArray(cgdState.data?.outcome) ? cgdState.data.outcome : [];
+  const estimatedTotals = months.map((_, monthIndex) => {
+    const monthlyBase = outcomeRubrics.reduce((total, rubric) => {
+      if (rubricNameMatchesAny(rubric?.name, excludedTerms)) {
+        return total;
+      }
+
+      const rubricExpenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
+      if (!rubricExpenses.length) {
+        const rubricValue = Number(rubric?.values?.[monthIndex]);
+        return total + (Number.isFinite(rubricValue) ? rubricValue : 0);
+      }
+
+      const rubricMonthTotal = rubricExpenses.reduce((acc, expense) => {
+        if (rubricNameMatchesAny(expense?.name, excludedTerms)) {
+          return acc;
+        }
+        const includeInTotalizer = expense?.monthData?.[monthIndex]?.totalizador;
+        if (includeInTotalizer === false) {
+          return acc;
+        }
+        const value = Number(expense?.values?.[monthIndex]);
+        return acc + (Number.isFinite(value) ? value : 0);
+      }, 0);
+
+      return total + rubricMonthTotal;
+    }, 0);
+
+    return monthlyBase * estimatedIrsRate;
+  });
 
   return `
   <section class='panel balance panel-estimated-irs'>
     <header class='panel-head'>
       <div class='panel-title'>
         <span class='chev-spacer' aria-hidden='true'></span>
-        <span class='desc-pill panel-balance-title'>IRS Estimado</span>
+        <span class='desc-pill panel-balance-title'>IRS Estimado (45%)</span>
       </div>
     </header>
     <div class='panel-collapsed-summary panel-collapsed-summary-balance'>
       <div class='data-row collapsed-total-row collapsed-total-row-balance'>
         <div class='desc-cell'>
-          <span class='desc-pill collapsed-total-label collapsed-total-label-balance'>Total</span>
+          <span class='desc-pill collapsed-total-label collapsed-total-label-balance'>Total (45%)</span>
         </div>
-        ${readonlyBalanceSummaryPills(estimatedTotals, "Total IRS Estimado")}
+        ${readonlyBalanceSummaryPills(estimatedTotals, "Total IRS Estimado (45%)")}
       </div>
     </div>
   </section>
