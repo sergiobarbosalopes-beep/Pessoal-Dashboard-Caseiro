@@ -1472,13 +1472,15 @@ function renderCgdTopTiles() {
 
   const incomeFilteredRubrics = incomeRubrics.filter((rubric) => !rubricNameMatchesAny(rubric?.name, ["movimentos"]));
   const incomeAverage = averageOfSeries(sumRubricsValuesByMonth(incomeFilteredRubrics));
+  const incomeAverageSubtitle = IS_COVERFLEX ? "" : "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos</span>";
+  const outcomeAverageSubtitle = IS_COVERFLEX ? "" : "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos e impostos</span>";
 
   if (averagesHost) {
     averagesHost.innerHTML = `
       <article class='stat-tile stat-tile--green'>
         <h4>Media de receitas</h4>
         <p>${formatTileMoney(incomeAverage)}</p>
-        <span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos</span>
+        ${incomeAverageSubtitle}
       </article>
       ${HIDE_SAVINGS
         ? ""
@@ -1490,7 +1492,7 @@ function renderCgdTopTiles() {
       <article class='stat-tile stat-tile--danger'>
         <h4>Media de despesas</h4>
         <p>${formatTileMoney(outcomeAverage)}</p>
-        <span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos e impostos</span>
+        ${outcomeAverageSubtitle}
       </article>
     `;
   }
