@@ -1504,9 +1504,14 @@ function renderCgdTopTiles() {
         <span class='stat-tile-meta'>Atualizado pelo totalizador</span>
       </article>`;
 
+    const projectionTitle = document.querySelector(".cgd-top-tiles-projection-card .cgd-top-tiles-section-title");
+    if (projectionTitle) {
+      projectionTitle.textContent = IS_COVERFLEX ? `Projeccao ${projectionYear}` : `Projeccao Dezembro`;
+    }
+
     projectionHost.innerHTML = `
       <article class='stat-tile stat-tile--cyan'>
-        <h4>${IS_COVERFLEX ? `Projeccao Janeiro (${projectionYear})` : `Real Dezembro ${year}`}</h4>
+        <h4>${IS_COVERFLEX ? `Real Janeiro ${projectionYear}` : `Real Dezembro ${year}`}</h4>
         <p>${formatTileMoney(IS_COVERFLEX ? realJanuaryNextYear : realDecember)}</p>
         <span class='stat-tile-meta'>${IS_COVERFLEX ? "Calculado pelo totalizador mensal" : "Atualizado pelo totalizador"}</span>
       </article>
