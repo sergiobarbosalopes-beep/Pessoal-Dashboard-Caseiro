@@ -10,6 +10,8 @@ const fallbackMock = {
 const cgdState = {
   selectedYear: new Date().getFullYear(),
   data: fallbackMock,
+  yearModels: {},
+  personTotalizerSeriesCache: {},
   realComputationContexts: {},
   expenseColumns: new Set(),
   notesTableName: null,
@@ -715,6 +717,7 @@ function buildSavingsRubricsById(model) {
 
 function defaultRealComputationContext() {
   return {
+    model: fallbackMock,
     dbRealValues: Array.from({ length: 12 }, () => null),
     savingsRubricsById: {},
     totals: {
@@ -931,10 +934,67 @@ async function fetchYearContextForRealComputation(year) {
 
   const model = buildDataModel(rubricRows, expenseRows, new Set());
   return {
+    model,
     dbRealValues: buildRealValuesFromRows(realRows),
     savingsRubricsById: buildSavingsRubricsById(model),
     totals: buildTotalsForModel(model)
   };
+}
+
+function getPersonRubricMonthTotal(year, kind, personName, monthIndex) {
+  const sourceModel = cgdState.yearModels?.[Number(year)];
+  if (!sourceModel) {
+    return 0;
+  }
+
+  const sourceRubrics = kind === "income"
+    ? sourceModel.income
+    : kind === "outcome"
+      ? sourceModel.outcome
+      : [];
+
+  return (Array.isArray(sourceRubrics) ? sourceRubrics : []).reduce((acc, rubric) => {
+    if (!rubricNameMatchesAny(rubric?.name, [personName])) {
+      return acc;
+    }
+    const value = Number(rubric?.values?.[monthIndex]);
+    return acc + (Number.isFinite(value) ? value : 0);
+  }, 0);
+}
+
+function computePersonTotalizerSeriesForYear(year, personName) {
+  const normalizedYear = Number(year);
+  const personKey = normalizeComparableText(personName);
+  if (!Number.isFinite(normalizedYear) || !personKey) {
+    return emptyValues();
+  }
+
+  cgdState.personTotalizerSeriesCache[normalizedYear] = cgdState.personTotalizerSeriesCache[normalizedYear] || {};
+  const cached = cgdState.personTotalizerSeriesCache[normalizedYear][personKey];
+  if (Array.isArray(cached) && cached.length === 12) {
+    return cached;
+  }
+
+  const previousYear = normalizedYear - 1;
+  let previousDecemberTotal = 0;
+  if (cgdState.yearModels?.[previousYear]) {
+    const previousYearSeries = computePersonTotalizerSeriesForYear(previousYear, personName);
+    previousDecemberTotal = Number(previousYearSeries?.[11]) || 0;
+  }
+
+  let runningTotal = previousDecemberTotal;
+  const series = months.map((_, monthIndex) => {
+    const sourceYear = monthIndex === 0 ? previousYear : normalizedYear;
+    const sourceMonthIndex = monthIndex === 0 ? 11 : monthIndex - 1;
+    const previousIncome = getPersonRubricMonthTotal(sourceYear, "income", personName, sourceMonthIndex);
+    const previousOutcome = getPersonRubricMonthTotal(sourceYear, "outcome", personName, sourceMonthIndex);
+
+    runningTotal = runningTotal + previousIncome - previousOutcome;
+    return runningTotal;
+  });
+
+  cgdState.personTotalizerSeriesCache[normalizedYear][personKey] = series;
+  return series;
 }
 
 function renderTotalizerMonthPills(values, options = {}) {
@@ -993,7 +1053,7 @@ function renderSoberTotalizer() {
   const personRowsMarkup = HIDE_AVAILABLE_ROW
     ? peopleRows
       .map((personName) => {
-        const personValues = realValues.map((value) => (Number(value) || 0) / Math.max(peopleRows.length, 1));
+        const personValues = computePersonTotalizerSeriesForYear(year, personName);
         return `
           <div class='data-row totalizer-row totalizer-row-available'>
             <div class='desc-cell totalizer-desc-cell'>
@@ -3650,6 +3710,7 @@ window.cgdToggleOutcomeComparisonChart = () => {
 
 async function loadYearData(year) {
   cgdState.selectedYear = year;
+  cgdState.personTotalizerSeriesCache = {};
   const yearLabel = document.querySelector("[data-year-label]");
   if (yearLabel) {
     yearLabel.textContent = String(year);
@@ -3657,6 +3718,11 @@ async function loadYearData(year) {
 
   if (!supabaseClient) {
     cgdState.data = fallbackMock;
+    cgdState.yearModels = {
+      [Number(year)]: fallbackMock,
+      [Number(year) - 1]: fallbackMock,
+      [Number(year) - 2]: fallbackMock
+    };
     cgdState.realComputationContexts = {
       [Number(year)]: defaultRealComputationContext(),
       [Number(year) - 1]: defaultRealComputationContext(),
@@ -3703,6 +3769,10 @@ async function loadYearData(year) {
     const realRows = realValuesResult.status === "fulfilled" ? realValuesResult.value : [];
     const model = buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys);
     cgdState.data = model;
+    cgdState.yearModels = {
+      ...cgdState.yearModels,
+      [Number(year)]: model
+    };
 
     // Never let totalizer context errors hide main rubric/expense panels.
     try {
@@ -3717,6 +3787,7 @@ async function loadYearData(year) {
 
       cgdState.realComputationContexts = {
         [Number(year)]: {
+          model,
           dbRealValues: buildRealValuesFromRows(realRows),
           savingsRubricsById: buildSavingsRubricsById(model),
           totals: buildTotalsForModel(model)
@@ -3724,10 +3795,16 @@ async function loadYearData(year) {
         [previousYear]: previousYearContext,
         [twoYearsBack]: twoYearsBackContext
       };
+      cgdState.yearModels = {
+        ...cgdState.yearModels,
+        [previousYear]: previousYearContext?.model || cgdState.yearModels?.[previousYear] || fallbackMock,
+        [twoYearsBack]: twoYearsBackContext?.model || cgdState.yearModels?.[twoYearsBack] || fallbackMock
+      };
     } catch (realContextError) {
       console.error("Erro a preparar contexto real do totalizador:", realContextError);
       cgdState.realComputationContexts = {
         [Number(year)]: {
+          model,
           dbRealValues: buildRealValuesFromRows(realRows),
           savingsRubricsById: buildSavingsRubricsById(model),
           totals: buildTotalsForModel(model)
@@ -3773,6 +3850,11 @@ async function loadYearData(year) {
   } catch (error) {
     console.error("Erro a carregar dados CGD:", error);
     cgdState.data = fallbackMock;
+    cgdState.yearModels = {
+      [Number(year)]: fallbackMock,
+      [Number(year) - 1]: fallbackMock,
+      [Number(year) - 2]: fallbackMock
+    };
     cgdState.realComputationContexts = {
       [Number(year)]: defaultRealComputationContext(),
       [Number(year) - 1]: defaultRealComputationContext(),
