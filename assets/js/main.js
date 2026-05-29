@@ -961,7 +961,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   syncExpensePastMonthsState();
-  requestAnimationFrame(syncExpensePastMonthsState);
 });
 
 document.addEventListener("cgd:rendered", () => {

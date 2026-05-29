@@ -41,14 +41,29 @@ const SUPABASE_URL = window.CGD_SUPABASE_URL || "https://uooovgxrexpstrtfktst.su
 const SUPABASE_ANON_KEY = window.CGD_SUPABASE_ANON_KEY || "";
 const supabaseClient = window.supabase?.createClient && SUPABASE_ANON_KEY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 const TABLE_PREFIX = String(window.DASHBOARD_TABLE_PREFIX || "cgd").trim().toLowerCase();
+const PAGE_PATHNAME = String(window.location?.pathname || "").toLowerCase();
+const IS_COVERFLEX = TABLE_PREFIX === "coverflex" || PAGE_PATHNAME.includes("coverflex");
 const tableName = (suffix) => `${TABLE_PREFIX}_${suffix}`;
-const HIDE_SAVINGS = TABLE_PREFIX === "coverflex" || Boolean(window.DASHBOARD_HIDE_SAVINGS);
+const HIDE_SAVINGS = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_SAVINGS);
+const HIDE_BALANCE = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_BALANCE);
+const HIDE_AVAILABLE_ROW = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_AVAILABLE_ROW);
+const TOTALIZER_PEOPLE = Array.isArray(window.DASHBOARD_TOTALIZER_PEOPLE) && window.DASHBOARD_TOTALIZER_PEOPLE.length
+  ? window.DASHBOARD_TOTALIZER_PEOPLE.map((entry) => String(entry || "").trim()).filter(Boolean)
+  : ["Sergio", "Carina"];
 let RUBRIC_TABLE = String(window.DASHBOARD_RUBRIC_TABLE || tableName("rubrica")).trim();
 let EXPENSE_TABLE = String(window.DASHBOARD_EXPENSE_TABLE || tableName("despesa")).trim();
 let REAL_TABLE = String(window.DASHBOARD_REAL_TABLE || tableName("real")).trim();
 let EXPENSE_NOTES_TABLE = String(window.DASHBOARD_EXPENSE_NOTES_TABLE || tableName("despesa_notas")).trim();
 let EXPENSE_NOTES_TABLE_LEGACY = String(window.DASHBOARD_EXPENSE_NOTES_TABLE_LEGACY || tableName("despesas_notas")).trim();
-let tableNamesResolved = false;
+const EXPENSE_SEQ_COLUMN = String(window.DASHBOARD_EXPENSE_SEQ_COLUMN || "despesa_seq").trim();
+const HAS_EXPLICIT_TABLE_CONFIG = Boolean(
+  window.DASHBOARD_RUBRIC_TABLE
+  && window.DASHBOARD_EXPENSE_TABLE
+  && window.DASHBOARD_REAL_TABLE
+  && window.DASHBOARD_EXPENSE_NOTES_TABLE
+  && window.DASHBOARD_EXPENSE_NOTES_TABLE_LEGACY
+);
+let tableNamesResolved = HAS_EXPLICIT_TABLE_CONFIG;
 let tableResolutionPromise = null;
 
 const THEME_COLORS = {
@@ -124,22 +139,7 @@ function normalizeMonth(value) {
   return -1;
 }
 
-function parseMoneyField(record, fallback = 0) {
-  const candidates = [
-    record.despesa_valor,
-    record.rubrica_valor,
-    record.valor,
-    record.amount,
-    record.montante,
-    record.total,
-    fallback
-  ];
-  const value = candidates.find((candidate) => candidate !== undefined && candidate !== null);
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : 0;
-}
-
-function parseExpenseValue(record, fallback = 0, options = {}) {
+function parseExpenseValue(record, fallback = 0) {
   const isZerado = parseBoolean(record.zerado);
   if (isZerado) {
     return null;
@@ -182,6 +182,11 @@ function parseSeq(value, fallback = 999999) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function getExpenseSeqValue(record, fallback = 999999) {
+  const value = record?.[EXPENSE_SEQ_COLUMN] ?? record?.despesa_seq ?? record?.despesa_Seq;
+  return parseSeq(value, fallback);
+}
+
 function parseBoolean(value) {
   if (typeof value === "boolean") {
     return value;
@@ -216,6 +221,8 @@ async function fetchRubricsForYear(year) {
     return [];
   }
 
+  await ensureResolvedTableNames();
+
   const { data, error } = await supabaseClient
     .from(RUBRIC_TABLE)
     .select("ano,mes,rubrica_id,rubrica_desc,rubrica_seq,rubrica_tipo")
@@ -235,12 +242,14 @@ async function fetchExpensesForYear(year) {
     return [];
   }
 
+  await ensureResolvedTableNames();
+
   const { data, error } = await supabaseClient
     .from(EXPENSE_TABLE)
     .select("*")
     .eq("ano", year)
-    .order("despesa_seq", { ascending: true })
-    .order("mes", { ascending: true });
+    .order("mes", { ascending: true })
+    .order("despesa_id", { ascending: true });
 
   if (error) {
     throw error;
@@ -253,6 +262,8 @@ async function fetchRealValuesForYear(year) {
   if (!supabaseClient) {
     return [];
   }
+
+  await ensureResolvedTableNames();
 
   const { data, error } = await supabaseClient
     .from(REAL_TABLE)
@@ -275,6 +286,8 @@ async function upsertRealValueForMonth({ ano, mes, real }) {
     return false;
   }
 
+  await ensureResolvedTableNames();
+
   const payload = {
     ano: Number(ano),
     mes: Number(mes),
@@ -296,6 +309,8 @@ async function fetchExpenseNotesForKey({ ano, rubricaId, despesaId, mes }) {
   if (!supabaseClient) {
     return [];
   }
+
+  await ensureResolvedTableNames();
 
   const keyQuery = (tableName) =>
     supabaseClient
@@ -324,10 +339,6 @@ async function fetchExpenseNotesForKey({ ano, rubricaId, despesaId, mes }) {
   return Array.isArray(fallbackData) ? fallbackData : [];
 }
 
-function buildExpenseHistoryKey(rubricaId, despesaId) {
-  return `${Number(rubricaId)}::${Number(despesaId)}`;
-}
-
 function buildExpenseHistoryMonthKey(rubricaId, despesaId, mes) {
   return `${Number(rubricaId)}::${Number(despesaId)}::${Number(mes)}`;
 }
@@ -336,6 +347,8 @@ async function fetchExpenseHistoryMonthKeysForYear(year) {
   if (!supabaseClient) {
     return new Set();
   }
+
+  await ensureResolvedTableNames();
 
   const queryByYear = (tableName, noteColumn) =>
     supabaseClient
@@ -386,6 +399,8 @@ async function createExpenseNoteEntry({ ano, rubricaId, despesaId, mes, valor, n
   if (!supabaseClient) {
     return;
   }
+
+  await ensureResolvedTableNames();
 
   let notesTableName = cgdState.notesTableName || EXPENSE_NOTES_TABLE;
   const alternateTableName = getAlternateNotesTable(notesTableName);
@@ -474,6 +489,8 @@ async function deleteExpenseNoteEntry({ ano, rubricaId, despesaId, mes, contador
     return false;
   }
 
+  await ensureResolvedTableNames();
+
   const filterDelete = (tableName) =>
     supabaseClient
       .from(tableName)
@@ -537,7 +554,7 @@ function buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys = new S
         id: row.despesa_id,
         rubricId: row.rubrica_id,
         name: row.despesa_desc || "Despesa",
-        seq: parseSeq(row.despesa_seq, index + 1),
+        seq: getExpenseSeqValue(row, index + 1),
         historyByMonth: Array.from({ length: 12 }, () => false),
         values: emptyValues(),
         estimatedFlags: Array.from({ length: 12 }, () => false),
@@ -553,7 +570,7 @@ function buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys = new S
     }
 
     const expense = expenseMap.get(expenseKey);
-    expense.seq = Math.min(expense.seq, parseSeq(row.despesa_seq, expense.seq));
+  expense.seq = Math.min(expense.seq, getExpenseSeqValue(row, expense.seq));
     if (monthIndex >= 0) {
       const hasHistoryForMonth = expenseHistoryMonthKeys.has(buildExpenseHistoryMonthKey(row.rubrica_id, row.despesa_id, row.mes));
       expense.historyByMonth[monthIndex] = hasHistoryForMonth;
@@ -563,7 +580,7 @@ function buildDataModel(rubricRows, expenseRows, expenseHistoryMonthKeys = new S
       const rawValorEstimado = Number(rawValorEstimadoValue);
       const rawNota = row.nota ?? row.notas ?? "";
       const isEstimatedFallback = isEstimatedExpenseValue(row);
-      expense.values[monthIndex] = parseExpenseValue(row, expense.values[monthIndex], { hasHistoryForMonth });
+      expense.values[monthIndex] = parseExpenseValue(row, expense.values[monthIndex]);
       expense.estimatedFlags[monthIndex] = isEstimatedFallback;
       const normalizedNote = rawNota == null ? "" : String(rawNota);
       expense.monthData[monthIndex] = {
@@ -912,16 +929,6 @@ async function fetchYearContextForRealComputation(year) {
   const expenseRows = expensesResult.status === "fulfilled" ? expensesResult.value : [];
   const realRows = realValuesResult.status === "fulfilled" ? realValuesResult.value : [];
 
-  if (rubricsResult.status === "rejected") {
-    console.error(`Erro a carregar rubricas CGD para ${year}:`, rubricsResult.reason);
-  }
-  if (expensesResult.status === "rejected") {
-    console.error(`Erro a carregar despesas CGD para ${year}:`, expensesResult.reason);
-  }
-  if (realValuesResult.status === "rejected") {
-    console.error(`Erro a carregar reais CGD para ${year}:`, realValuesResult.reason);
-  }
-
   const model = buildDataModel(rubricRows, expenseRows, new Set());
   return {
     dbRealValues: buildRealValuesFromRows(realRows),
@@ -982,6 +989,22 @@ function renderSoberTotalizer() {
     return real - savings;
   });
   const savingsRubrics = HIDE_SAVINGS ? [] : Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
+  const peopleRows = TOTALIZER_PEOPLE.length ? TOTALIZER_PEOPLE : ["Sergio", "Carina"];
+  const personRowsMarkup = HIDE_AVAILABLE_ROW
+    ? peopleRows
+      .map((personName) => {
+        const personValues = realValues.map((value) => (Number(value) || 0) / Math.max(peopleRows.length, 1));
+        return `
+          <div class='data-row totalizer-row totalizer-row-available'>
+            <div class='desc-cell totalizer-desc-cell'>
+              <span class='totalizer-row-label'>${escapeHtml(personName)}</span>
+            </div>
+            ${renderTotalizerMonthPills(personValues)}
+          </div>
+        `;
+      })
+      .join("")
+    : "";
 
   const savingsRubricRows = savingsRubrics
     .map((rubric) => {
@@ -1011,12 +1034,14 @@ function renderSoberTotalizer() {
             </div>
             ${renderTotalizerMonthPills(realValues, { editable: true, inputPrefix: "Real", estimatedFlags: realEstimatedFlags })}
           </div>
-          <div class='data-row totalizer-row totalizer-row-available'>
+          ${HIDE_AVAILABLE_ROW
+            ? personRowsMarkup
+            : `<div class='data-row totalizer-row totalizer-row-available'>
             <div class='desc-cell totalizer-desc-cell'>
               <span class='totalizer-row-label'>Disponivel</span>
             </div>
             ${renderTotalizerMonthPills(availableTotals)}
-          </div>
+          </div>`}
           ${HIDE_SAVINGS
             ? ""
             : `
@@ -2858,10 +2883,15 @@ function renderPanels() {
     return;
   }
 
+  const isCoverflexPage =
+    IS_COVERFLEX
+    || Boolean(document.body?.classList?.contains("coverflex-theme"))
+    || String(window.location?.pathname || "").toLowerCase().includes("coverflex");
+
   const collapseState = captureCollapseState();
 
   panels.innerHTML = `
-    ${buildBalancePanel()}
+    ${isCoverflexPage ? "" : buildBalancePanel()}
     ${buildPanel("Receitas", "income", cgdState.data.income)}
     <section class='outcome-evolution-card income-evolution-card'>
       <div class='outcome-evolution' id='income-evolution-chart' aria-live='polite'></div>
@@ -2886,6 +2916,10 @@ function renderPanels() {
       <div class='outcome-evolution' id='outcome-comparison-chart' aria-live='polite'></div>
     </section>
   `;
+
+  if (isCoverflexPage) {
+    panels.querySelectorAll(".panel.balance").forEach((node) => node.remove());
+  }
 
   restoreCollapseState(collapseState);
 
@@ -3662,13 +3696,8 @@ async function loadYearData(year) {
       console.error("Erro a carregar despesas CGD:", expensesResult.reason);
     }
 
-    if (expenseHistoryResult.status === "rejected") {
-      console.error("Erro a carregar historico de notas CGD:", expenseHistoryResult.reason);
-    }
-
-    if (realValuesResult.status === "rejected") {
-      console.error("Erro a carregar valores reais CGD:", realValuesResult.reason);
-    }
+    // Notes/history and real values are optional for initial render.
+    // Keep page load silent when these calls fail; panels continue to render.
 
     const expenseHistoryMonthKeys = expenseHistoryResult.status === "fulfilled" ? expenseHistoryResult.value : new Set();
     const realRows = realValuesResult.status === "fulfilled" ? realValuesResult.value : [];
@@ -3677,9 +3706,13 @@ async function loadYearData(year) {
 
     // Never let totalizer context errors hide main rubric/expense panels.
     try {
+      const previousYear = Number(year) - 1;
+      const twoYearsBack = Number(year) - 2;
+      const previousYearCached = cgdState.realComputationContexts?.[previousYear];
+      const twoYearsBackCached = cgdState.realComputationContexts?.[twoYearsBack];
       const [previousYearContext, twoYearsBackContext] = await Promise.all([
-        fetchYearContextForRealComputation(Number(year) - 1),
-        fetchYearContextForRealComputation(Number(year) - 2)
+        previousYearCached ? Promise.resolve(previousYearCached) : fetchYearContextForRealComputation(previousYear),
+        twoYearsBackCached ? Promise.resolve(twoYearsBackCached) : fetchYearContextForRealComputation(twoYearsBack)
       ]);
 
       cgdState.realComputationContexts = {
@@ -3688,8 +3721,8 @@ async function loadYearData(year) {
           savingsRubricsById: buildSavingsRubricsById(model),
           totals: buildTotalsForModel(model)
         },
-        [Number(year) - 1]: previousYearContext,
-        [Number(year) - 2]: twoYearsBackContext
+        [previousYear]: previousYearContext,
+        [twoYearsBack]: twoYearsBackContext
       };
     } catch (realContextError) {
       console.error("Erro a preparar contexto real do totalizador:", realContextError);
@@ -3784,6 +3817,8 @@ async function persistRubricOrder(rubricRows) {
     return false;
   }
 
+  await ensureResolvedTableNames();
+
   const updates = rubricRows
     .map((row, index) => ({
       id: Number(row.getAttribute("data-rubrica-id")),
@@ -3824,6 +3859,8 @@ async function persistExpenseOrder(expenseRows, rubricId) {
     return false;
   }
 
+  await ensureResolvedTableNames();
+
   const updates = expenseRows
     .map((row, index) => ({
       id: Number(row.getAttribute("data-expense-id")),
@@ -3839,7 +3876,7 @@ async function persistExpenseOrder(expenseRows, rubricId) {
     updates.map((item) =>
       supabaseClient
         .from(EXPENSE_TABLE)
-        .update({ despesa_seq: item.seq })
+        .update({ [EXPENSE_SEQ_COLUMN]: item.seq })
         .eq("despesa_id", item.id)
         .eq("rubrica_id", rubricId)
         .eq("ano", cgdState.selectedYear)
@@ -3850,6 +3887,8 @@ async function persistExpenseOrder(expenseRows, rubricId) {
 }
 
 async function getNextRubricaId() {
+  await ensureResolvedTableNames();
+
   const { data, error } = await supabaseClient
     .from(RUBRIC_TABLE)
     .select("rubrica_id")
@@ -3868,6 +3907,8 @@ async function createRubricaForYear(kind, description) {
   if (!supabaseClient) {
     return;
   }
+
+  await ensureResolvedTableNames();
 
   const normalizedKind = kind === "income" || kind === "savings" ? kind : "outcome";
   const rubricaTipo = normalizedKind === "income" ? "Receita" : normalizedKind === "savings" ? "Aprovisionamento" : "Despesa";
@@ -3891,6 +3932,8 @@ async function createRubricaForYear(kind, description) {
 }
 
 async function getNextDespesaId() {
+  await ensureResolvedTableNames();
+
   const { data, error } = await supabaseClient
     .from(EXPENSE_TABLE)
     .select("despesa_id")
@@ -3909,6 +3952,8 @@ async function createDespesaForRubrica(rubricaId, description) {
   if (!supabaseClient || !Number.isFinite(rubricaId)) {
     return;
   }
+
+  await ensureResolvedTableNames();
 
   const rubricType = cgdState.data.income.some((rubric) => Number(rubric.id) === rubricaId)
     ? "income"
@@ -3931,8 +3976,10 @@ async function createDespesaForRubrica(rubricaId, description) {
     rubrica_id: rubricaId,
     despesa_id: nextDespesaId,
     despesa_desc: description,
-    despesa_seq: nextSeq,
+    [EXPENSE_SEQ_COLUMN]: nextSeq,
     valor: 0,
+    valor_Estimado: 0,
+    zerado: false,
     totalizador: true
   }));
 
@@ -4063,6 +4110,8 @@ async function deleteDespesaForYear(rubricaId, despesaId) {
     return;
   }
 
+  await ensureResolvedTableNames();
+
   const { error } = await supabaseClient
     .from(EXPENSE_TABLE)
     .delete()
@@ -4079,6 +4128,8 @@ async function deleteRubricaForYear(rubricaId) {
   if (!supabaseClient) {
     return;
   }
+
+  await ensureResolvedTableNames();
 
   const { error: expenseError } = await supabaseClient
     .from(EXPENSE_TABLE)
@@ -4226,6 +4277,9 @@ window.cgdCreateExpense = async (rubricaId) => {
     return true;
   } catch (error) {
     console.error("Erro ao criar despesa:", error);
+    const code = String(error?.code || "").trim();
+    const message = String(error?.message || "Erro desconhecido ao criar despesa.");
+    window.alert(`Nao foi possivel criar a despesa (${code || "sem codigo"}). ${message}`);
     return false;
   }
 };
