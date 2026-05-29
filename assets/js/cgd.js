@@ -685,6 +685,41 @@ function sumAllOutcomeRubricsByMonth(rubrics) {
   );
 }
 
+function computeEstimatedIrsMonthlyTotals(outcomeRubrics, rate = 0.45) {
+  const sourceRubrics = Array.isArray(outcomeRubrics) ? outcomeRubrics : [];
+  const excludedTerms = ["chica beni"];
+
+  return months.map((_, monthIndex) => {
+    const monthlyBase = sourceRubrics.reduce((total, rubric) => {
+      if (rubricNameMatchesAny(rubric?.name, excludedTerms)) {
+        return total;
+      }
+
+      const rubricExpenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
+      if (!rubricExpenses.length) {
+        const rubricValue = Number(rubric?.values?.[monthIndex]);
+        return total + (Number.isFinite(rubricValue) ? rubricValue : 0);
+      }
+
+      const rubricMonthTotal = rubricExpenses.reduce((acc, expense) => {
+        if (rubricNameMatchesAny(expense?.name, excludedTerms)) {
+          return acc;
+        }
+        const includeInTotalizer = expense?.monthData?.[monthIndex]?.totalizador;
+        if (includeInTotalizer === false) {
+          return acc;
+        }
+        const value = Number(expense?.values?.[monthIndex]);
+        return acc + (Number.isFinite(value) ? value : 0);
+      }, 0);
+
+      return total + rubricMonthTotal;
+    }, 0);
+
+    return monthlyBase * rate;
+  });
+}
+
 function parseRealDatabaseValue(value) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
@@ -1508,6 +1543,8 @@ function renderCgdTopTiles() {
     const totalAvailableJanuaryNextYear = realJanuaryNextYear - (Number(nextYearSavingsSeries?.[0]) || 0);
     const irsSavingsJanuaryNextYear = calculateAccumulatedSavingsForMonth(irsSavingsRubrics, projectionYear, 0);
     const audiSavingsJanuaryNextYear = calculateAccumulatedSavingsForMonth(audiSavingsRubrics, projectionYear, 0);
+    const estimatedIrsTotals = computeEstimatedIrsMonthlyTotals(outcomeRubrics);
+    const estimatedIrsYearTotal = estimatedIrsTotals.reduce((acc, value) => acc + (Number(value) || 0), 0);
     const availableProjectionMarkup = IS_COVERFLEX
       ? `
       <article class='stat-tile stat-tile--sergio'>
@@ -1548,6 +1585,13 @@ function renderCgdTopTiles() {
         <span class='stat-tile-meta stat-tile-meta--right'>Meta Setembro 2028</span>
         <span class='stat-tile-meta stat-tile-meta--right stat-tile-meta-target'>${formatTileMoney(5900)}</span>
       </article>`}
+      ${IS_COVERFLEX
+        ? `
+      <article class='stat-tile stat-tile--danger'>
+        <h4>IRS (ano seguinte)</h4>
+        <p>${formatTileMoney(estimatedIrsYearTotal)}</p>
+      </article>`
+        : ""}
     `;
   }
 }
@@ -1584,38 +1628,8 @@ function buildBalancePanel() {
 }
 
 function buildEstimatedIrsPanel() {
-  const estimatedIrsRate = 0.45;
-  const excludedTerms = ["chica beni"];
   const outcomeRubrics = Array.isArray(cgdState.data?.outcome) ? cgdState.data.outcome : [];
-  const estimatedTotals = months.map((_, monthIndex) => {
-    const monthlyBase = outcomeRubrics.reduce((total, rubric) => {
-      if (rubricNameMatchesAny(rubric?.name, excludedTerms)) {
-        return total;
-      }
-
-      const rubricExpenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
-      if (!rubricExpenses.length) {
-        const rubricValue = Number(rubric?.values?.[monthIndex]);
-        return total + (Number.isFinite(rubricValue) ? rubricValue : 0);
-      }
-
-      const rubricMonthTotal = rubricExpenses.reduce((acc, expense) => {
-        if (rubricNameMatchesAny(expense?.name, excludedTerms)) {
-          return acc;
-        }
-        const includeInTotalizer = expense?.monthData?.[monthIndex]?.totalizador;
-        if (includeInTotalizer === false) {
-          return acc;
-        }
-        const value = Number(expense?.values?.[monthIndex]);
-        return acc + (Number.isFinite(value) ? value : 0);
-      }, 0);
-
-      return total + rubricMonthTotal;
-    }, 0);
-
-    return monthlyBase * estimatedIrsRate;
-  });
+  const estimatedTotals = computeEstimatedIrsMonthlyTotals(outcomeRubrics, 0.45);
 
   return `
   <section class='panel balance panel-estimated-irs'>
@@ -1628,7 +1642,7 @@ function buildEstimatedIrsPanel() {
     <div class='panel-collapsed-summary panel-collapsed-summary-balance'>
       <div class='data-row collapsed-total-row collapsed-total-row-balance'>
         <div class='desc-cell'>
-          <span class='desc-pill collapsed-total-label collapsed-total-label-balance'>Total (45%)</span>
+          <span class='desc-pill collapsed-total-label collapsed-total-label-balance'>Total</span>
         </div>
         ${readonlyBalanceSummaryPills(estimatedTotals, "Total IRS Estimado (45%)")}
       </div>

@@ -2142,6 +2142,10 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   color: #d8ecf5;
 }
 
+.panel-estimated-irs .collapsed-total-row .money-pill.readonly span {
+  color: #ffb1b1;
+}
+
 .rubric-body,
 .expense-body {
   overflow: visible;
