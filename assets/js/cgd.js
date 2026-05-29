@@ -1488,12 +1488,12 @@ function renderCgdTopTiles() {
     const availableProjectionMarkup = IS_COVERFLEX
       ? `
       <article class='stat-tile stat-tile--sergio'>
-        <h4>${escapeHtml(sergioName)} Disponivel Janeiro ${projectionYear}</h4>
+        <h4>${escapeHtml(sergioName)} Janeiro ${projectionYear}</h4>
         <p>${formatTileMoney(sergioJanuaryNextYear)}</p>
         <span class='stat-tile-meta'>Calculado pelo totalizador mensal</span>
       </article>
       <article class='stat-tile stat-tile--carina'>
-        <h4>${escapeHtml(carinaName)} Disponivel Janeiro ${projectionYear}</h4>
+        <h4>${escapeHtml(carinaName)} Janeiro ${projectionYear}</h4>
         <p>${formatTileMoney(carinaJanuaryNextYear)}</p>
         <span class='stat-tile-meta'>Calculado pelo totalizador mensal</span>
       </article>`
