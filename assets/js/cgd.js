@@ -42,34 +42,22 @@ const SUPABASE_ANON_KEY = window.CGD_SUPABASE_ANON_KEY || "";
 const supabaseClient = window.supabase?.createClient && SUPABASE_ANON_KEY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 const TABLE_PREFIX = String(window.DASHBOARD_TABLE_PREFIX || "cgd").trim().toLowerCase();
 const tableName = (suffix) => `${TABLE_PREFIX}_${suffix}`;
-const IS_COVERFLEX_THEME = TABLE_PREFIX === "coverflex" || Boolean(document.body?.classList.contains("coverflex-theme"));
 const RUBRIC_TABLE = tableName("rubrica");
 const EXPENSE_TABLE = tableName("despesa");
 const REAL_TABLE = tableName("real");
 const EXPENSE_NOTES_TABLE = tableName("despesa_notas");
 const EXPENSE_NOTES_TABLE_LEGACY = tableName("despesas_notas");
 
-const THEME_COLORS = IS_COVERFLEX_THEME
-  ? {
-      summary: { real: "#fff2e6", available: "#ffc894", savings: "#ff944d" },
-      outcomeRubrics: ["#ff9c5a", "#ffb77e", "#ff7e3d", "#ffcf9e", "#ff8a4a", "#ffdcb5", "#ffb06e", "#ff9953", "#ffd2a2", "#ffab6b"],
-      incomeRubrics: ["#ffc082", "#ffd0a3", "#ffb46f", "#ffe0bf", "#ffca93", "#ffbb78", "#ffd8ae", "#ffb97a", "#ffe8cf", "#ffcc97"],
-      savingsRubrics: ["#ffae6b", "#ffc992", "#ff9951", "#ffd4a8", "#ffb77c", "#ff8743", "#ffe1be", "#ffca8e", "#ff9f5c", "#ffd8b0"],
-      outcomeExpenses: ["#ffc690", "#ff9c5b", "#ffd8b1", "#ffad70", "#ffe4c6", "#ffb87e", "#ff8f49", "#ffd0a0", "#ffc08c", "#ff9a58"],
-      incomeExpenses: ["#ffd3a8", "#ffbc82", "#ffe5c8", "#ffcc98", "#ffb273", "#ffdcb6", "#ff9f5f", "#ffe9d1", "#ffc087", "#ffb67b"],
-      savingsExpenses: ["#ffbe83", "#ffd5aa", "#ff9b58", "#ffe2c1", "#ffb97e", "#ffc890", "#ffdcb5", "#ffad6b", "#ffe7cd", "#ffbf88"],
-      tooltipFallback: "#e4b189"
-    }
-  : {
-      summary: { real: "#ecf6fb", available: "#7fd7a8", savings: "#8ccbf3" },
-      outcomeRubrics: ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"],
-      incomeRubrics: ["#6ecf9a", "#7cc4ff", "#9ed86b", "#58d2c3", "#8bcf7a", "#5fb3de", "#9edfb7", "#71d0ff", "#77c87f", "#79bdf0"],
-      savingsRubrics: ["#70c3ff", "#5fc8b6", "#f2c46a", "#7cc4ff", "#84d56b", "#f08b5f", "#58d2c3", "#9ad9ff", "#9ed86b", "#a9e46f"],
-      outcomeExpenses: ["#9ad9ff", "#a9e46f", "#f7c86a", "#f3a47d", "#95c7ff", "#84d56b", "#e8a0b4", "#7acfc6", "#eac17a", "#a6d8b5"],
-      incomeExpenses: ["#8fdcb3", "#8bc8f5", "#9fdc88", "#7fded2", "#95d889", "#79bfe3", "#abdcc6", "#8fd7ff", "#8bcf96", "#93c4eb"],
-      savingsExpenses: ["#9ad9ff", "#a9e46f", "#f7c86a", "#7acfc6", "#95c7ff", "#e8a0b4", "#84d56b", "#eac17a", "#8fdcb3", "#8bc8f5"],
-      tooltipFallback: "#b8ced9"
-    };
+const THEME_COLORS = {
+  summary: { real: "#ecf6fb", available: "#7fd7a8", savings: "#8ccbf3" },
+  outcomeRubrics: ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"],
+  incomeRubrics: ["#6ecf9a", "#7cc4ff", "#9ed86b", "#58d2c3", "#8bcf7a", "#5fb3de", "#9edfb7", "#71d0ff", "#77c87f", "#79bdf0"],
+  savingsRubrics: ["#70c3ff", "#5fc8b6", "#f2c46a", "#7cc4ff", "#84d56b", "#f08b5f", "#58d2c3", "#9ad9ff", "#9ed86b", "#a9e46f"],
+  outcomeExpenses: ["#9ad9ff", "#a9e46f", "#f7c86a", "#f3a47d", "#95c7ff", "#84d56b", "#e8a0b4", "#7acfc6", "#eac17a", "#a6d8b5"],
+  incomeExpenses: ["#8fdcb3", "#8bc8f5", "#9fdc88", "#7fded2", "#95d889", "#79bfe3", "#abdcc6", "#8fd7ff", "#8bcf96", "#93c4eb"],
+  savingsExpenses: ["#9ad9ff", "#a9e46f", "#f7c86a", "#7acfc6", "#95c7ff", "#e8a0b4", "#84d56b", "#eac17a", "#8fdcb3", "#8bc8f5"],
+  tooltipFallback: "#b8ced9"
+};
 
 function getAlternateNotesTable(tableNameValue) {
   return tableNameValue === EXPENSE_NOTES_TABLE ? EXPENSE_NOTES_TABLE_LEGACY : EXPENSE_NOTES_TABLE;

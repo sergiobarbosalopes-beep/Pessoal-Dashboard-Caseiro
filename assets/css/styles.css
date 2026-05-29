@@ -552,52 +552,6 @@ a {
   color: #10273b;
 }
 
-body.coverflex-theme {
-  --bg-0: #2c1204;
-  --bg-1: #3b1706;
-  --bg-2: #231005;
-  --surface: rgba(58, 27, 13, 0.78);
-  --surface-strong: #4a200f;
-  --ink-900: #fff0e5;
-  --ink-700: #ffd6ba;
-  --ink-500: #d5ad8f;
-  --line: rgba(255, 180, 124, 0.28);
-  --blue-500: #ff8f48;
-  --blue-700: #de6428;
-  --green-500: #ffb067;
-  --green-700: #ff7a2f;
-  --gold-500: #ffc56f;
-  --gold-600: #f7a43e;
-  --orange-200: #472111;
-  --green-100: #5a2a12;
-}
-
-body.coverflex-theme {
-  background:
-    radial-gradient(1200px 700px at -8% -6%, rgba(255, 138, 61, 0.24), transparent 60%),
-    radial-gradient(900px 560px at 110% 0%, rgba(255, 186, 122, 0.2), transparent 64%),
-    linear-gradient(180deg, var(--bg-0), var(--bg-1) 45%, var(--bg-2));
-}
-
-body.coverflex-theme::before {
-  background-image: linear-gradient(120deg, rgba(255, 188, 141, 0.1) 25%, transparent 25%, transparent 50%, rgba(255, 188, 141, 0.1) 50%, rgba(255, 188, 141, 0.1) 75%, transparent 75%, transparent);
-  opacity: 0.18;
-}
-
-.coverflex-theme .brand-mark {
-  background: linear-gradient(135deg, #ff8a3d, #ff6d1f 62%, #ffc26a);
-}
-
-.coverflex-theme .menu-link:hover,
-.coverflex-theme .menu-link:focus-visible {
-  background: rgba(255, 138, 61, 0.2);
-  color: #fff5ef;
-}
-
-.coverflex-theme .menu-link.active {
-  background: linear-gradient(135deg, #e56a2a, #ff8f48);
-}
-
 .coverflex-theme .menu-link[href="caixa-geral-depositos.html"],
 .coverflex-theme .menu-link[href="caixa-geral-depositos.html"]:hover,
 .coverflex-theme .menu-link[href="caixa-geral-depositos.html"]:focus-visible,
@@ -605,7 +559,7 @@ body.coverflex-theme::before {
   border: 0;
   background: transparent;
   box-shadow: none;
-  color: var(--ink-700);
+  color: inherit;
   animation: none;
 }
 
@@ -660,8 +614,16 @@ body.coverflex-theme::before {
   animation: cgdHeroPulse 5.2s ease-in-out infinite;
 }
 
+.coverflex-theme .coverflex-hero::before {
+  background: linear-gradient(110deg, transparent 0%, rgba(255, 241, 230, 0.18) 50%, transparent 100%);
+}
+
 .coverflex-theme .coverflex-hero::after {
   background: radial-gradient(circle at 35% 30%, rgba(255, 198, 130, 0.44), rgba(207, 95, 36, 0.34), transparent 70%);
+}
+
+.coverflex-theme .coverflex-hero .cgd-title-mark {
+  color: #ffb36f;
 }
 
 .coverflex-theme .coverflex-hero h1 {
@@ -670,36 +632,6 @@ body.coverflex-theme::before {
 
 .coverflex-theme .coverflex-hero p {
   color: #ffd9c0;
-}
-
-.coverflex-theme .cgd-top-tiles-section-title,
-.coverflex-theme .cgd-tile-group-head h3 {
-  color: #ffe4d2;
-}
-
-.coverflex-theme .cgd-tile-group {
-  border-color: rgba(255, 174, 113, 0.24);
-  background: rgba(57, 25, 12, 0.64);
-}
-
-.coverflex-theme .stat-tile::before {
-  background: linear-gradient(90deg, #cf5f24, #ff7a2f, #ffbb76);
-}
-
-.coverflex-theme .stat-tile p {
-  background: linear-gradient(135deg, #ff9e5c, #ffe0bf);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.coverflex-theme .temporal-nav-card {
-  border-color: rgba(255, 176, 117, 0.54);
-  box-shadow:
-    0 0 0 1px rgba(255, 190, 140, 0.3),
-    0 0 22px rgba(207, 95, 36, 0.3),
-    0 0 44px rgba(176, 72, 22, 0.24),
-    0 10px 24px rgba(43, 18, 7, 0.36);
 }
 
 .coverflex-theme .year-nav,
