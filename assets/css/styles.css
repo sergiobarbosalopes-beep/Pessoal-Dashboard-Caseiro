@@ -1350,6 +1350,24 @@ a {
   color: #7fd7a8;
 }
 
+.totalizer-row-person-sergio .money-pill.readonly .totalizer-value {
+  color: #41b37a;
+}
+
+.totalizer-row-person-sergio .totalizer-row-label {
+  color: #41b37a;
+  border-color: rgba(65, 179, 122, 0.4);
+}
+
+.totalizer-row-person-carina .money-pill.readonly .totalizer-value {
+  color: #2f9ad4;
+}
+
+.totalizer-row-person-carina .totalizer-row-label {
+  color: #2f9ad4;
+  border-color: rgba(47, 154, 212, 0.42);
+}
+
 .totalizer-row-outcome .money-pill.readonly .totalizer-value {
   color: #f0be78;
 }

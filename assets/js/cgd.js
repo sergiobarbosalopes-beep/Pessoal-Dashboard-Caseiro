@@ -69,7 +69,13 @@ let tableNamesResolved = HAS_EXPLICIT_TABLE_CONFIG;
 let tableResolutionPromise = null;
 
 const THEME_COLORS = {
-  summary: { real: "#ecf6fb", available: "#7fd7a8", savings: "#8ccbf3" },
+  summary: {
+    real: "#ecf6fb",
+    available: "#7fd7a8",
+    savings: "#8ccbf3",
+    sergio: "#41b37a",
+    carina: "#2f9ad4"
+  },
   outcomeRubrics: ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"],
   incomeRubrics: ["#6ecf9a", "#7cc4ff", "#9ed86b", "#58d2c3", "#8bcf7a", "#5fb3de", "#9edfb7", "#71d0ff", "#77c87f", "#79bdf0"],
   savingsRubrics: ["#70c3ff", "#5fc8b6", "#f2c46a", "#7cc4ff", "#84d56b", "#f08b5f", "#58d2c3", "#9ad9ff", "#9ed86b", "#a9e46f"],
@@ -1054,8 +1060,9 @@ function renderSoberTotalizer() {
     ? peopleRows
       .map((personName) => {
         const personValues = computePersonTotalizerSeriesForYear(year, personName);
+        const personRowClass = getPersonRowClass(personName);
         return `
-          <div class='data-row totalizer-row totalizer-row-available'>
+          <div class='data-row totalizer-row totalizer-row-person ${personRowClass}'>
             <div class='desc-cell totalizer-desc-cell'>
               <span class='totalizer-row-label'>${escapeHtml(personName)}</span>
             </div>
@@ -1192,6 +1199,24 @@ function normalizeComparableText(value) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+function getPersonSummaryColor(personName) {
+  const normalized = normalizeComparableText(personName);
+  if (normalized.includes("sergio")) {
+    return THEME_COLORS.summary.sergio;
+  }
+  if (normalized.includes("carina")) {
+    return THEME_COLORS.summary.carina;
+  }
+  return THEME_COLORS.summary.available;
+}
+
+function getPersonRowClass(personName) {
+  const normalized = normalizeComparableText(personName)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized ? `totalizer-row-person-${normalized}` : "totalizer-row-person-generic";
+}
+
 function rubricNameMatchesAny(rubricName, terms) {
   const normalizedName = normalizeComparableText(rubricName);
   return (Array.isArray(terms) ? terms : []).some((term) => normalizedName.includes(normalizeComparableText(term)));
@@ -1221,6 +1246,8 @@ function renderCgdTemporalSummaryChart() {
   const year = Number(cgdState.selectedYear);
   const realSeries = computeRealSeriesForYear(year, cgdState.realComputationContexts);
   const realValues = Array.isArray(realSeries?.values) ? realSeries.values : emptyValues();
+  const peopleRows = TOTALIZER_PEOPLE.length ? TOTALIZER_PEOPLE : ["Sergio", "Carina"];
+  const isCoverflexTemporalSummary = IS_COVERFLEX && HIDE_AVAILABLE_ROW;
   const savingsValues = computeSavingsSeriesForYear(year, cgdState.realComputationContexts);
   const availableValues = months.map((_, monthIndex) => {
     const real = Number(realValues?.[monthIndex]) || 0;
@@ -1228,11 +1255,21 @@ function renderCgdTemporalSummaryChart() {
     return real - savings;
   });
 
-  const allSeries = [
-    { key: "real", label: "Real", color: THEME_COLORS.summary.real, values: realValues },
-    { key: "available", label: "Disponivel", color: THEME_COLORS.summary.available, values: availableValues },
-    ...(HIDE_SAVINGS ? [] : [{ key: "savings", label: "Poupancas", color: THEME_COLORS.summary.savings, values: savingsValues }])
-  ];
+  const allSeries = isCoverflexTemporalSummary
+    ? [
+      { key: "real", label: "Real", color: THEME_COLORS.summary.real, values: realValues },
+      ...peopleRows.slice(0, 2).map((personName) => ({
+        key: `person-${normalizeComparableText(personName)}`,
+        label: personName,
+        color: getPersonSummaryColor(personName),
+        values: computePersonTotalizerSeriesForYear(year, personName)
+      }))
+    ]
+    : [
+      { key: "real", label: "Real", color: THEME_COLORS.summary.real, values: realValues },
+      { key: "available", label: "Disponivel", color: THEME_COLORS.summary.available, values: availableValues },
+      ...(HIDE_SAVINGS ? [] : [{ key: "savings", label: "Poupancas", color: THEME_COLORS.summary.savings, values: savingsValues }])
+    ];
 
   const hiddenSeries = cgdState.temporalSummaryHiddenSeries;
   const visibleSeries = allSeries.filter((entry) => !hiddenSeries.has(entry.key));
@@ -1326,7 +1363,7 @@ function renderCgdTemporalSummaryChart() {
         </div>
         <div class='outcome-evolution-legend'>${legend}</div>
         <div class='outcome-evolution-svg-wrap cgd-summary-svg-wrap'>
-          <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${HIDE_SAVINGS ? "Grafico temporal com Real e Disponivel" : "Grafico temporal com Real, Disponivel e Poupancas"}'>
+          <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${isCoverflexTemporalSummary ? "Grafico temporal com Real, Sergio e Carina" : HIDE_SAVINGS ? "Grafico temporal com Real e Disponivel" : "Grafico temporal com Real, Disponivel e Poupancas"}'>
             ${gridLines}
             ${monthGridLines}
             ${seriesMarkup}
