@@ -1583,6 +1583,29 @@ function buildBalancePanel() {
   `;
 }
 
+function buildEstimatedIrsPanel() {
+  const estimatedTotals = emptyValues();
+
+  return `
+  <section class='panel balance panel-estimated-irs'>
+    <header class='panel-head'>
+      <div class='panel-title'>
+        <span class='chev-spacer' aria-hidden='true'></span>
+        <span class='desc-pill panel-balance-title'>IRS Estimado</span>
+      </div>
+    </header>
+    <div class='panel-collapsed-summary panel-collapsed-summary-balance'>
+      <div class='data-row collapsed-total-row collapsed-total-row-balance'>
+        <div class='desc-cell'>
+          <span class='desc-pill collapsed-total-label collapsed-total-label-balance'>Total</span>
+        </div>
+        ${readonlyBalanceSummaryPills(estimatedTotals, "Total IRS Estimado")}
+      </div>
+    </div>
+  </section>
+  `;
+}
+
 function renderTimeline(year) {
   const timeline = document.getElementById("month-timeline");
   if (!timeline) {
@@ -3063,6 +3086,7 @@ function renderPanels() {
     <section class='outcome-evolution-card outcome-comparison-card-main'>
       <div class='outcome-evolution' id='outcome-comparison-chart' aria-live='polite'></div>
     </section>
+    ${isCoverflexPage ? buildEstimatedIrsPanel() : ""}
   `;
 
   if (isCoverflexPage) {
