@@ -1543,6 +1543,9 @@ function renderCgdTopTiles() {
   const incomeAverageSubtitle = IS_COVERFLEX ? "" : "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos</span>";
   const outcomeAverageSubtitle = IS_COVERFLEX ? "" : "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos e impostos</span>";
 
+  const incomeTotalYear = sumRubricsValuesByMonth(incomeFilteredRubrics).reduce((acc, v) => acc + (Number(v) || 0), 0);
+  const outcomeTotalYear = sumRubricsValuesByMonth(outcomeFilteredRubrics).reduce((acc, v) => acc + (Number(v) || 0), 0);
+
   if (averagesHost) {
     averagesHost.innerHTML = `
       <article class='stat-tile stat-tile--green'>
@@ -1562,6 +1565,15 @@ function renderCgdTopTiles() {
         <p>${formatTileMoney(outcomeAverage)}</p>
         ${outcomeAverageSubtitle}
       </article>
+      ${IS_COVERFLEX ? `
+      <article class='stat-tile stat-tile--green'>
+        <h4>Total receitas ${year}</h4>
+        <p>${formatTileMoney(incomeTotalYear)}</p>
+      </article>
+      <article class='stat-tile stat-tile--danger'>
+        <h4>Total despesas ${year}</h4>
+        <p>${formatTileMoney(outcomeTotalYear)}</p>
+      </article>` : ""}
     `;
   }
 
