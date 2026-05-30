@@ -864,26 +864,7 @@ body:not(.coverflex-theme) .temporal-nav-card {
     0 14px 28px rgba(0, 5, 3, 0.46);
 }
 
-/* ─── NB Charts Row (Mapa + Pie Charts) ─── */
-
-.nb-charts-row {
-  display: flex;
-  gap: 16px;
-  align-items: stretch;
-}
-
-.nb-main-chart {
-  flex: 1 1 0%;
-  min-width: 0;
-}
-
-.nb-pie-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: 280px;
-  flex-shrink: 0;
-}
+/* ─── Pie Charts ─── */
 
 .nb-pie-card {
   flex: 1;
