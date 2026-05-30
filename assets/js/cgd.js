@@ -992,6 +992,7 @@ async function refreshYearDataAndFutureTotalizerFromMonth(startMonthIndex) {
 
   renderCgdTopTiles();
   renderCgdTemporalSummaryChart();
+  renderNbPieCharts();
   renderSoberTotalizer();
   syncRealTotalizerEditableMonth(document.querySelector(".month-tile.active")?.getAttribute("data-month"));
 }
@@ -1476,6 +1477,68 @@ function renderCgdTemporalSummaryChart() {
 
     bindOutcomeChartHover(host);
   }
+}
+
+function renderNbPieCharts() {
+  const receitasHost = document.getElementById("nb-pie-receitas");
+  const despesasHost = document.getElementById("nb-pie-despesas");
+  if (!receitasHost && !despesasHost) return;
+
+  const mockReceitas = [
+    { label: "Salario", value: 2400, color: "#00dc6e" },
+    { label: "Subsidios", value: 480, color: "#00b84f" },
+    { label: "Outros", value: 320, color: "#41b37a" },
+    { label: "Rendas", value: 150, color: "#2f9ad4" }
+  ];
+
+  const mockDespesas = [
+    { label: "Habitacao", value: 850, color: "#ff6b6b" },
+    { label: "Alimentacao", value: 420, color: "#ffa94d" },
+    { label: "Transportes", value: 280, color: "#ffd43b" },
+    { label: "Servicos", value: 210, color: "#a78bfa" },
+    { label: "Outros", value: 340, color: "#69db7c" }
+  ];
+
+  function buildPie(host, title, slices) {
+    if (!host) return;
+    const total = slices.reduce((s, entry) => s + entry.value, 0);
+    const radius = 44;
+    const cx = 50, cy = 50;
+    const circumference = 2 * Math.PI * radius;
+    let offset = 0;
+
+    const arcs = slices.map((slice, i) => {
+      const pct = slice.value / total;
+      const dashLen = pct * circumference;
+      const dashGap = circumference - dashLen;
+      const currentOffset = offset;
+      offset += dashLen;
+      const delay = i * 0.12;
+      return `<circle class='pie-slice' cx='${cx}' cy='${cy}' r='${radius}' fill='none' stroke='${slice.color}' stroke-width='14' stroke-dasharray='${dashLen.toFixed(2)} ${dashGap.toFixed(2)}' stroke-dashoffset='${(-currentOffset).toFixed(2)}' style='--pie-circumference:${circumference.toFixed(2)};animation:nbPieReveal 0.8s ease ${delay}s both;' />`;
+    }).join("");
+
+    const legend = slices.map((slice) => {
+      const pct = ((slice.value / total) * 100).toFixed(0);
+      return `<span class='nb-pie-legend-item'><span class='nb-pie-legend-dot' style='background:${slice.color}'></span>${escapeHtml(slice.label)} ${pct}%</span>`;
+    }).join("");
+
+    host.innerHTML = `
+      <h4 class='nb-pie-title'>${escapeHtml(title)}</h4>
+      <div class='nb-pie-svg-wrap'>
+        <svg class='nb-pie-svg' viewBox='0 0 100 100'>
+          ${arcs}
+        </svg>
+        <div class='nb-pie-center-label'>
+          <span class='nb-pie-center-value'>${money(total)}</span>
+          <span class='nb-pie-center-sub'>EUR</span>
+        </div>
+      </div>
+      <div class='nb-pie-legend'>${legend}</div>
+    `;
+  }
+
+  buildPie(receitasHost, "Receitas", mockReceitas);
+  buildPie(despesasHost, "Despesas", mockDespesas);
 }
 
 function calculateAccumulatedSavingsToDecember(rubrics, year) {

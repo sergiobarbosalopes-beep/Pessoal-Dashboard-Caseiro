@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="assets/css/styles.css?v=20260530-4" />
+    <link rel="stylesheet" href="assets/css/styles.css?v=20260530-5" />
     <script>
       window.CGD_SUPABASE_URL = "https://uooovgxrexpstrtfktst.supabase.co";
       window.CGD_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvb292Z3hyZXhwc3RydGZrdHN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMTkxMjYsImV4cCI6MjA5NDc5NTEyNn0.4zYL75OJAI3Lxzofh9f0fIJ26S5EwHnUKGQuYQcf9mY";
@@ -23,7 +23,7 @@
     </script>
     <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script defer src="assets/js/main.js?v=20260530-6"></script>
-    <script defer src="assets/js/cgd.js?v=20260530-20"></script>
+    <script defer src="assets/js/cgd.js?v=20260530-21"></script>
   </head>
   <body class="nb-theme">
     <div class="site-shell">
@@ -67,8 +67,12 @@
           <div class="cgd-top-tiles" id="cgd-top-tiles-projection"></div>
         </section>
 
-        <section class="card cgd-temporal-chart-card" style="grid-column: span 12;">
-          <div id="cgd-temporal-summary-chart"></div>
+        <section class="card cgd-temporal-chart-card nb-charts-row" style="grid-column: span 12;">
+          <div class="nb-main-chart" id="cgd-temporal-summary-chart"></div>
+          <div class="nb-pie-stack">
+            <div class="nb-pie-card" id="nb-pie-receitas"></div>
+            <div class="nb-pie-card" id="nb-pie-despesas"></div>
+          </div>
         </section>
 
         <section class="card temporal-nav-card" style="grid-column: span 12;">
