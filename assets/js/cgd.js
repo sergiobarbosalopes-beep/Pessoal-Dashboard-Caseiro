@@ -3290,7 +3290,10 @@ function bindRealValuePopup() {
       closeRealValuePopup();
       await loadYearData(cgdState.selectedYear);
     } catch (error) {
-      console.error("Erro ao guardar valor real em cgd_real:", error);
+      console.error(`Erro ao guardar valor real em ${REAL_TABLE}:`, error);
+      if (String(error?.code || "") === "42501") {
+        console.error(`Permissao RLS negada para ${REAL_TABLE}. Verifica policies de insert/update para anon/authenticated.`);
+      }
     }
   });
 
