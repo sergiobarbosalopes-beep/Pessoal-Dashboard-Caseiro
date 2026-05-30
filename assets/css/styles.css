@@ -958,13 +958,11 @@ body:not(.coverflex-theme) .temporal-nav-card {
 }
 
 .nb-pie-svg .pie-slice {
-  transition: opacity 200ms ease, transform 200ms ease;
-  transform-origin: center;
+  transition: opacity 200ms ease;
 }
 
 .nb-pie-svg .pie-slice:hover {
-  opacity: 0.85;
-  transform: scale(1.04);
+  opacity: 0.7;
 }
 
 .nb-pie-center-label {

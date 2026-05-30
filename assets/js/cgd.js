@@ -1515,7 +1515,7 @@ function renderNbPieCharts() {
       const rotation = cumulativeAngle;
       cumulativeAngle += pct * 360;
       const delay = i * 0.15;
-      return `<circle class='pie-slice' cx='${cx}' cy='${cy}' r='${radius}' fill='none' stroke='${slice.color}' stroke-width='16' stroke-dasharray='${dashLen.toFixed(2)} ${dashGap.toFixed(2)}' transform='rotate(${rotation.toFixed(2)} ${cx} ${cy})' style='opacity:0;animation:nbPieFadeIn 0.5s ease ${delay}s forwards;' />`;
+      return `<g transform='rotate(${rotation.toFixed(2)} ${cx} ${cy})'><circle class='pie-slice' cx='${cx}' cy='${cy}' r='${radius}' fill='none' stroke='${slice.color}' stroke-width='16' stroke-dasharray='${dashLen.toFixed(2)} ${dashGap.toFixed(2)}' style='opacity:0;animation:nbPieFadeIn 0.5s ease ${delay}s forwards;' /></g>`;
     }).join("");
 
     const legend = slices.map((slice) => {
