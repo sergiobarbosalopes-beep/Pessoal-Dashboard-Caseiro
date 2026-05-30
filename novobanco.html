@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="assets/css/styles.css?v=20260530-3" />
+    <link rel="stylesheet" href="assets/css/styles.css?v=20260530-4" />
     <script>
       window.CGD_SUPABASE_URL = "https://uooovgxrexpstrtfktst.supabase.co";
       window.CGD_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvb292Z3hyZXhwc3RydGZrdHN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMTkxMjYsImV4cCI6MjA5NDc5NTEyNn0.4zYL75OJAI3Lxzofh9f0fIJ26S5EwHnUKGQuYQcf9mY";
@@ -23,9 +23,9 @@
     </script>
     <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script defer src="assets/js/main.js?v=20260530-6"></script>
-    <script defer src="assets/js/cgd.js?v=20260530-19"></script>
+    <script defer src="assets/js/cgd.js?v=20260530-20"></script>
   </head>
-  <body>
+  <body class="nb-theme">
     <div class="site-shell">
       <header class="topbar fade-up">
         <a class="brand" href="index.html"><span class="brand-mark"></span><span>Dashboard Caseiro</span></a>
@@ -38,9 +38,22 @@
           <a class="menu-link" href="paineis-solares.html">Paineis Solares</a>
         </nav>
       </header>
-      <section class="hero page-only-hero fade-up delay-1">
-        <h1>Novo Banco</h1>
-        <p>Hero e navegacao prontos para evoluir com detalhe financeiro desta conta.</p>
+
+      <section class="hero page-only-hero cgd-hero nb-hero fade-up delay-1">
+        <div class="cgd-hero-main">
+          <h1>
+            <span class="cgd-title-mark" aria-hidden="true">
+              <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="2" y="2" width="28" height="28" rx="5" stroke="currentColor" stroke-width="2.8"/>
+                <path d="M9 11.5H23" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M9 16H23" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M9 20.5H18" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span>Novo Banco</span>
+          </h1>
+          <p>Dashboard com identidade Novo Banco para leitura mensal de fluxo financeiro, rubricas e despesas.</p>
+        </div>
       </section>
 
       <main class="page-grid fade-up delay-2">
