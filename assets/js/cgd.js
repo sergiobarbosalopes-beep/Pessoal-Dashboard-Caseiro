@@ -42,25 +42,6 @@ const cgdState = {
 const SUPABASE_URL = window.CGD_SUPABASE_URL || "https://uooovgxrexpstrtfktst.supabase.co";
 const SUPABASE_ANON_KEY = window.CGD_SUPABASE_ANON_KEY || "";
 const supabaseClient = window.supabase?.createClient && SUPABASE_ANON_KEY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-if (supabaseClient) {
-  console.log(`✓ Supabase client initialized for ${SUPABASE_URL}`);
-  console.log(`  Anon key (first 20 chars): ${SUPABASE_ANON_KEY.substring(0, 20)}...`);
-  // Quick test to verify auth is working
-  (async () => {
-    try {
-      const { data, error } = await supabaseClient.from("cgd_rubrica").select("count()", { count: "exact" }).limit(1);
-      if (error) {
-        console.error(`✗ Auth test failed: ${error.code} - ${error.message}`);
-      } else {
-        console.log(`✓ Auth test passed - can access cgd_rubrica`);
-      }
-    } catch (e) {
-      console.error(`✗ Auth test exception:`, e);
-    }
-  })();
-} else {
-  console.error(`✗ Supabase client NOT initialized. window.supabase=${!!window.supabase}, ANON_KEY=${!!SUPABASE_ANON_KEY}`);
-}
 const TABLE_PREFIX = String(window.DASHBOARD_TABLE_PREFIX || "cgd").trim().toLowerCase();
 const PAGE_PATHNAME = String(window.location?.pathname || "").toLowerCase();
 const IS_COVERFLEX = TABLE_PREFIX === "coverflex" || PAGE_PATHNAME.includes("coverflex");
@@ -321,17 +302,14 @@ async function upsertRealValueForMonth({ ano, mes, real }) {
     real: real == null ? null : Number(real)
   };
 
-  console.log(`[upsert] ${REAL_TABLE}: ${JSON.stringify(payload)}`);
   const { error } = await supabaseClient
     .from(REAL_TABLE)
     .upsert(payload, { onConflict: "ano,mes" });
 
   if (!error) {
-    console.log(`[upsert] ✓ Success: ${REAL_TABLE}`);
     return true;
   }
 
-  console.error(`[upsert] ✗ Error: code=${error?.code}, status=${error?.status}, message=${error?.message}`);
   const errorMessage = String(error?.message || "").toLowerCase();
   const conflictConstraintMissing = String(error?.code || "") === "42P10"
     || errorMessage.includes("no unique")
