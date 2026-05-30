@@ -1499,23 +1499,47 @@ function renderNbPieCharts() {
     { label: "Outros", value: 340, color: "#69db7c" }
   ];
 
+  function polarToCartesian(cx, cy, r, angleDeg) {
+    const rad = (angleDeg - 90) * Math.PI / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  }
+
+  function describeArc(cx, cy, r, startAngle, endAngle) {
+    const start = polarToCartesian(cx, cy, r, endAngle);
+    const end = polarToCartesian(cx, cy, r, startAngle);
+    const largeArc = (endAngle - startAngle) > 180 ? 1 : 0;
+    return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 ${largeArc} 0 ${end.x.toFixed(2)} ${end.y.toFixed(2)} L ${cx} ${cy} Z`;
+  }
+
   function buildPie(host, title, slices) {
     if (!host) return;
     const total = slices.reduce((s, entry) => s + entry.value, 0);
     if (!total) { host.innerHTML = ""; return; }
-    const radius = 38;
-    const cx = 50, cy = 50;
-    const circumference = 2 * Math.PI * radius;
-    let cumulativeAngle = -90;
 
-    const arcs = slices.map((slice, i) => {
-      const pct = slice.value / total;
-      const dashLen = pct * circumference;
-      const dashGap = circumference - dashLen;
-      const rotation = cumulativeAngle;
-      cumulativeAngle += pct * 360;
-      const delay = i * 0.15;
-      return `<g transform='rotate(${rotation.toFixed(2)} ${cx} ${cy})'><circle class='pie-slice' cx='${cx}' cy='${cy}' r='${radius}' fill='none' stroke='${slice.color}' stroke-width='16' stroke-dasharray='${dashLen.toFixed(2)} ${dashGap.toFixed(2)}' style='opacity:0;animation:nbPieFadeIn 0.5s ease ${delay}s forwards;' /></g>`;
+    const cx = 50, cy = 50, outerR = 40, innerR = 24;
+    let currentAngle = 0;
+
+    const paths = slices.map((slice) => {
+      const sliceAngle = (slice.value / total) * 360;
+      const startAngle = currentAngle;
+      const endAngle = currentAngle + sliceAngle;
+      currentAngle = endAngle;
+
+      const outerStart = polarToCartesian(cx, cy, outerR, startAngle);
+      const outerEnd = polarToCartesian(cx, cy, outerR, endAngle);
+      const innerStart = polarToCartesian(cx, cy, innerR, endAngle);
+      const innerEnd = polarToCartesian(cx, cy, innerR, startAngle);
+      const largeArc = sliceAngle > 180 ? 1 : 0;
+
+      const d = [
+        `M ${outerStart.x.toFixed(2)} ${outerStart.y.toFixed(2)}`,
+        `A ${outerR} ${outerR} 0 ${largeArc} 1 ${outerEnd.x.toFixed(2)} ${outerEnd.y.toFixed(2)}`,
+        `L ${innerStart.x.toFixed(2)} ${innerStart.y.toFixed(2)}`,
+        `A ${innerR} ${innerR} 0 ${largeArc} 0 ${innerEnd.x.toFixed(2)} ${innerEnd.y.toFixed(2)}`,
+        "Z"
+      ].join(" ");
+
+      return `<path d='${d}' fill='${slice.color}' stroke='rgba(0,0,0,0.3)' stroke-width='0.5'/>`;
     }).join("");
 
     const legend = slices.map((slice) => {
@@ -1526,8 +1550,8 @@ function renderNbPieCharts() {
     host.innerHTML = `
       <h4 class='nb-pie-title'>${escapeHtml(title)}</h4>
       <div class='nb-pie-svg-wrap'>
-        <svg class='nb-pie-svg' viewBox='0 0 100 100'>
-          ${arcs}
+        <svg class='nb-pie-svg' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'>
+          ${paths}
         </svg>
         <div class='nb-pie-center-label'>
           <span class='nb-pie-center-value'>${money(total)}</span>
@@ -1539,7 +1563,6 @@ function renderNbPieCharts() {
   }
 
   buildPie(receitasHost, "Receitas", mockReceitas);
-  buildPie(despesasHost, "Despesas", mockDespesas);
   buildPie(despesasHost, "Despesas", mockDespesas);
 }
 
