@@ -867,7 +867,6 @@ body:not(.coverflex-theme) .temporal-nav-card {
 /* ─── Pie Charts ─── */
 
 .nb-pie-card {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -927,7 +926,7 @@ body:not(.coverflex-theme) .temporal-nav-card {
 .nb-pie-svg-wrap {
   position: relative;
   width: 100%;
-  max-width: 140px;
+  max-width: 180px;
   aspect-ratio: 1;
 }
 
