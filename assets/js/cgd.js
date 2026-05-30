@@ -321,18 +321,17 @@ async function upsertRealValueForMonth({ ano, mes, real }) {
     throw error;
   }
 
-  const { data: updatedRows, error: updateError } = await supabaseClient
+  const { error: updateError } = await supabaseClient
     .from(REAL_TABLE)
     .update({ real: payload.real })
     .eq("ano", payload.ano)
-    .eq("mes", payload.mes)
-    .select("ano");
+    .eq("mes", payload.mes);
 
   if (updateError) {
     throw updateError;
   }
 
-  if (Array.isArray(updatedRows) && updatedRows.length > 0) {
+  if (insertBlockedByRls) {
     return true;
   }
 
