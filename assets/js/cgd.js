@@ -314,8 +314,10 @@ async function upsertRealValueForMonth({ ano, mes, real }) {
   const conflictConstraintMissing = String(error?.code || "") === "42P10"
     || errorMessage.includes("no unique")
     || errorMessage.includes("on conflict");
+  const insertBlockedByRls = String(error?.code || "") === "42501"
+    && errorMessage.includes("row-level security");
 
-  if (!conflictConstraintMissing) {
+  if (!conflictConstraintMissing && !insertBlockedByRls) {
     throw error;
   }
 
