@@ -1548,6 +1548,15 @@ function renderCgdTopTiles() {
 
   if (averagesHost) {
     averagesHost.innerHTML = `
+      ${IS_COVERFLEX ? `
+      <article class='stat-tile stat-tile--green'>
+        <h4>Total receitas ${year}</h4>
+        <p>${formatTileMoney(incomeTotalYear)}</p>
+      </article>
+      <article class='stat-tile stat-tile--danger'>
+        <h4>Total despesas ${year}</h4>
+        <p>${formatTileMoney(outcomeTotalYear)}</p>
+      </article>` : ""}
       <article class='stat-tile stat-tile--green'>
         <h4>Media de receitas</h4>
         <p>${formatTileMoney(incomeAverage)}</p>
@@ -1565,15 +1574,6 @@ function renderCgdTopTiles() {
         <p>${formatTileMoney(outcomeAverage)}</p>
         ${outcomeAverageSubtitle}
       </article>
-      ${IS_COVERFLEX ? `
-      <article class='stat-tile stat-tile--green'>
-        <h4>Total receitas ${year}</h4>
-        <p>${formatTileMoney(incomeTotalYear)}</p>
-      </article>
-      <article class='stat-tile stat-tile--danger'>
-        <h4>Total despesas ${year}</h4>
-        <p>${formatTileMoney(outcomeTotalYear)}</p>
-      </article>` : ""}
     `;
   }
 
