@@ -4208,6 +4208,11 @@ async function createDespesaForRubrica(rubricaId, description) {
   const existingExpenses = rubric?.expenses || [];
   const nextSeq = existingExpenses.length ? Math.max(...existingExpenses.map((item) => parseSeq(item.seq, 0))) + 1 : 1;
   const nextDespesaId = await getNextDespesaId();
+  const estimatedColumnName = cgdState.expenseColumns.has("valor_estimado")
+    ? "valor_estimado"
+    : cgdState.expenseColumns.has("valor_Estimado")
+      ? "valor_Estimado"
+      : "valor_estimado";
 
   const rows = Array.from({ length: 12 }, (_, index) => ({
     ano: cgdState.selectedYear,
@@ -4217,7 +4222,7 @@ async function createDespesaForRubrica(rubricaId, description) {
     despesa_desc: description,
     [EXPENSE_SEQ_COLUMN]: nextSeq,
     valor: 0,
-    valor_Estimado: 0,
+    [estimatedColumnName]: 0,
     zerado: false,
     totalizador: true
   }));
