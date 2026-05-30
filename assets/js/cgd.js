@@ -1338,11 +1338,15 @@ function renderCgdTemporalSummaryChart() {
         values: computePersonTotalizerSeriesForYear(year, personName)
       }))
     ]
-    : [
-      { key: "real", label: "Real", color: THEME_COLORS.summary.real, values: realValues },
-      { key: "available", label: "Disponivel", color: THEME_COLORS.summary.available, values: availableValues },
-      ...(HIDE_SAVINGS ? [] : [{ key: "savings", label: "Poupancas", color: THEME_COLORS.summary.savings, values: savingsValues }])
-    ];
+    : HIDE_AVAILABLE_ROW
+      ? [
+        { key: "real", label: "Real", color: THEME_COLORS.summary.real, values: realValues }
+      ]
+      : [
+        { key: "real", label: "Real", color: THEME_COLORS.summary.real, values: realValues },
+        { key: "available", label: "Disponivel", color: THEME_COLORS.summary.available, values: availableValues },
+        ...(HIDE_SAVINGS ? [] : [{ key: "savings", label: "Poupancas", color: THEME_COLORS.summary.savings, values: savingsValues }])
+      ];
 
   const hiddenSeries = cgdState.temporalSummaryHiddenSeries;
   const visibleSeries = allSeries.filter((entry) => !hiddenSeries.has(entry.key));
@@ -1603,7 +1607,9 @@ function renderCgdTopTiles() {
         <h4>${escapeHtml(carinaName)} Janeiro ${projectionYear}</h4>
         <p>${formatTileMoney(carinaJanuaryNextYear)}</p>
       </article>`
-      : `
+      : HIDE_AVAILABLE_ROW
+        ? ""
+        : `
       <article class='stat-tile stat-tile--green'>
         <h4>Total disponivel Janeiro ${projectionYear}</h4>
         <p>${formatTileMoney(totalAvailableJanuaryNextYear)}</p>
