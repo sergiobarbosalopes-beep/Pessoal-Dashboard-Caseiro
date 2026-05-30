@@ -4756,11 +4756,11 @@ window.cgdSaveExpenseDetail = async ({
   const normalizedNoteEntryValue = Number(noteEntryValue);
   const rawAdjustmentNote = String(nota == null ? "" : nota).trim();
   const adjustmentNote = estimatedToggleOn
-    ? (rawAdjustmentNote ? `(Est) ${rawAdjustmentNote}` : "(Est)")
+    ? (rawAdjustmentNote ? `(Est) ${rawAdjustmentNote}` : "")
     : rawAdjustmentNote;
   const shouldRegisterAdjustment = Boolean(registerAdjustment) && Number.isFinite(numericAdjustment) && numericAdjustment !== 0;
   const shouldRegisterValueChangeNote = Boolean(registerValueChangeNote);
-  const shouldCreateNote = shouldRegisterAdjustment || shouldRegisterValueChangeNote;
+  const shouldCreateNote = (shouldRegisterAdjustment || shouldRegisterValueChangeNote) && adjustmentNote.length > 0;
 
   if (shouldCreateNote) {
     const valueForNote = shouldRegisterAdjustment
