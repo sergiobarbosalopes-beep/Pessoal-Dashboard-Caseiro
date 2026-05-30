@@ -23,7 +23,7 @@
     </script>
     <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script defer src="assets/js/main.js?v=20260530-6"></script>
-    <script defer src="assets/js/cgd.js?v=20260530-25"></script>
+    <script defer src="assets/js/cgd.js?v=20260530-26"></script>
   </head>
   <body class="nb-theme">
     <div class="site-shell">
@@ -67,14 +67,12 @@
           <div class="cgd-top-tiles" id="cgd-top-tiles-projection"></div>
         </section>
 
-        <section class="card cgd-temporal-chart-card" style="grid-column: span 8;">
+        <section class="card cgd-temporal-chart-card" style="grid-column: span 8; grid-row: span 2;">
           <div id="cgd-temporal-summary-chart"></div>
         </section>
 
-        <div class="pie-charts-col" style="grid-column: span 4; display:flex; flex-direction:column; gap:12px;">
-          <section class="card nb-pie-card" id="nb-pie-receitas"></section>
-          <section class="card nb-pie-card" id="nb-pie-despesas"></section>
-        </div>
+        <section class="card nb-pie-card" id="nb-pie-receitas" style="grid-column: span 4;"></section>
+        <section class="card nb-pie-card" id="nb-pie-despesas" style="grid-column: span 4;"></section>
 
         <section class="card temporal-nav-card" style="grid-column: span 12;">
           <div class="timeline-grid" id="month-timeline"></div>

@@ -4041,6 +4041,7 @@ async function loadYearData(year) {
     };
     renderCgdTopTiles();
     renderCgdTemporalSummaryChart();
+    renderNbPieCharts();
     renderSoberTotalizer();
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
@@ -4147,6 +4148,8 @@ async function loadYearData(year) {
       }
     }
 
+    renderNbPieCharts();
+
     try {
       renderSoberTotalizer();
     } catch (totalizerError) {
@@ -4191,6 +4194,7 @@ async function loadYearData(year) {
         summaryChartHost.innerHTML = "";
       }
     }
+    renderNbPieCharts();
     try {
       renderSoberTotalizer();
     } catch (totalizerError) {
@@ -4978,6 +4982,7 @@ window.cgdHandleExpenseReorder = async (row, action) => {
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
+  renderNbPieCharts();
   bindSoberTotalizerInputs();
   renderTimeline(cgdState.selectedYear);
   await loadYearData(cgdState.selectedYear);
