@@ -1545,18 +1545,21 @@ function renderCgdTopTiles() {
 
   const incomeTotalYear = sumRubricsValuesByMonth(incomeFilteredRubrics).reduce((acc, v) => acc + (Number(v) || 0), 0);
   const outcomeTotalYear = sumRubricsValuesByMonth(outcomeFilteredRubrics).reduce((acc, v) => acc + (Number(v) || 0), 0);
+  const incomeTotalSubtitle = IS_COVERFLEX ? "" : "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos</span>";
+  const outcomeTotalSubtitle = IS_COVERFLEX ? "" : "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos e impostos</span>";
 
   if (averagesHost) {
     averagesHost.innerHTML = `
-      ${IS_COVERFLEX ? `
       <article class='stat-tile stat-tile--green'>
         <h4>Total receitas ${year}</h4>
         <p>${formatTileMoney(incomeTotalYear)}</p>
+        ${incomeTotalSubtitle}
       </article>
       <article class='stat-tile stat-tile--danger'>
         <h4>Total despesas ${year}</h4>
         <p>${formatTileMoney(outcomeTotalYear)}</p>
-      </article>` : ""}
+        ${outcomeTotalSubtitle}
+      </article>
       <article class='stat-tile stat-tile--green'>
         <h4>Media de receitas</h4>
         <p>${formatTileMoney(incomeAverage)}</p>
