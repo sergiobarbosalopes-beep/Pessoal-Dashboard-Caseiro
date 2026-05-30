@@ -1502,19 +1502,20 @@ function renderNbPieCharts() {
   function buildPie(host, title, slices) {
     if (!host) return;
     const total = slices.reduce((s, entry) => s + entry.value, 0);
-    const radius = 44;
+    if (!total) { host.innerHTML = ""; return; }
+    const radius = 38;
     const cx = 50, cy = 50;
     const circumference = 2 * Math.PI * radius;
-    let offset = 0;
+    let cumulativeAngle = -90;
 
     const arcs = slices.map((slice, i) => {
       const pct = slice.value / total;
       const dashLen = pct * circumference;
       const dashGap = circumference - dashLen;
-      const currentOffset = offset;
-      offset += dashLen;
-      const delay = i * 0.12;
-      return `<circle class='pie-slice' cx='${cx}' cy='${cy}' r='${radius}' fill='none' stroke='${slice.color}' stroke-width='14' stroke-dasharray='${dashLen.toFixed(2)} ${dashGap.toFixed(2)}' stroke-dashoffset='${(-currentOffset).toFixed(2)}' style='--pie-circumference:${circumference.toFixed(2)};animation:nbPieReveal 0.8s ease ${delay}s both;' />`;
+      const rotation = cumulativeAngle;
+      cumulativeAngle += pct * 360;
+      const delay = i * 0.15;
+      return `<circle class='pie-slice' cx='${cx}' cy='${cy}' r='${radius}' fill='none' stroke='${slice.color}' stroke-width='16' stroke-dasharray='${dashLen.toFixed(2)} ${dashGap.toFixed(2)}' transform='rotate(${rotation.toFixed(2)} ${cx} ${cy})' style='opacity:0;animation:nbPieFadeIn 0.5s ease ${delay}s forwards;' />`;
     }).join("");
 
     const legend = slices.map((slice) => {
@@ -1538,6 +1539,7 @@ function renderNbPieCharts() {
   }
 
   buildPie(receitasHost, "Receitas", mockReceitas);
+  buildPie(despesasHost, "Despesas", mockDespesas);
   buildPie(despesasHost, "Despesas", mockDespesas);
 }
 

@@ -910,6 +910,18 @@ body:not(.coverflex-theme) .temporal-nav-card {
   pointer-events: none;
 }
 
+.cgd-pie-card {
+  border-color: rgba(0, 102, 179, 0.36);
+  background: linear-gradient(145deg, rgba(0, 40, 70, 0.55), rgba(0, 30, 55, 0.65));
+  box-shadow:
+    0 0 18px rgba(0, 102, 179, 0.2),
+    0 8px 18px rgba(2, 8, 14, 0.3);
+}
+
+.cgd-pie-card::before {
+  background: radial-gradient(circle at 50% 20%, rgba(47, 154, 212, 0.08), transparent 70%);
+}
+
 .nb-pie-title {
   font-size: 0.72rem;
   font-weight: 700;
@@ -988,9 +1000,9 @@ body:not(.coverflex-theme) .temporal-nav-card {
   flex-shrink: 0;
 }
 
-@keyframes nbPieReveal {
-  from { stroke-dashoffset: var(--pie-circumference); }
-  to { stroke-dashoffset: 0; }
+@keyframes nbPieFadeIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .cgd-top-tiles {
