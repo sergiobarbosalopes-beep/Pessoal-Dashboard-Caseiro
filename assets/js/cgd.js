@@ -1129,7 +1129,7 @@ function renderSoberTotalizer() {
   });
   const savingsRubrics = HIDE_SAVINGS ? [] : Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
   const peopleRows = TOTALIZER_PEOPLE.length ? TOTALIZER_PEOPLE : ["Sergio", "Carina"];
-  const personRowsMarkup = HIDE_AVAILABLE_ROW
+  const personRowsMarkup = IS_COVERFLEX
     ? peopleRows
       .map((personName) => {
         const personValues = computePersonTotalizerSeriesForYear(year, personName);
