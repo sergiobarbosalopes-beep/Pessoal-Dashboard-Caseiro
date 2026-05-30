@@ -306,8 +306,40 @@ async function upsertRealValueForMonth({ ano, mes, real }) {
     .from(REAL_TABLE)
     .upsert(payload, { onConflict: "ano,mes" });
 
-  if (error) {
+  if (!error) {
+    return true;
+  }
+
+  const errorMessage = String(error?.message || "").toLowerCase();
+  const conflictConstraintMissing = String(error?.code || "") === "42P10"
+    || errorMessage.includes("no unique")
+    || errorMessage.includes("on conflict");
+
+  if (!conflictConstraintMissing) {
     throw error;
+  }
+
+  const { data: updatedRows, error: updateError } = await supabaseClient
+    .from(REAL_TABLE)
+    .update({ real: payload.real })
+    .eq("ano", payload.ano)
+    .eq("mes", payload.mes)
+    .select("ano");
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  if (Array.isArray(updatedRows) && updatedRows.length > 0) {
+    return true;
+  }
+
+  const { error: insertError } = await supabaseClient
+    .from(REAL_TABLE)
+    .insert(payload);
+
+  if (insertError) {
+    throw insertError;
   }
 
   return true;
