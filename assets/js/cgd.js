@@ -3294,6 +3294,15 @@ function bindRealValuePopup() {
       console.error(`Erro ao guardar valor real em ${REAL_TABLE}:`, error);
       if (String(error?.code || "") === "42501") {
         console.error(`Permissao RLS negada para ${REAL_TABLE}. Verifica policies de insert/update para anon/authenticated.`);
+        alert(
+          `⚠️ ATIVAÇÃO NECESSÁRIA\n\n` +
+          `As permissões de base de dados para ${TABLE_PREFIX.toUpperCase()} ainda não foram configuradas.\n\n` +
+          `VER: ACTIVATION_REQUIRED.md\n\n` +
+          `Passo rápido:\n` +
+          `1. Abra: https://app.supabase.com/project/uooovgxrexpstrtfktst/sql/new\n` +
+          `2. Copie SUPABASE_RLS_FIX_NB_REAL.sql\n` +
+          `3. Cole e clique RUN`
+        );
       }
     }
   });
