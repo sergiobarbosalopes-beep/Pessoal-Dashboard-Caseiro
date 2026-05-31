@@ -1861,6 +1861,31 @@ function renderCgdTopTiles() {
     const audiSavingsJanuaryNextYear = calculateAccumulatedSavingsForMonth(audiSavingsRubrics, projectionYear, 0);
     const estimatedIrsTotals = computeEstimatedIrsMonthlyTotals(outcomeRubrics);
     const estimatedIrsYearTotal = estimatedIrsTotals.reduce((acc, value) => acc + (Number(value) || 0), 0);
+
+    // Variance vs January of selected year (CGD only)
+    const isCgdProjection = TABLE_PREFIX === "cgd";
+    let realVariance = "", availableVariance = "", irsVariance = "", audiVariance = "";
+    if (isCgdProjection) {
+      const currentYearRealSeries = computeRealSeriesForYear(year, cgdState.realComputationContexts);
+      const currentYearSavingsSeries = computeSavingsSeriesForYear(year, cgdState.realComputationContexts);
+      const realJanuaryCurrent = Number(currentYearRealSeries?.values?.[0]) || 0;
+      const totalAvailableJanuaryCurrent = realJanuaryCurrent - (Number(currentYearSavingsSeries?.[0]) || 0);
+      const irsSavingsJanuaryCurrent = calculateAccumulatedSavingsForMonth(irsSavingsRubrics, year, 0);
+      const audiSavingsJanuaryCurrent = calculateAccumulatedSavingsForMonth(audiSavingsRubrics, year, 0);
+
+      const fmtVariance = (current, next) => {
+        if (!current) return "";
+        const pct = ((next - current) / Math.abs(current)) * 100;
+        const sign = pct >= 0 ? "+" : "";
+        const color = pct >= 0 ? "var(--color-success, #00dc6e)" : "var(--color-danger, #ff6b6b)";
+        return `<span class='stat-tile-meta stat-tile-meta--right' style='color:${color}'>${sign}${pct.toFixed(1)}% vs ano anterior</span>`;
+      };
+      realVariance = fmtVariance(realJanuaryCurrent, realJanuaryNextYear);
+      availableVariance = fmtVariance(totalAvailableJanuaryCurrent, totalAvailableJanuaryNextYear);
+      irsVariance = fmtVariance(irsSavingsJanuaryCurrent, irsSavingsJanuaryNextYear);
+      audiVariance = fmtVariance(audiSavingsJanuaryCurrent, audiSavingsJanuaryNextYear);
+    }
+
     const availableProjectionMarkup = IS_COVERFLEX
       ? `
       <article class='stat-tile stat-tile--sergio'>
@@ -1877,6 +1902,7 @@ function renderCgdTopTiles() {
       <article class='stat-tile stat-tile--green'>
         <h4>Total disponivel Janeiro ${projectionYear}</h4>
         <p>${formatTileMoney(totalAvailableJanuaryNextYear)}</p>
+        ${availableVariance}
       </article>`;
 
     const projectionTitle = document.querySelector(".cgd-top-tiles-projection-card .cgd-top-tiles-section-title");
@@ -1888,6 +1914,7 @@ function renderCgdTopTiles() {
       <article class='stat-tile stat-tile--cyan'>
         <h4>Real Janeiro ${projectionYear}</h4>
         <p>${formatTileMoney(realJanuaryNextYear)}</p>
+        ${realVariance}
       </article>
       ${availableProjectionMarkup}
       ${HIDE_SAVINGS
@@ -1896,10 +1923,12 @@ function renderCgdTopTiles() {
       <article class='stat-tile stat-tile--blue'>
         <h4>Poupanca IRS Janeiro ${projectionYear}</h4>
         <p>${formatTileMoney(irsSavingsJanuaryNextYear)}</p>
+        ${irsVariance}
       </article>
       <article class='stat-tile stat-tile--blue'>
         <h4>Poupanca Audi Janeiro ${projectionYear}</h4>
         <p>${formatTileMoney(audiSavingsJanuaryNextYear)}</p>
+        ${audiVariance}
         <span class='stat-tile-meta stat-tile-meta--right'>Meta Setembro 2028</span>
         <span class='stat-tile-meta stat-tile-meta--right stat-tile-meta-target'>${formatTileMoney(5900)}</span>
       </article>`}
