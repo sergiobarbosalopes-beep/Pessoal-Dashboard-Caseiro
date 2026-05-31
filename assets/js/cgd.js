@@ -1743,8 +1743,29 @@ function renderCgdTopTiles() {
   const sergioName = peopleRows[0] || "Sergio";
   const carinaName = peopleRows[1] || "Carina";
 
-  const savingsFilteredRubrics = savingsRubrics.filter((rubric) => !rubricNameMatchesAny(rubric?.name, ["movimentos"]));
-  const savingsAverage = averageOfSeries(sumRubricsValuesByMonth(TABLE_PREFIX === "cgd" ? savingsFilteredRubrics : savingsRubrics));
+  let savingsAverage;
+  if (TABLE_PREFIX === "cgd") {
+    // Sum all expenses in savings rubrics, excluding "Movimentos Receitas"
+    const savingsMonthlySums = months.map((_, monthIndex) => {
+      let total = 0;
+      for (const rubric of savingsRubrics) {
+        const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
+        if (expenses.length) {
+          for (const expense of expenses) {
+            if (rubricNameMatchesAny(expense?.name, ["movimentos receitas"])) continue;
+            total += Number(expense?.values?.[monthIndex]) || 0;
+          }
+        } else {
+          if (rubricNameMatchesAny(rubric?.name, ["movimentos"])) continue;
+          total += Number(rubric?.values?.[monthIndex]) || 0;
+        }
+      }
+      return total;
+    });
+    savingsAverage = averageOfSeries(savingsMonthlySums);
+  } else {
+    savingsAverage = averageOfSeries(sumRubricsValuesByMonth(savingsRubrics));
+  }
   const savingsAverageSubtitle = TABLE_PREFIX === "cgd" ? "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos</span>" : "";
 
   const outcomeExcludeTerms = TABLE_PREFIX === "cgd" ? ["movimentos"] : ["movimentos", "impostos"];
