@@ -1484,11 +1484,18 @@ function renderNbPieCharts() {
   const despesasHost = document.getElementById("nb-pie-despesas");
   if (!receitasHost && !despesasHost) return;
 
-  const PIE_COLORS = [
-    "#6ecf9a", "#7cc4ff", "#9ed86b", "#58d2c3", "#8bcf7a",
-    "#5fb3de", "#9edfb7", "#71d0ff", "#77c87f", "#79bdf0",
-    "#f2c46a", "#f08b5f", "#5fc8b6", "#84d56b", "#f29db1",
-    "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0", "#70c3ff"
+  const PIE_COLORS_RECEITAS = [
+    "#00dc6e", "#2f9ad4", "#f2c46a", "#a78bfa", "#00b84f",
+    "#ff8c42", "#41b37a", "#e06090", "#58d2c3", "#c8a030",
+    "#7cc4ff", "#d46b5f", "#84d56b", "#b070e0", "#e6b86d",
+    "#5fc8b6", "#f08b5f", "#70c3ff", "#9ed86b", "#f29db1"
+  ];
+
+  const PIE_COLORS_DESPESAS = [
+    "#ff6b6b", "#ffa94d", "#a78bfa", "#ffd43b", "#69db7c",
+    "#e06090", "#5fc8b6", "#f08b5f", "#7cb7ff", "#c8a030",
+    "#84d56b", "#d46bff", "#f2c46a", "#2f9ad4", "#f29db1",
+    "#58d2c3", "#e6b86d", "#9ed86b", "#70c3ff", "#ff8c42"
   ];
 
   function buildReceitasSlices() {
@@ -1531,7 +1538,7 @@ function renderNbPieCharts() {
       .map((entry, i) => ({
         label: entry.label,
         value: Math.abs(entry.value),
-        color: PIE_COLORS[i % PIE_COLORS.length]
+        color: PIE_COLORS_RECEITAS[i % PIE_COLORS_RECEITAS.length]
       }));
   }
 
@@ -1571,7 +1578,7 @@ function renderNbPieCharts() {
       .map((entry, i) => ({
         label: entry.label,
         value: Math.abs(entry.value),
-        color: PIE_COLORS[i % PIE_COLORS.length]
+        color: PIE_COLORS_DESPESAS[i % PIE_COLORS_DESPESAS.length]
       }));
   }
 
