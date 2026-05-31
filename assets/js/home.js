@@ -233,8 +233,8 @@ function escapeHtml(str) {
       const sign = pct >= 0 ? "+" : "";
       const color = pct >= 0 ? "#00dc6e" : "#ff6b6b";
       const iconSvg = pct >= 0
-        ? `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 0 4px ${color})"><path d="M12 4l7 7h-4.5v9h-5v-9H5l7-7z" fill="${color}"/></svg>`
-        : `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 0 4px ${color})"><path d="M12 20l-7-7h4.5V4h5v9H19l-7 7z" fill="${color}"/></svg>`;
+        ? `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 0 5px ${color})"><path d="M12 4l7 7h-4.5v9h-5v-9H5l7-7z" fill="${color}"/></svg>`
+        : `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 0 5px ${color})"><path d="M12 20l-7-7h4.5V4h5v9H19l-7 7z" fill="${color}"/></svg>`;
       varianceHtml = `
         <div class="home-tile-icon">${iconSvg}</div>
         <div class="home-tile-footer" style="color:${color}">
@@ -263,8 +263,8 @@ function escapeHtml(str) {
       const sign = pct >= 0 ? "+" : "";
       const color = pct >= 0 ? "#00dc6e" : "#ff6b6b";
       const iconSvg = pct >= 0
-        ? `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 0 4px ${color})"><path d="M12 4l7 7h-4.5v9h-5v-9H5l7-7z" fill="${color}"/></svg>`
-        : `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 0 4px ${color})"><path d="M12 20l-7-7h4.5V4h5v9H19l-7 7z" fill="${color}"/></svg>`;
+        ? `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 0 5px ${color})"><path d="M12 4l7 7h-4.5v9h-5v-9H5l7-7z" fill="${color}"/></svg>`
+        : `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 0 5px ${color})"><path d="M12 20l-7-7h4.5V4h5v9H19l-7 7z" fill="${color}"/></svg>`;
       varianceHtml = `
         <div class="home-tile-icon">${iconSvg}</div>
         <div class="home-tile-footer" style="color:${color}">
