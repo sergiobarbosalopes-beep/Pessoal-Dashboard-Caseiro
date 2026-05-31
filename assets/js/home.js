@@ -245,49 +245,13 @@ function escapeHtml(str) {
     }
   }
 
-  // Build saldo disponivel tile
-  const tileEl = document.getElementById("home-tile-disponivel");
-
-  if (tileEl) {
-    tileEl.style.display = "";
-    let varianceHtml = "";
-    if (saldoDisponivelJan) {
-      const pct = ((saldoDisponivel - saldoDisponivelJan) / Math.abs(saldoDisponivelJan)) * 100;
-      const sign = pct >= 0 ? "+" : "";
-      const color = pct >= 0 ? "#00dc6e" : "#ff6b6b";
-      varianceHtml += `
-        <div class="home-tile-footer" style="color:${color}">
-          <span>${sign}${pct.toFixed(1)}% vs Janeiro ${year}</span>
-          <span class="home-tile-jan">Jan ${year}: ${money(saldoDisponivelJan)}</span>
-        </div>`;
-    }
-    if (saldoDisponivelPrev) {
-      const pctPrev = ((saldoDisponivel - saldoDisponivelPrev) / Math.abs(saldoDisponivelPrev)) * 100;
-      const signPrev = pctPrev >= 0 ? "+" : "";
-      const colorPrev = pctPrev >= 0 ? "#00dc6e" : "#ff6b6b";
-      varianceHtml += `
-        <div class="home-tile-footer" style="color:${colorPrev}">
-          <span>${signPrev}${pctPrev.toFixed(1)}% vs ${prevMonthName} ${year}</span>
-          <span class="home-tile-jan">${prevMonthName} ${year}: ${money(saldoDisponivelPrev)}</span>
-        </div>`;
-    }
-    tileEl.innerHTML = `
-      <div class="home-tile-header">
-        <h4>Saldo disponivel ${MONTHS_PT[currentMonth]} ${year}</h4>
-        <p>${money(saldoDisponivel)}</p>
-      </div>
-      ${varianceHtml}
-    `;
-  }
-
-  // Helper to render a savings tile with variance
-  function renderSavingsTile(prefix, value, valueJan, valuePrev) {
-    const el = document.getElementById(`home-tile-${prefix}`);
+  // Generic tile renderer
+  function renderTile(id, label, value, valueJan, valuePrev) {
+    const el = document.getElementById(id);
     if (!el) return;
     el.style.display = "";
-    const label = prefix === "irs" ? "Saldo IRS" : "Saldo Audi";
     let varianceHtml = "";
-    if (valueJan !== 0) {
+    if (valueJan) {
       const pct = ((value - valueJan) / Math.abs(valueJan)) * 100;
       const sign = pct >= 0 ? "+" : "";
       const color = pct >= 0 ? "#00dc6e" : "#ff6b6b";
@@ -297,7 +261,7 @@ function escapeHtml(str) {
           <span class="home-tile-jan">Jan ${year}: ${money(valueJan)}</span>
         </div>`;
     }
-    if (valuePrev !== 0) {
+    if (valuePrev) {
       const pctPrev = ((value - valuePrev) / Math.abs(valuePrev)) * 100;
       const signPrev = pctPrev >= 0 ? "+" : "";
       const colorPrev = pctPrev >= 0 ? "#00dc6e" : "#ff6b6b";
@@ -316,6 +280,11 @@ function escapeHtml(str) {
     `;
   }
 
-  renderSavingsTile("irs", irsAccumulated, irsAccumulatedJan, irsAccumulatedPrev);
-  renderSavingsTile("audi", audiAccumulated, audiAccumulatedJan, audiAccumulatedPrev);
+  // Render all tiles
+  renderTile("home-tile-disponivel", "Saldo Total disponivel", saldoDisponivel, saldoDisponivelJan, saldoDisponivelPrev);
+  renderTile("home-tile-cgd", "Saldo disponivel CGD", cgdDisponivel, cgdDisponivelJan, cgdDisponivelPrev);
+  renderTile("home-tile-nb", "Saldo disponivel Novo Banco", nbReal, nbRealJan, nbRealPrev);
+  renderTile("home-tile-coverflex", "Saldo disponivel Coverflex", coverflexReal, coverflexRealJan, coverflexRealPrev);
+  renderTile("home-tile-irs", "Saldo IRS", irsAccumulated, irsAccumulatedJan, irsAccumulatedPrev);
+  renderTile("home-tile-audi", "Saldo Audi", audiAccumulated, audiAccumulatedJan, audiAccumulatedPrev);
 })();
