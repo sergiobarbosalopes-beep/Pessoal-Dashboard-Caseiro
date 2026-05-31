@@ -1505,30 +1505,55 @@ function renderNbPieCharts() {
 
     const aggregated = {};
 
-    for (const rubric of allRubrics) {
-      if (rubricNameMatchesAny(rubric?.name, ["movimentos"])) continue;
-      const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
-      if (expenses.length) {
-        for (const expense of expenses) {
-          const name = (expense?.name || "").trim();
+    if (IS_COVERFLEX) {
+      // Coverflex: aggregate by rubric name, no exclusions, income only
+      for (const rubric of allRubrics) {
+        const rubricName = (rubric?.name || "").trim();
+        if (!rubricName) continue;
+        const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
+        let rubricTotal = 0;
+        if (expenses.length) {
+          for (const expense of expenses) {
+            rubricTotal += (Array.isArray(expense?.values) ? expense.values : [])
+              .slice(0, 12)
+              .reduce((sum, v) => sum + (Number(v) || 0), 0);
+          }
+        } else {
+          rubricTotal = (Array.isArray(rubric?.values) ? rubric.values : [])
+            .slice(0, 12)
+            .reduce((sum, v) => sum + (Number(v) || 0), 0);
+        }
+        const key = rubricName.toLowerCase();
+        aggregated[key] = aggregated[key] || { label: rubricName, value: 0 };
+        aggregated[key].value += rubricTotal;
+      }
+    } else {
+      // CGD / NB: aggregate by expense name, exclude movimentos
+      for (const rubric of allRubrics) {
+        if (rubricNameMatchesAny(rubric?.name, ["movimentos"])) continue;
+        const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
+        if (expenses.length) {
+          for (const expense of expenses) {
+            const name = (expense?.name || "").trim();
+            if (!name) continue;
+            if (rubricNameMatchesAny(name, ["movimentos receitas"])) continue;
+            const yearTotal = (Array.isArray(expense?.values) ? expense.values : [])
+              .slice(0, 12)
+              .reduce((sum, v) => sum + (Number(v) || 0), 0);
+            const key = name.toLowerCase();
+            aggregated[key] = aggregated[key] || { label: name, value: 0 };
+            aggregated[key].value += yearTotal;
+          }
+        } else {
+          const name = (rubric?.name || "").trim();
           if (!name) continue;
-          if (rubricNameMatchesAny(name, ["movimentos receitas"])) continue;
-          const yearTotal = (Array.isArray(expense?.values) ? expense.values : [])
+          const yearTotal = (Array.isArray(rubric?.values) ? rubric.values : [])
             .slice(0, 12)
             .reduce((sum, v) => sum + (Number(v) || 0), 0);
           const key = name.toLowerCase();
           aggregated[key] = aggregated[key] || { label: name, value: 0 };
           aggregated[key].value += yearTotal;
         }
-      } else {
-        const name = (rubric?.name || "").trim();
-        if (!name) continue;
-        const yearTotal = (Array.isArray(rubric?.values) ? rubric.values : [])
-          .slice(0, 12)
-          .reduce((sum, v) => sum + (Number(v) || 0), 0);
-        const key = name.toLowerCase();
-        aggregated[key] = aggregated[key] || { label: name, value: 0 };
-        aggregated[key].value += yearTotal;
       }
     }
 
@@ -1548,7 +1573,7 @@ function renderNbPieCharts() {
     const isNbPage = TABLE_PREFIX === "nb";
 
     for (const rubric of outcomeRubrics) {
-      if (rubricNameMatchesAny(rubric?.name, ["movimentos"])) continue;
+      if (!IS_COVERFLEX && rubricNameMatchesAny(rubric?.name, ["movimentos"])) continue;
 
       if (isNbPage) {
         // NovoBanco: aggregate by rubric name
@@ -1696,8 +1721,8 @@ function renderNbPieCharts() {
   }
 
   const year = Number(cgdState.selectedYear) || new Date().getFullYear();
-  const receitasSlices = IS_COVERFLEX ? [] : buildReceitasSlices();
-  const despesasSlices = IS_COVERFLEX ? [] : buildDespesasSlices();
+  const receitasSlices = buildReceitasSlices();
+  const despesasSlices = buildDespesasSlices();
   buildPie(receitasHost, `Total receitas ${year}`, receitasSlices);
   buildPie(despesasHost, `Total despesas ${year}`, despesasSlices);
 }
