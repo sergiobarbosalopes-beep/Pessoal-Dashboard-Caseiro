@@ -1534,6 +1534,46 @@ function renderNbPieCharts() {
       }));
   }
 
+  function buildDespesasSlices() {
+    const outcomeRubrics = Array.isArray(cgdState.data?.outcome) ? cgdState.data.outcome : [];
+    const aggregated = {};
+
+    for (const rubric of outcomeRubrics) {
+      if (rubricNameMatchesAny(rubric?.name, ["movimentos"])) continue;
+      const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
+      if (expenses.length) {
+        for (const expense of expenses) {
+          const name = (expense?.name || "").trim();
+          if (!name) continue;
+          const yearTotal = (Array.isArray(expense?.values) ? expense.values : [])
+            .slice(0, 12)
+            .reduce((sum, v) => sum + (Number(v) || 0), 0);
+          const key = name.toLowerCase();
+          aggregated[key] = aggregated[key] || { label: name, value: 0 };
+          aggregated[key].value += yearTotal;
+        }
+      } else {
+        const name = (rubric?.name || "").trim();
+        if (!name) continue;
+        const yearTotal = (Array.isArray(rubric?.values) ? rubric.values : [])
+          .slice(0, 12)
+          .reduce((sum, v) => sum + (Number(v) || 0), 0);
+        const key = name.toLowerCase();
+        aggregated[key] = aggregated[key] || { label: name, value: 0 };
+        aggregated[key].value += yearTotal;
+      }
+    }
+
+    return Object.values(aggregated)
+      .filter((entry) => entry.value !== 0)
+      .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+      .map((entry, i) => ({
+        label: entry.label,
+        value: Math.abs(entry.value),
+        color: PIE_COLORS[i % PIE_COLORS.length]
+      }));
+  }
+
   const mockDespesas = [
     { label: "Habitacao", value: 850, color: "#ff6b6b" },
     { label: "Alimentacao", value: 420, color: "#ffa94d" },
@@ -1633,8 +1673,9 @@ function renderNbPieCharts() {
   const year = Number(cgdState.selectedYear) || new Date().getFullYear();
   const isCgdPage = TABLE_PREFIX === "cgd";
   const receitasSlices = isCgdPage ? buildReceitasSlices() : [];
+  const despesasSlices = isCgdPage ? buildDespesasSlices() : mockDespesas;
   buildPie(receitasHost, `Total receitas ${year}`, receitasSlices);
-  buildPie(despesasHost, `Total despesas ${year}`, mockDespesas);
+  buildPie(despesasHost, `Total despesas ${year}`, despesasSlices);
 }
 
 function calculateAccumulatedSavingsToDecember(rubrics, year) {
