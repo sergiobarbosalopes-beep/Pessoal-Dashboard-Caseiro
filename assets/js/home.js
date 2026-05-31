@@ -37,7 +37,7 @@ function escapeHtml(str) {
   // Fetch CGD savings rubrics + expenses to compute accumulated savings (total, IRS, Audi)
   // IRS and Audi accumulate across all years, so we query without year filter for those
   const fetchCgdSavings = async () => {
-    const empty = { total: Array.from({ length: 12 }, () => 0), irsAccumulated: 0, audiAccumulated: 0, irsAccumulatedJan: 0, audiAccumulatedJan: 0 };
+    const empty = { totalAccumulated: 0, totalAccumulatedJan: 0, irsAccumulated: 0, audiAccumulated: 0, irsAccumulatedJan: 0, audiAccumulatedJan: 0 };
     try {
       const [rubRes, despRes] = await Promise.all([
         sb.from("cgd_rubrica").select("rubrica_id,ano,mes,rubrica_tipo,rubrica_desc").in("rubrica_tipo", ["Aprovisionamento"]),
@@ -57,12 +57,12 @@ function escapeHtml(str) {
         if (name.includes("audi")) audiIds.add(r.rubrica_id);
       }
 
-      // Current year monthly totals (for disponivel calculation)
-      const totalMonthly = Array.from({ length: 12 }, () => 0);
-      // IRS/Audi: accumulate ALL expenses before the target month
-      let irsAccumulated = 0;   // all expenses before current month of current year
+      // Accumulate ALL savings before target months (cross-year)
+      let totalAccumulated = 0;
+      let totalAccumulatedJan = 0;
+      let irsAccumulated = 0;
       let audiAccumulated = 0;
-      let irsAccumulatedJan = 0; // all expenses before January of current year
+      let irsAccumulatedJan = 0;
       let audiAccumulatedJan = 0;
 
       for (const exp of expenses) {
@@ -72,14 +72,12 @@ function escapeHtml(str) {
         const expYear = Number(exp.ano);
         const expMonth = Number(exp.mes) - 1; // 0-indexed
 
-        // Total savings monthly (current year only, for disponivel)
-        if (expYear === year && expMonth >= 0 && expMonth <= 11) {
-          totalMonthly[expMonth] += val;
-        }
-
-        // IRS/Audi: sum everything BEFORE the target month (cross-year)
+        // Sum everything BEFORE the target month (cross-year)
         const isBeforeCurrentMonth = expYear < year || (expYear === year && expMonth < currentMonth);
         const isBeforeJanuary = expYear < year;
+
+        if (isBeforeCurrentMonth) totalAccumulated += val;
+        if (isBeforeJanuary) totalAccumulatedJan += val;
 
         if (irsIds.has(exp.rubrica_id)) {
           if (isBeforeCurrentMonth) irsAccumulated += val;
@@ -90,7 +88,7 @@ function escapeHtml(str) {
           if (isBeforeJanuary) audiAccumulatedJan += val;
         }
       }
-      return { total: totalMonthly, irsAccumulated, audiAccumulated, irsAccumulatedJan, audiAccumulatedJan };
+      return { totalAccumulated, totalAccumulatedJan, irsAccumulated, audiAccumulated, irsAccumulatedJan, audiAccumulatedJan };
     } catch { return empty; }
   };
 
@@ -101,8 +99,6 @@ function escapeHtml(str) {
     fetchCgdSavings()
   ]);
 
-  const cgdSavingsMonthly = cgdSavingsData.total;
-
   const getRealForMonth = (reals, monthIndex) => {
     const row = reals.find(r => Number(r.mes) === monthIndex + 1);
     return row ? Number(row.real) || 0 : 0;
@@ -112,11 +108,8 @@ function escapeHtml(str) {
   const nbReal = getRealForMonth(nbReals, currentMonth);
   const coverflexReal = getRealForMonth(coverflexReals, currentMonth);
 
-  // Accumulated savings for month N = sum of savings from months 0 to N-1
-  let cgdAccumulatedSavings = 0;
-  for (let i = 0; i < currentMonth; i++) {
-    cgdAccumulatedSavings += cgdSavingsMonthly[i];
-  }
+  const cgdAccumulatedSavings = cgdSavingsData.totalAccumulated;
+  const cgdAccumulatedSavingsJan = cgdSavingsData.totalAccumulatedJan;
 
   const totalSaldo = cgdReal + nbReal + coverflexReal;
   const cgdDisponivel = cgdReal - cgdAccumulatedSavings;
@@ -126,8 +119,7 @@ function escapeHtml(str) {
   const cgdRealJan = getRealForMonth(cgdReals, 0);
   const nbRealJan = getRealForMonth(nbReals, 0);
   const coverflexRealJan = getRealForMonth(coverflexReals, 0);
-  // Savings accumulated at January = 0 (nothing before month 0)
-  const cgdDisponivelJan = cgdRealJan;
+  const cgdDisponivelJan = cgdRealJan - cgdAccumulatedSavingsJan;
   const saldoDisponivelJan = cgdDisponivelJan + nbRealJan + coverflexRealJan;
 
   // IRS and Audi accumulated (already computed cross-year in fetchCgdSavings)
