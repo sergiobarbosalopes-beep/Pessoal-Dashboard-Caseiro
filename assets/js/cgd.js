@@ -1582,14 +1582,6 @@ function renderNbPieCharts() {
       }));
   }
 
-  const mockDespesas = [
-    { label: "Habitacao", value: 850, color: "#ff6b6b" },
-    { label: "Alimentacao", value: 420, color: "#ffa94d" },
-    { label: "Transportes", value: 280, color: "#ffd43b" },
-    { label: "Servicos", value: 210, color: "#a78bfa" },
-    { label: "Outros", value: 340, color: "#69db7c" }
-  ];
-
   function polarToCartesian(cx, cy, r, angleDeg) {
     const rad = (angleDeg - 90) * Math.PI / 180;
     return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
@@ -1679,9 +1671,8 @@ function renderNbPieCharts() {
   }
 
   const year = Number(cgdState.selectedYear) || new Date().getFullYear();
-  const isCgdPage = TABLE_PREFIX === "cgd";
-  const receitasSlices = isCgdPage ? buildReceitasSlices() : [];
-  const despesasSlices = isCgdPage ? buildDespesasSlices() : mockDespesas;
+  const receitasSlices = IS_COVERFLEX ? [] : buildReceitasSlices();
+  const despesasSlices = IS_COVERFLEX ? [] : buildDespesasSlices();
   buildPie(receitasHost, `Total receitas ${year}`, receitasSlices);
   buildPie(despesasHost, `Total despesas ${year}`, despesasSlices);
 }
