@@ -1547,13 +1547,6 @@ function renderNbPieCharts() {
     return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
   }
 
-  function describeArc(cx, cy, r, startAngle, endAngle) {
-    const start = polarToCartesian(cx, cy, r, endAngle);
-    const end = polarToCartesian(cx, cy, r, startAngle);
-    const largeArc = (endAngle - startAngle) > 180 ? 1 : 0;
-    return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 ${largeArc} 0 ${end.x.toFixed(2)} ${end.y.toFixed(2)} L ${cx} ${cy} Z`;
-  }
-
   function buildPie(host, title, slices) {
     if (!host) return;
     const total = slices.reduce((s, entry) => s + entry.value, 0);
@@ -1562,7 +1555,7 @@ function renderNbPieCharts() {
     const cx = 50, cy = 50, outerR = 40, innerR = 24;
     let currentAngle = 0;
 
-    const paths = slices.map((slice) => {
+    const paths = slices.map((slice, idx) => {
       const sliceAngle = (slice.value / total) * 360;
       const startAngle = currentAngle;
       const endAngle = currentAngle + sliceAngle;
@@ -1582,7 +1575,8 @@ function renderNbPieCharts() {
         "Z"
       ].join(" ");
 
-      return `<path d='${d}' fill='${slice.color}' stroke='rgba(0,0,0,0.3)' stroke-width='0.5'/>`;
+      const pct = ((slice.value / total) * 100).toFixed(1);
+      return `<path class='nb-pie-slice' d='${d}' fill='${slice.color}' stroke='rgba(0,0,0,0.3)' stroke-width='0.5' data-pie-label='${escapeHtml(slice.label)}' data-pie-value='${money(slice.value)}' data-pie-pct='${pct}%' data-pie-color='${slice.color}'/>`;
     }).join("");
 
     const legend = slices.map((slice) => {
@@ -1592,23 +1586,55 @@ function renderNbPieCharts() {
 
     host.innerHTML = `
       <h4 class='nb-pie-title'>${escapeHtml(title)}</h4>
-      <div class='nb-pie-svg-wrap'>
-        <svg class='nb-pie-svg' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'>
-          ${paths}
-        </svg>
-        <div class='nb-pie-center-label'>
-          <span class='nb-pie-center-value'>${money(total)}</span>
-          <span class='nb-pie-center-sub'>EUR</span>
+      <div class='nb-pie-body'>
+        <div class='nb-pie-svg-wrap'>
+          <svg class='nb-pie-svg' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'>
+            ${paths}
+          </svg>
+          <div class='nb-pie-center-label'>
+            <span class='nb-pie-center-value'>${money(total)}</span>
+            <span class='nb-pie-center-sub'>EUR</span>
+          </div>
+          <div class='nb-pie-tooltip' aria-hidden='true'></div>
         </div>
+        <div class='nb-pie-legend'>${legend}</div>
       </div>
-      <div class='nb-pie-legend'>${legend}</div>
     `;
+
+    // Tooltip hover
+    const wrap = host.querySelector(".nb-pie-svg-wrap");
+    const tooltip = host.querySelector(".nb-pie-tooltip");
+    if (wrap && tooltip) {
+      const hideTooltip = () => tooltip.classList.remove("is-visible");
+      wrap.addEventListener("pointerleave", hideTooltip);
+      wrap.querySelectorAll(".nb-pie-slice").forEach((slice) => {
+        const showTip = (e) => {
+          const label = slice.getAttribute("data-pie-label");
+          const value = slice.getAttribute("data-pie-value");
+          const pct = slice.getAttribute("data-pie-pct");
+          const color = slice.getAttribute("data-pie-color");
+          tooltip.innerHTML = `
+            <div class='nb-pie-tooltip-row'>
+              <span class='nb-pie-tooltip-dot' style='background:${color}'></span>
+              <span class='nb-pie-tooltip-label'>${label}</span>
+              <strong class='nb-pie-tooltip-value'>${value}</strong>
+              <span class='nb-pie-tooltip-pct'>${pct}</span>
+            </div>
+          `;
+          tooltip.classList.add("is-visible");
+        };
+        slice.addEventListener("pointerenter", showTip);
+        slice.addEventListener("pointermove", showTip);
+        slice.addEventListener("pointerleave", hideTooltip);
+      });
+    }
   }
 
+  const year = Number(cgdState.selectedYear) || new Date().getFullYear();
   const isCgdPage = TABLE_PREFIX === "cgd";
-  const receitasSlices = isCgdPage ? buildReceitasSlices() : mockDespesas;
-  buildPie(receitasHost, "Receitas", receitasSlices);
-  buildPie(despesasHost, "Despesas", mockDespesas);
+  const receitasSlices = isCgdPage ? buildReceitasSlices() : [];
+  buildPie(receitasHost, `Total receitas ${year}`, receitasSlices);
+  buildPie(despesasHost, `Total despesas ${year}`, mockDespesas);
 }
 
 function calculateAccumulatedSavingsToDecember(rubrics, year) {

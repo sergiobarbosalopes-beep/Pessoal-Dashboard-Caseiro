@@ -951,14 +951,6 @@ body:not(.coverflex-theme) .temporal-nav-card {
   filter: drop-shadow(0 0 6px rgba(0, 200, 100, 0.3));
 }
 
-.nb-pie-svg path {
-  transition: opacity 180ms ease;
-}
-
-.nb-pie-svg path:hover {
-  opacity: 0.75;
-}
-
 .nb-pie-center-label {
   position: absolute;
   inset: 0;
@@ -981,12 +973,16 @@ body:not(.coverflex-theme) .temporal-nav-card {
   color: rgba(180, 240, 210, 0.7);
 }
 
+.nb-pie-body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .nb-pie-legend {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 6px;
+  flex-direction: column;
+  gap: 5px;
 }
 
 .nb-pie-legend-item {
@@ -1002,6 +998,72 @@ body:not(.coverflex-theme) .temporal-nav-card {
   height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+/* Pie slice hover effect */
+.nb-pie-slice {
+  transition: opacity 160ms ease, filter 160ms ease;
+  cursor: pointer;
+}
+
+.nb-pie-slice:hover {
+  opacity: 0.82;
+  filter: brightness(1.25) drop-shadow(0 0 4px rgba(255, 255, 255, 0.3));
+}
+
+/* Pie tooltip */
+.nb-pie-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  transform: translateX(-50%) translateY(100%);
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+  min-width: 140px;
+  max-width: 240px;
+  border: 1px solid rgba(176, 210, 226, 0.34);
+  border-radius: 10px;
+  background: rgba(8, 20, 28, 0.96);
+  color: #d8e8f2;
+  padding: 8px 10px;
+  box-shadow: 0 10px 24px rgba(5, 12, 17, 0.4);
+  white-space: nowrap;
+}
+
+.nb-pie-tooltip.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(100%) translateY(4px);
+}
+
+.nb-pie-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nb-pie-tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.nb-pie-tooltip-label {
+  font-size: 0.72rem;
+  color: #cddfea;
+}
+
+.nb-pie-tooltip-value {
+  font-size: 0.74rem;
+  color: #f0f8fc;
+  margin-left: auto;
+}
+
+.nb-pie-tooltip-pct {
+  font-size: 0.65rem;
+  color: #9fc1d2;
 }
 
 .cgd-top-tiles {
