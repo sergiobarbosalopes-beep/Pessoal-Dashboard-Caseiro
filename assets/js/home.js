@@ -241,7 +241,7 @@ function escapeHtml(str) {
       const sign = pct >= 0 ? "+" : "";
       const color = pct >= 0 ? "var(--color-success, #00dc6e)" : "var(--color-danger, #ff6b6b)";
       tileVarianceEl.style.color = color;
-      tileVarianceEl.textContent = `${sign}${pct.toFixed(1)}% vs Janeiro ${year}`;
+      tileVarianceEl.innerHTML = `${sign}${pct.toFixed(1)}% vs Janeiro ${year}<br><span style="color:rgba(168,197,212,0.86);font-size:0.65rem">Jan ${year}: ${money(saldoDisponivelJan)}</span>`;
     }
   }
 
@@ -261,7 +261,7 @@ function escapeHtml(str) {
       const sign = pct >= 0 ? "+" : "";
       const color = pct >= 0 ? "var(--color-success, #00dc6e)" : "var(--color-danger, #ff6b6b)";
       varEl.style.color = color;
-      varEl.textContent = `${sign}${pct.toFixed(1)}% vs Janeiro ${year}`;
+      varEl.innerHTML = `${sign}${pct.toFixed(1)}% vs Janeiro ${year}<br><span style="color:rgba(168,197,212,0.86);font-size:0.65rem">Jan ${year}: ${money(valueJan)}</span>`;
     }
   }
 
