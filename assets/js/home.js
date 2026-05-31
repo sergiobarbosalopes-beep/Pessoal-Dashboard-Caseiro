@@ -34,35 +34,56 @@ function escapeHtml(str) {
     } catch { return []; }
   };
 
-  // Fetch CGD savings rubrics + expenses to compute accumulated savings
+  // Fetch CGD savings rubrics + expenses to compute accumulated savings (total, IRS, Audi)
   const fetchCgdSavings = async () => {
+    const empty = { total: Array.from({ length: 12 }, () => 0), irs: Array.from({ length: 12 }, () => 0), audi: Array.from({ length: 12 }, () => 0) };
     try {
       const [rubRes, despRes] = await Promise.all([
-        sb.from("cgd_rubrica").select("rubrica_id,mes,rubrica_tipo").eq("ano", year).in("rubrica_tipo", ["Aprovisionamento"]),
+        sb.from("cgd_rubrica").select("rubrica_id,mes,rubrica_tipo,rubrica_desc").eq("ano", year).in("rubrica_tipo", ["Aprovisionamento"]),
         sb.from("cgd_despesa").select("rubrica_id,mes,valor,valor_estimado,zerado").eq("ano", year)
       ]);
       const rubrics = Array.isArray(rubRes.data) ? rubRes.data : [];
       const expenses = Array.isArray(despRes.data) ? despRes.data : [];
-      const savingsRubricIds = new Set(rubrics.map(r => r.rubrica_id));
-      const monthlyTotals = Array.from({ length: 12 }, () => 0);
+
+      // Build sets for IRS and Audi rubric IDs
+      const allSavingsIds = new Set();
+      const irsIds = new Set();
+      const audiIds = new Set();
+      for (const r of rubrics) {
+        allSavingsIds.add(r.rubrica_id);
+        const name = (r.rubrica_desc || "").toLowerCase();
+        if (name.includes("irs")) irsIds.add(r.rubrica_id);
+        if (name.includes("audi")) audiIds.add(r.rubrica_id);
+      }
+
+      const totalMonthly = Array.from({ length: 12 }, () => 0);
+      const irsMonthly = Array.from({ length: 12 }, () => 0);
+      const audiMonthly = Array.from({ length: 12 }, () => 0);
+
       for (const exp of expenses) {
-        if (!savingsRubricIds.has(exp.rubrica_id)) continue;
+        if (!allSavingsIds.has(exp.rubrica_id)) continue;
         const monthIdx = Number(exp.mes) - 1;
         if (monthIdx < 0 || monthIdx > 11) continue;
         if (exp.zerado === true || exp.zerado === "true") continue;
         const val = Number(exp.valor) || Number(exp.valor_estimado) || 0;
-        monthlyTotals[monthIdx] += val;
+        totalMonthly[monthIdx] += val;
+        if (irsIds.has(exp.rubrica_id)) irsMonthly[monthIdx] += val;
+        if (audiIds.has(exp.rubrica_id)) audiMonthly[monthIdx] += val;
       }
-      return monthlyTotals;
-    } catch { return Array.from({ length: 12 }, () => 0); }
+      return { total: totalMonthly, irs: irsMonthly, audi: audiMonthly };
+    } catch { return empty; }
   };
 
-  const [cgdReals, nbReals, coverflexReals, cgdSavingsMonthly] = await Promise.all([
+  const [cgdReals, nbReals, coverflexReals, cgdSavingsData] = await Promise.all([
     fetchReal("cgd_real"),
     fetchReal("nb_real"),
     fetchReal("coverflex_real"),
     fetchCgdSavings()
   ]);
+
+  const cgdSavingsMonthly = cgdSavingsData.total;
+  const irsSavingsMonthly = cgdSavingsData.irs;
+  const audiSavingsMonthly = cgdSavingsData.audi;
 
   const getRealForMonth = (reals, monthIndex) => {
     const row = reals.find(r => Number(r.mes) === monthIndex + 1);
@@ -90,6 +111,16 @@ function escapeHtml(str) {
   // Savings accumulated at January = 0 (nothing before month 0)
   const cgdDisponivelJan = cgdRealJan;
   const saldoDisponivelJan = cgdDisponivelJan + nbRealJan + coverflexRealJan;
+
+  // IRS accumulated savings (sum months 0 to N-1)
+  let irsAccumulated = 0;
+  for (let i = 0; i < currentMonth; i++) irsAccumulated += irsSavingsMonthly[i];
+  let irsAccumulatedJan = 0; // January = 0
+
+  // Audi accumulated savings (sum months 0 to N-1)
+  let audiAccumulated = 0;
+  for (let i = 0; i < currentMonth; i++) audiAccumulated += audiSavingsMonthly[i];
+  let audiAccumulatedJan = 0; // January = 0
 
   // Build pie chart
   const PIE_COLORS = ["#00dc6e", "#2f9ad4", "#f2c46a"];
@@ -207,4 +238,27 @@ function escapeHtml(str) {
       tileVarianceEl.textContent = `${sign}${pct.toFixed(1)}% vs Janeiro ${year}`;
     }
   }
+
+  // Helper to render a savings tile with variance
+  function renderSavingsTile(prefix, value, valueJan) {
+    const el = document.getElementById(`home-tile-${prefix}`);
+    const valEl = document.getElementById(`home-tile-${prefix}-value`);
+    const titleEl = document.getElementById(`home-tile-${prefix}-title`);
+    const varEl = document.getElementById(`home-tile-${prefix}-variance`);
+    if (!el || !valEl) return;
+    el.style.display = "";
+    const label = prefix === "irs" ? "Saldo IRS" : "Saldo Audi";
+    if (titleEl) titleEl.textContent = `${label} ${MONTHS_PT[currentMonth]} ${year}`;
+    valEl.textContent = money(value);
+    if (varEl && valueJan !== 0) {
+      const pct = ((value - valueJan) / Math.abs(valueJan)) * 100;
+      const sign = pct >= 0 ? "+" : "";
+      const color = pct >= 0 ? "var(--color-success, #00dc6e)" : "var(--color-danger, #ff6b6b)";
+      varEl.style.color = color;
+      varEl.textContent = `${sign}${pct.toFixed(1)}% vs Janeiro ${year}`;
+    }
+  }
+
+  renderSavingsTile("irs", irsAccumulated, irsAccumulatedJan);
+  renderSavingsTile("audi", audiAccumulated, audiAccumulatedJan);
 })();
