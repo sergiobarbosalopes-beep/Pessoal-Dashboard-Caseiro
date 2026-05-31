@@ -1862,10 +1862,10 @@ function renderCgdTopTiles() {
     const estimatedIrsTotals = computeEstimatedIrsMonthlyTotals(outcomeRubrics);
     const estimatedIrsYearTotal = estimatedIrsTotals.reduce((acc, value) => acc + (Number(value) || 0), 0);
 
-    // Variance vs January of selected year (CGD only)
-    const isCgdProjection = TABLE_PREFIX === "cgd";
+    // Variance vs January of selected year (CGD and NB)
+    const showProjectionVariance = TABLE_PREFIX === "cgd" || TABLE_PREFIX === "nb";
     let realVariance = "", availableVariance = "", irsVariance = "", audiVariance = "";
-    if (isCgdProjection) {
+    if (showProjectionVariance) {
       const currentYearRealSeries = computeRealSeriesForYear(year, cgdState.realComputationContexts);
       const currentYearSavingsSeries = computeSavingsSeriesForYear(year, cgdState.realComputationContexts);
       const realJanuaryCurrent = Number(currentYearRealSeries?.values?.[0]) || 0;
