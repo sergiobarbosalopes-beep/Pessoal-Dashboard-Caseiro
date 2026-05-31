@@ -240,8 +240,11 @@ function escapeHtml(str) {
       const pct = ((saldoDisponivel - saldoDisponivelJan) / Math.abs(saldoDisponivelJan)) * 100;
       const sign = pct >= 0 ? "+" : "";
       const color = pct >= 0 ? "var(--color-success, #00dc6e)" : "var(--color-danger, #ff6b6b)";
+      const icon = pct >= 0
+        ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;filter:drop-shadow(0 0 3px ${color})"><path d="M12 4l7 7h-4.5v9h-5v-9H5l7-7z" fill="${color}"/></svg>`
+        : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;filter:drop-shadow(0 0 3px ${color})"><path d="M12 20l-7-7h4.5V4h5v9H19l-7 7z" fill="${color}"/></svg>`;
       tileVarianceEl.style.color = color;
-      tileVarianceEl.innerHTML = `${sign}${pct.toFixed(1)}% vs Janeiro ${year}<br><span style="color:rgba(168,197,212,0.86);font-size:0.65rem">Jan ${year}: ${money(saldoDisponivelJan)}</span>`;
+      tileVarianceEl.innerHTML = `${icon} ${sign}${pct.toFixed(1)}% vs Janeiro ${year}<br><span style="color:rgba(168,197,212,0.86);font-size:0.65rem">Jan ${year}: ${money(saldoDisponivelJan)}</span>`;
     }
   }
 
@@ -260,8 +263,11 @@ function escapeHtml(str) {
       const pct = ((value - valueJan) / Math.abs(valueJan)) * 100;
       const sign = pct >= 0 ? "+" : "";
       const color = pct >= 0 ? "var(--color-success, #00dc6e)" : "var(--color-danger, #ff6b6b)";
+      const icon = pct >= 0
+        ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;filter:drop-shadow(0 0 3px ${color})"><path d="M12 4l7 7h-4.5v9h-5v-9H5l7-7z" fill="${color}"/></svg>`
+        : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;filter:drop-shadow(0 0 3px ${color})"><path d="M12 20l-7-7h4.5V4h5v9H19l-7 7z" fill="${color}"/></svg>`;
       varEl.style.color = color;
-      varEl.innerHTML = `${sign}${pct.toFixed(1)}% vs Janeiro ${year}<br><span style="color:rgba(168,197,212,0.86);font-size:0.65rem">Jan ${year}: ${money(valueJan)}</span>`;
+      varEl.innerHTML = `${icon} ${sign}${pct.toFixed(1)}% vs Janeiro ${year}<br><span style="color:rgba(168,197,212,0.86);font-size:0.65rem">Jan ${year}: ${money(valueJan)}</span>`;
     }
   }
 
