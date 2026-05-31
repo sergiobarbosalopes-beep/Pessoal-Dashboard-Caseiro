@@ -1595,10 +1595,10 @@ function renderNbPieCharts() {
             <span class='nb-pie-center-value'>${money(total)}</span>
             <span class='nb-pie-center-sub'>EUR</span>
           </div>
-          <div class='nb-pie-tooltip' aria-hidden='true'></div>
         </div>
         <div class='nb-pie-legend'>${legend}</div>
       </div>
+      <div class='nb-pie-tooltip' aria-hidden='true'></div>
     `;
 
     // Tooltip hover
@@ -1606,7 +1606,7 @@ function renderNbPieCharts() {
     const tooltip = host.querySelector(".nb-pie-tooltip");
     if (wrap && tooltip) {
       const hideTooltip = () => tooltip.classList.remove("is-visible");
-      wrap.addEventListener("pointerleave", hideTooltip);
+      host.addEventListener("pointerleave", hideTooltip);
       wrap.querySelectorAll(".nb-pie-slice").forEach((slice) => {
         const showTip = (e) => {
           const label = slice.getAttribute("data-pie-label");
@@ -1618,7 +1618,7 @@ function renderNbPieCharts() {
               <span class='nb-pie-tooltip-dot' style='background:${color}'></span>
               <span class='nb-pie-tooltip-label'>${label}</span>
               <strong class='nb-pie-tooltip-value'>${value}</strong>
-              <span class='nb-pie-tooltip-pct'>${pct}</span>
+              <span class='nb-pie-tooltip-pct'>(${pct})</span>
             </div>
           `;
           tooltip.classList.add("is-visible");

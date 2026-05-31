@@ -893,7 +893,7 @@ body:not(.coverflex-theme) .temporal-nav-card {
     0 8px 18px rgba(0, 5, 3, 0.3);
   padding: 12px;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .nb-pie-card::before {
@@ -1015,14 +1015,14 @@ body:not(.coverflex-theme) .temporal-nav-card {
 .nb-pie-tooltip {
   position: absolute;
   left: 50%;
-  bottom: -8px;
-  transform: translateX(-50%) translateY(100%);
-  z-index: 10;
+  top: 0;
+  transform: translateX(-50%) translateY(-110%);
+  z-index: 20;
   opacity: 0;
   pointer-events: none;
   transition: opacity 120ms ease, transform 120ms ease;
-  min-width: 140px;
-  max-width: 240px;
+  min-width: 150px;
+  max-width: 260px;
   border: 1px solid rgba(176, 210, 226, 0.34);
   border-radius: 10px;
   background: rgba(8, 20, 28, 0.96);
@@ -1034,7 +1034,7 @@ body:not(.coverflex-theme) .temporal-nav-card {
 
 .nb-pie-tooltip.is-visible {
   opacity: 1;
-  transform: translateX(-50%) translateY(100%) translateY(4px);
+  transform: translateX(-50%) translateY(-105%);
 }
 
 .nb-pie-tooltip-row {
