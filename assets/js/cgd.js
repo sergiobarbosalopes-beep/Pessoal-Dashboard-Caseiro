@@ -2042,6 +2042,8 @@ function renderExpenseRows(expenses, rubricName, kind) {
               <button type='button' role='menuitem' data-expense-menu-action='up'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 18V6M12 6L7 11M12 6L17 11' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para cima</span></button>
               <button type='button' role='menuitem' data-expense-menu-action='down'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 6V18M12 18L7 13M12 18L17 13' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para baixo</span></button>
               <div class='menu-separator' role='separator' aria-hidden='true'></div>
+              <button type='button' role='menuitem' data-expense-menu-action='rename-expense'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Renomear ${entryLabel}</span></button>
+              <div class='menu-separator' role='separator' aria-hidden='true'></div>
               <button type='button' role='menuitem' data-expense-menu-action='delete-expense'><span class='menu-icon danger' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M8 8L16 16M16 8L8 16' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Eliminar ${entryLabel}</span></button>
             </div>
           </div>
@@ -2078,6 +2080,7 @@ function renderRubrics(rubrics, kind) {
                 <button type='button' role='menuitem' data-rubric-menu-action='down'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 6V18M12 18L7 13M12 18L17 13' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para baixo</span></button>
                 <div class='menu-separator' role='separator' aria-hidden='true'></div>
                 <button type='button' role='menuitem' data-rubric-menu-action='create-expense'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 5V19M5 12H19' stroke='currentColor' stroke-width='2.2' stroke-linecap='round'/></svg></span><span>Criar ${createLabel}</span></button>
+                <button type='button' role='menuitem' data-rubric-menu-action='rename-rubric'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Renomear rubrica</span></button>
                 <div class='menu-separator' role='separator' aria-hidden='true'></div>
                 <button type='button' role='menuitem' data-rubric-menu-action='delete-rubric'><span class='menu-icon danger' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M8 8L16 16M16 8L8 16' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Eliminar rubrica</span></button>
               </div>
@@ -4611,7 +4614,7 @@ function requestEntityDescription(options) {
   }
 
   return new Promise((resolve) => {
-    input.value = "";
+    input.value = options?.defaultValue || "";
     if (title) {
       title.textContent = options?.title || "Adicionar";
     }
@@ -4927,6 +4930,69 @@ window.cgdDeleteRubric = async (rubricaId) => {
     return true;
   } catch (error) {
     console.error("Erro ao eliminar rubrica:", error);
+    return false;
+  }
+};
+
+window.cgdRenameRubric = async (rubricaId) => {
+  const allRubrics = [...(cgdState.data.income || []), ...(cgdState.data.savings || []), ...(cgdState.data.outcome || [])];
+  const rubric = allRubrics.find((item) => Number(item.id) === Number(rubricaId));
+  if (!rubric) return false;
+
+  const newName = await requestEntityDescription({
+    title: "Renomear rubrica",
+    subtitle: "Indica o novo nome para a rubrica.",
+    label: "Nome da rubrica",
+    promptText: "Novo nome da rubrica",
+    defaultValue: rubric.name || ""
+  });
+
+  if (!newName || newName === rubric.name) return false;
+
+  try {
+    const { error } = await supabaseClient
+      .from(RUBRIC_TABLE)
+      .update({ rubrica_desc: newName.trim() })
+      .eq("rubrica_id", Number(rubricaId));
+    if (error) throw error;
+    await loadYearData(cgdState.selectedYear);
+    return true;
+  } catch (error) {
+    console.error("Erro ao renomear rubrica:", error);
+    return false;
+  }
+};
+
+window.cgdRenameExpense = async (rubricaId, despesaId) => {
+  const found = findExpenseRecord(rubricaId, despesaId);
+  if (!found) return false;
+
+  const entryLabel = cgdState.data.income.some((r) => Number(r.id) === Number(rubricaId))
+    ? "receita"
+    : cgdState.data.savings.some((r) => Number(r.id) === Number(rubricaId))
+      ? "poupanca"
+      : "despesa";
+
+  const newName = await requestEntityDescription({
+    title: `Renomear ${entryLabel}`,
+    subtitle: `Indica o novo nome para a ${entryLabel}.`,
+    label: `Nome da ${entryLabel}`,
+    promptText: `Novo nome da ${entryLabel}`,
+    defaultValue: found.expense.name || ""
+  });
+
+  if (!newName || newName === found.expense.name) return false;
+
+  try {
+    const { error } = await supabaseClient
+      .from(EXPENSE_TABLE)
+      .update({ despesa_desc: newName.trim() })
+      .eq("despesa_id", Number(despesaId));
+    if (error) throw error;
+    await loadYearData(cgdState.selectedYear);
+    return true;
+  } catch (error) {
+    console.error(`Erro ao renomear ${entryLabel}:`, error);
     return false;
   }
 };

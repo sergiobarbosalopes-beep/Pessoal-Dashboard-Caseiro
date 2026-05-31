@@ -821,6 +821,17 @@ function initDelegatedActions() {
         return;
       }
 
+      if (action === "rename-rubric") {
+        const rubricId = Number(row?.getAttribute("data-rubrica-id"));
+        if (Number.isFinite(rubricId) && window.cgdRenameRubric) {
+          window.cgdRenameRubric(rubricId).catch((error) => {
+            console.error("Erro a renomear rubrica:", error);
+          });
+        }
+        closeAllMenus();
+        return;
+      }
+
       const hasRemoteHandler = typeof window.cgdHandleRubricReorder === "function";
       if (hasRemoteHandler) {
         window.cgdHandleRubricReorder(row, action).catch((error) => {
@@ -848,6 +859,18 @@ function initDelegatedActions() {
         if (Number.isFinite(rubricId) && Number.isFinite(despesaId) && window.cgdDeleteExpense) {
           window.cgdDeleteExpense(rubricId, despesaId).catch((error) => {
             console.error("Erro a eliminar despesa:", error);
+          });
+        }
+        closeAllMenus();
+        return;
+      }
+
+      if (action === "rename-expense") {
+        const rubricId = Number(row?.getAttribute("data-rubrica-id"));
+        const despesaId = Number(row?.getAttribute("data-expense-id"));
+        if (Number.isFinite(rubricId) && Number.isFinite(despesaId) && window.cgdRenameExpense) {
+          window.cgdRenameExpense(rubricId, despesaId).catch((error) => {
+            console.error("Erro a renomear despesa:", error);
           });
         }
         closeAllMenus();
