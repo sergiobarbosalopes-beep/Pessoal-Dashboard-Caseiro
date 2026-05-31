@@ -1596,9 +1596,28 @@ function renderNbPieCharts() {
         aggregated[key] = aggregated[key] || { label: rubricName, value: 0 };
         aggregated[key].value += rubricTotal;
       } else {
-        // CGD / others: aggregate by expense name
+        // CGD / others: aggregate by expense name, except specific rubrics that collapse into one entry
+        const rubricName = (rubric?.name || "").trim();
+        const collapseAsRubric = rubricNameMatchesAny(rubricName, ["credito habitacao", "credito habitação", "crédito habitação", "crédito habitacao"]);
         const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
-        if (expenses.length) {
+        if (collapseAsRubric) {
+          // Aggregate all expenses under the rubric name
+          let rubricTotal = 0;
+          if (expenses.length) {
+            for (const expense of expenses) {
+              rubricTotal += (Array.isArray(expense?.values) ? expense.values : [])
+                .slice(0, 12)
+                .reduce((sum, v) => sum + (Number(v) || 0), 0);
+            }
+          } else {
+            rubricTotal = (Array.isArray(rubric?.values) ? rubric.values : [])
+              .slice(0, 12)
+              .reduce((sum, v) => sum + (Number(v) || 0), 0);
+          }
+          const key = rubricName.toLowerCase();
+          aggregated[key] = aggregated[key] || { label: rubricName, value: 0 };
+          aggregated[key].value += rubricTotal;
+        } else if (expenses.length) {
           for (const expense of expenses) {
             const name = (expense?.name || "").trim();
             if (!name) continue;
