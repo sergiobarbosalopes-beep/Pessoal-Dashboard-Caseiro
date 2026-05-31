@@ -1743,7 +1743,9 @@ function renderCgdTopTiles() {
   const sergioName = peopleRows[0] || "Sergio";
   const carinaName = peopleRows[1] || "Carina";
 
-  const savingsAverage = averageOfSeries(sumRubricsValuesByMonth(savingsRubrics));
+  const savingsFilteredRubrics = savingsRubrics.filter((rubric) => !rubricNameMatchesAny(rubric?.name, ["movimentos"]));
+  const savingsAverage = averageOfSeries(sumRubricsValuesByMonth(TABLE_PREFIX === "cgd" ? savingsFilteredRubrics : savingsRubrics));
+  const savingsAverageSubtitle = TABLE_PREFIX === "cgd" ? "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos</span>" : "";
 
   const outcomeExcludeTerms = TABLE_PREFIX === "cgd" ? ["movimentos"] : ["movimentos", "impostos"];
   const outcomeFilteredRubrics = outcomeRubrics.filter(
@@ -1774,6 +1776,7 @@ function renderCgdTopTiles() {
       <article class='stat-tile stat-tile--blue'>
         <h4>Media de poupancas</h4>
         <p>${formatTileMoney(savingsAverage)}</p>
+        ${savingsAverageSubtitle}
       </article>`}
       <article class='stat-tile stat-tile--danger'>
         <h4>Media de despesas</h4>
