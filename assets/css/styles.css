@@ -864,54 +864,17 @@ body:not(.coverflex-theme) .temporal-nav-card {
     0 14px 28px rgba(0, 5, 3, 0.46);
 }
 
-/* ─── Charts + Pie row ─── */
+/* ─── Resumo Pie Charts ─── */
 
-.charts-with-pies {
+.resumo-pies {
   display: flex;
-  gap: 12px;
-  align-items: stretch;
+  gap: 14px;
+  margin-top: 14px;
 }
 
-.charts-with-pies__map {
-  flex: 1 1 0%;
-  min-width: 0;
-}
-
-.charts-with-pies__side {
-  width: 220px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.charts-with-pies__side .nb-pie-card {
+.resumo-pies .nb-pie-card {
   flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.charts-with-pies__side .nb-pie-card .nb-pie-svg-wrap {
-  flex: 1 1 0%;
-  min-height: 0;
-  aspect-ratio: unset;
-  max-width: 140px;
-}
-
-.charts-with-pies__side .nb-pie-card .nb-pie-svg {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.charts-with-pies__side .nb-pie-legend {
-  gap: 4px;
-  margin-top: 4px;
-}
-
-.charts-with-pies__side .nb-pie-title {
-  margin-bottom: 2px;
-  font-size: 0.72rem;
+  min-width: 0;
 }
 
 /* ─── Pie Charts ─── */
