@@ -882,15 +882,15 @@ body:not(.coverflex-theme) .temporal-nav-card {
 .resumo-pies .stat-tile {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  text-align: center;
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
   padding: 14px 12px;
 }
 
 .home-tile-header {
   width: 100%;
-  text-align: center;
+  text-align: left;
 }
 
 .home-tile-header h4 {
@@ -915,10 +915,13 @@ body:not(.coverflex-theme) .temporal-nav-card {
 .home-tile-footer {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   gap: 2px;
   font-size: 0.7rem;
   font-weight: 600;
+  width: 100%;
+  text-align: right;
+  margin-top: auto;
 }
 
 .home-tile-jan {
