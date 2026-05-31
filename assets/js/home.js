@@ -37,7 +37,7 @@ function escapeHtml(str) {
   // Fetch CGD savings rubrics + expenses to compute accumulated savings (total, IRS, Audi)
   // IRS and Audi accumulate across all years, so we query without year filter for those
   const fetchCgdSavings = async () => {
-    const empty = { totalAccumulated: 0, totalAccumulatedJan: 0, irsAccumulated: 0, audiAccumulated: 0, irsAccumulatedJan: 0, audiAccumulatedJan: 0 };
+    const empty = { totalAccumulated: 0, totalAccumulatedJan: 0, totalAccumulatedPrev: 0, irsAccumulated: 0, audiAccumulated: 0, irsAccumulatedJan: 0, audiAccumulatedJan: 0, irsAccumulatedPrev: 0, audiAccumulatedPrev: 0 };
     try {
       const [rubRes, despRes] = await Promise.all([
         sb.from("cgd_rubrica").select("rubrica_id,ano,mes,rubrica_tipo,rubrica_desc").in("rubrica_tipo", ["Aprovisionamento"]),
@@ -57,13 +57,20 @@ function escapeHtml(str) {
         if (name.includes("audi")) audiIds.add(r.rubrica_id);
       }
 
+      // Previous month reference
+      const prevMonth = currentMonth > 0 ? currentMonth - 1 : 11;
+      const prevYear = currentMonth > 0 ? year : year - 1;
+
       // Accumulate ALL savings before target months (cross-year)
       let totalAccumulated = 0;
       let totalAccumulatedJan = 0;
+      let totalAccumulatedPrev = 0;
       let irsAccumulated = 0;
       let audiAccumulated = 0;
       let irsAccumulatedJan = 0;
       let audiAccumulatedJan = 0;
+      let irsAccumulatedPrev = 0;
+      let audiAccumulatedPrev = 0;
 
       for (const exp of expenses) {
         if (!allSavingsIds.has(exp.rubrica_id)) continue;
@@ -75,20 +82,24 @@ function escapeHtml(str) {
         // Sum everything BEFORE the target month (cross-year)
         const isBeforeCurrentMonth = expYear < year || (expYear === year && expMonth < currentMonth);
         const isBeforeJanuary = expYear < year;
+        const isBeforePrevMonth = expYear < prevYear || (expYear === prevYear && expMonth < prevMonth);
 
         if (isBeforeCurrentMonth) totalAccumulated += val;
         if (isBeforeJanuary) totalAccumulatedJan += val;
+        if (isBeforePrevMonth) totalAccumulatedPrev += val;
 
         if (irsIds.has(exp.rubrica_id)) {
           if (isBeforeCurrentMonth) irsAccumulated += val;
           if (isBeforeJanuary) irsAccumulatedJan += val;
+          if (isBeforePrevMonth) irsAccumulatedPrev += val;
         }
         if (audiIds.has(exp.rubrica_id)) {
           if (isBeforeCurrentMonth) audiAccumulated += val;
           if (isBeforeJanuary) audiAccumulatedJan += val;
+          if (isBeforePrevMonth) audiAccumulatedPrev += val;
         }
       }
-      return { totalAccumulated, totalAccumulatedJan, irsAccumulated, audiAccumulated, irsAccumulatedJan, audiAccumulatedJan };
+      return { totalAccumulated, totalAccumulatedJan, totalAccumulatedPrev, irsAccumulated, audiAccumulated, irsAccumulatedJan, audiAccumulatedJan, irsAccumulatedPrev, audiAccumulatedPrev };
     } catch { return empty; }
   };
 
@@ -127,6 +138,18 @@ function escapeHtml(str) {
   const irsAccumulatedJan = cgdSavingsData.irsAccumulatedJan;
   const audiAccumulated = cgdSavingsData.audiAccumulated;
   const audiAccumulatedJan = cgdSavingsData.audiAccumulatedJan;
+
+  // Previous month values
+  const prevMonthIdx = currentMonth > 0 ? currentMonth - 1 : 11;
+  const prevMonthName = MONTHS_PT[prevMonthIdx];
+  const cgdRealPrev = getRealForMonth(cgdReals, prevMonthIdx);
+  const nbRealPrev = getRealForMonth(nbReals, prevMonthIdx);
+  const coverflexRealPrev = getRealForMonth(coverflexReals, prevMonthIdx);
+  const cgdAccumulatedSavingsPrev = cgdSavingsData.totalAccumulatedPrev;
+  const cgdDisponivelPrev = cgdRealPrev - cgdAccumulatedSavingsPrev;
+  const saldoDisponivelPrev = cgdDisponivelPrev + nbRealPrev + coverflexRealPrev;
+  const irsAccumulatedPrev = cgdSavingsData.irsAccumulatedPrev;
+  const audiAccumulatedPrev = cgdSavingsData.audiAccumulatedPrev;
 
   // Build pie chart
   const PIE_COLORS = ["#00dc6e", "#2f9ad4", "#f2c46a"];
@@ -232,14 +255,20 @@ function escapeHtml(str) {
       const pct = ((saldoDisponivel - saldoDisponivelJan) / Math.abs(saldoDisponivelJan)) * 100;
       const sign = pct >= 0 ? "+" : "";
       const color = pct >= 0 ? "#00dc6e" : "#ff6b6b";
-      const iconSvg = pct >= 0
-        ? `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 0 5px ${color})"><path d="M12 4l7 7h-4.5v9h-5v-9H5l7-7z" fill="${color}"/></svg>`
-        : `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 0 5px ${color})"><path d="M12 20l-7-7h4.5V4h5v9H19l-7 7z" fill="${color}"/></svg>`;
-      varianceHtml = `
-        <div class="home-tile-icon">${iconSvg}</div>
+      varianceHtml += `
         <div class="home-tile-footer" style="color:${color}">
           <span>${sign}${pct.toFixed(1)}% vs Janeiro ${year}</span>
           <span class="home-tile-jan">Jan ${year}: ${money(saldoDisponivelJan)}</span>
+        </div>`;
+    }
+    if (saldoDisponivelPrev) {
+      const pctPrev = ((saldoDisponivel - saldoDisponivelPrev) / Math.abs(saldoDisponivelPrev)) * 100;
+      const signPrev = pctPrev >= 0 ? "+" : "";
+      const colorPrev = pctPrev >= 0 ? "#00dc6e" : "#ff6b6b";
+      varianceHtml += `
+        <div class="home-tile-footer" style="color:${colorPrev}">
+          <span>${signPrev}${pctPrev.toFixed(1)}% vs ${prevMonthName} ${year}</span>
+          <span class="home-tile-jan">${prevMonthName} ${year}: ${money(saldoDisponivelPrev)}</span>
         </div>`;
     }
     tileEl.innerHTML = `
@@ -252,7 +281,7 @@ function escapeHtml(str) {
   }
 
   // Helper to render a savings tile with variance
-  function renderSavingsTile(prefix, value, valueJan) {
+  function renderSavingsTile(prefix, value, valueJan, valuePrev) {
     const el = document.getElementById(`home-tile-${prefix}`);
     if (!el) return;
     el.style.display = "";
@@ -262,14 +291,20 @@ function escapeHtml(str) {
       const pct = ((value - valueJan) / Math.abs(valueJan)) * 100;
       const sign = pct >= 0 ? "+" : "";
       const color = pct >= 0 ? "#00dc6e" : "#ff6b6b";
-      const iconSvg = pct >= 0
-        ? `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 0 5px ${color})"><path d="M12 4l7 7h-4.5v9h-5v-9H5l7-7z" fill="${color}"/></svg>`
-        : `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 0 5px ${color})"><path d="M12 20l-7-7h4.5V4h5v9H19l-7 7z" fill="${color}"/></svg>`;
-      varianceHtml = `
-        <div class="home-tile-icon">${iconSvg}</div>
+      varianceHtml += `
         <div class="home-tile-footer" style="color:${color}">
           <span>${sign}${pct.toFixed(1)}% vs Janeiro ${year}</span>
           <span class="home-tile-jan">Jan ${year}: ${money(valueJan)}</span>
+        </div>`;
+    }
+    if (valuePrev !== 0) {
+      const pctPrev = ((value - valuePrev) / Math.abs(valuePrev)) * 100;
+      const signPrev = pctPrev >= 0 ? "+" : "";
+      const colorPrev = pctPrev >= 0 ? "#00dc6e" : "#ff6b6b";
+      varianceHtml += `
+        <div class="home-tile-footer" style="color:${colorPrev}">
+          <span>${signPrev}${pctPrev.toFixed(1)}% vs ${prevMonthName} ${year}</span>
+          <span class="home-tile-jan">${prevMonthName} ${year}: ${money(valuePrev)}</span>
         </div>`;
     }
     el.innerHTML = `
@@ -281,6 +316,6 @@ function escapeHtml(str) {
     `;
   }
 
-  renderSavingsTile("irs", irsAccumulated, irsAccumulatedJan);
-  renderSavingsTile("audi", audiAccumulated, audiAccumulatedJan);
+  renderSavingsTile("irs", irsAccumulated, irsAccumulatedJan, irsAccumulatedPrev);
+  renderSavingsTile("audi", audiAccumulated, audiAccumulatedJan, audiAccumulatedPrev);
 })();

@@ -912,11 +912,6 @@ body:not(.coverflex-theme) .temporal-nav-card {
   background-clip: text;
 }
 
-.home-tile-icon {
-  margin: 10px 0;
-  line-height: 1;
-}
-
 .home-tile-footer {
   display: flex;
   flex-direction: column;
