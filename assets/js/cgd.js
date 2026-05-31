@@ -1599,9 +1599,10 @@ function calculateAccumulatedSavingsForMonth(rubrics, year, monthIndex) {
 }
 
 function renderCgdTopTiles() {
+  const totalsHost = document.getElementById("cgd-top-tiles-totals");
   const averagesHost = document.getElementById("cgd-top-tiles-averages");
   const projectionHost = document.getElementById("cgd-top-tiles-projection");
-  if (!averagesHost && !projectionHost) {
+  if (!totalsHost && !averagesHost && !projectionHost) {
     return;
   }
 
@@ -1640,8 +1641,8 @@ function renderCgdTopTiles() {
   const incomeTotalSubtitle = IS_COVERFLEX ? "" : "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos</span>";
   const outcomeTotalSubtitle = IS_COVERFLEX ? "" : "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos e impostos</span>";
 
-  if (averagesHost) {
-    averagesHost.innerHTML = `
+  if (totalsHost) {
+    totalsHost.innerHTML = `
       <article class='stat-tile stat-tile--green'>
         <h4>Total receitas ${year}</h4>
         <p>${formatTileMoney(incomeTotalYear)}</p>
@@ -1652,6 +1653,11 @@ function renderCgdTopTiles() {
         <p>${formatTileMoney(outcomeTotalYear)}</p>
         ${outcomeTotalSubtitle}
       </article>
+    `;
+  }
+
+  if (averagesHost) {
+    averagesHost.innerHTML = `
       <article class='stat-tile stat-tile--green'>
         <h4>Media de receitas</h4>
         <p>${formatTileMoney(incomeAverage)}</p>
@@ -4130,7 +4136,7 @@ async function loadYearData(year) {
       renderCgdTopTiles();
     } catch (topTilesError) {
       console.error("Erro a renderizar tiles de topo CGD:", topTilesError);
-      ["cgd-top-tiles-averages", "cgd-top-tiles-projection"].forEach((hostId) => {
+      ["cgd-top-tiles-totals", "cgd-top-tiles-averages", "cgd-top-tiles-projection"].forEach((hostId) => {
         const host = document.getElementById(hostId);
         if (host) {
           host.innerHTML = "";
@@ -4178,7 +4184,7 @@ async function loadYearData(year) {
       renderCgdTopTiles();
     } catch (topTilesError) {
       console.error("Erro a renderizar tiles de topo CGD em fallback:", topTilesError);
-      ["cgd-top-tiles-averages", "cgd-top-tiles-projection"].forEach((hostId) => {
+      ["cgd-top-tiles-totals", "cgd-top-tiles-averages", "cgd-top-tiles-projection"].forEach((hostId) => {
         const host = document.getElementById(hostId);
         if (host) {
           host.innerHTML = "";
