@@ -864,6 +864,32 @@ body:not(.coverflex-theme) .temporal-nav-card {
     0 14px 28px rgba(0, 5, 3, 0.46);
 }
 
+/* ─── Charts + Pie row ─── */
+
+.charts-with-pies {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.charts-with-pies__map {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+
+.charts-with-pies__side {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.charts-with-pies__side .nb-pie-card {
+  flex: 1;
+  min-height: 0;
+}
+
 /* ─── Pie Charts ─── */
 
 .nb-pie-card {
