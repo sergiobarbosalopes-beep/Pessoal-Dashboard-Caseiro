@@ -73,9 +73,9 @@ function escapeHtml(str) {
   const nbReal = getRealForMonth(nbReals, currentMonth);
   const coverflexReal = getRealForMonth(coverflexReals, currentMonth);
 
-  // Accumulated savings = sum of monthly savings from month 0 to currentMonth
+  // Accumulated savings for month N = sum of savings from months 0 to N-1
   let cgdAccumulatedSavings = 0;
-  for (let i = 0; i <= currentMonth; i++) {
+  for (let i = 0; i < currentMonth; i++) {
     cgdAccumulatedSavings += cgdSavingsMonthly[i];
   }
 
@@ -87,8 +87,8 @@ function escapeHtml(str) {
   const cgdRealJan = getRealForMonth(cgdReals, 0);
   const nbRealJan = getRealForMonth(nbReals, 0);
   const coverflexRealJan = getRealForMonth(coverflexReals, 0);
-  const cgdSavingsJan = cgdSavingsMonthly[0];
-  const cgdDisponivelJan = cgdRealJan - cgdSavingsJan;
+  // Savings accumulated at January = 0 (nothing before month 0)
+  const cgdDisponivelJan = cgdRealJan;
   const saldoDisponivelJan = cgdDisponivelJan + nbRealJan + coverflexRealJan;
 
   // Build pie chart
