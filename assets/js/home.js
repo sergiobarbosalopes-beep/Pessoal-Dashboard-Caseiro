@@ -224,51 +224,61 @@ function escapeHtml(str) {
 
   // Build saldo disponivel tile
   const tileEl = document.getElementById("home-tile-disponivel");
-  const tileValueEl = document.getElementById("home-tile-disponivel-value");
-  const tileTitleEl = document.getElementById("home-tile-disponivel-title");
-  const tileVarianceEl = document.getElementById("home-tile-disponivel-variance");
 
-  if (tileEl && tileValueEl) {
+  if (tileEl) {
     tileEl.style.display = "";
-    if (tileTitleEl) {
-      tileTitleEl.textContent = `Saldo disponivel ${MONTHS_PT[currentMonth]} ${year}`;
-    }
-    tileValueEl.textContent = money(saldoDisponivel);
-
-    // Variance vs January
-    if (tileVarianceEl && saldoDisponivelJan) {
+    let varianceHtml = "";
+    if (saldoDisponivelJan) {
       const pct = ((saldoDisponivel - saldoDisponivelJan) / Math.abs(saldoDisponivelJan)) * 100;
       const sign = pct >= 0 ? "+" : "";
-      const color = pct >= 0 ? "var(--color-success, #00dc6e)" : "var(--color-danger, #ff6b6b)";
-      const icon = pct >= 0
-        ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;filter:drop-shadow(0 0 3px ${color})"><path d="M12 4l7 7h-4.5v9h-5v-9H5l7-7z" fill="${color}"/></svg>`
-        : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;filter:drop-shadow(0 0 3px ${color})"><path d="M12 20l-7-7h4.5V4h5v9H19l-7 7z" fill="${color}"/></svg>`;
-      tileVarianceEl.style.color = color;
-      tileVarianceEl.innerHTML = `${icon} ${sign}${pct.toFixed(1)}% vs Janeiro ${year}<br><span style="color:rgba(168,197,212,0.86);font-size:0.65rem">Jan ${year}: ${money(saldoDisponivelJan)}</span>`;
+      const color = pct >= 0 ? "#00dc6e" : "#ff6b6b";
+      const iconSvg = pct >= 0
+        ? `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 0 4px ${color})"><path d="M12 4l7 7h-4.5v9h-5v-9H5l7-7z" fill="${color}"/></svg>`
+        : `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 0 4px ${color})"><path d="M12 20l-7-7h4.5V4h5v9H19l-7 7z" fill="${color}"/></svg>`;
+      varianceHtml = `
+        <div class="home-tile-icon">${iconSvg}</div>
+        <div class="home-tile-footer" style="color:${color}">
+          <span>${sign}${pct.toFixed(1)}% vs Janeiro ${year}</span>
+          <span class="home-tile-jan">Jan ${year}: ${money(saldoDisponivelJan)}</span>
+        </div>`;
     }
+    tileEl.innerHTML = `
+      <div class="home-tile-header">
+        <h4>Saldo disponivel ${MONTHS_PT[currentMonth]} ${year}</h4>
+        <p>${money(saldoDisponivel)}</p>
+      </div>
+      ${varianceHtml}
+    `;
   }
 
   // Helper to render a savings tile with variance
   function renderSavingsTile(prefix, value, valueJan) {
     const el = document.getElementById(`home-tile-${prefix}`);
-    const valEl = document.getElementById(`home-tile-${prefix}-value`);
-    const titleEl = document.getElementById(`home-tile-${prefix}-title`);
-    const varEl = document.getElementById(`home-tile-${prefix}-variance`);
-    if (!el || !valEl) return;
+    if (!el) return;
     el.style.display = "";
     const label = prefix === "irs" ? "Saldo IRS" : "Saldo Audi";
-    if (titleEl) titleEl.textContent = `${label} ${MONTHS_PT[currentMonth]} ${year}`;
-    valEl.textContent = money(value);
-    if (varEl && valueJan !== 0) {
+    let varianceHtml = "";
+    if (valueJan !== 0) {
       const pct = ((value - valueJan) / Math.abs(valueJan)) * 100;
       const sign = pct >= 0 ? "+" : "";
-      const color = pct >= 0 ? "var(--color-success, #00dc6e)" : "var(--color-danger, #ff6b6b)";
-      const icon = pct >= 0
-        ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;filter:drop-shadow(0 0 3px ${color})"><path d="M12 4l7 7h-4.5v9h-5v-9H5l7-7z" fill="${color}"/></svg>`
-        : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;filter:drop-shadow(0 0 3px ${color})"><path d="M12 20l-7-7h4.5V4h5v9H19l-7 7z" fill="${color}"/></svg>`;
-      varEl.style.color = color;
-      varEl.innerHTML = `${icon} ${sign}${pct.toFixed(1)}% vs Janeiro ${year}<br><span style="color:rgba(168,197,212,0.86);font-size:0.65rem">Jan ${year}: ${money(valueJan)}</span>`;
+      const color = pct >= 0 ? "#00dc6e" : "#ff6b6b";
+      const iconSvg = pct >= 0
+        ? `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 0 4px ${color})"><path d="M12 4l7 7h-4.5v9h-5v-9H5l7-7z" fill="${color}"/></svg>`
+        : `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="filter:drop-shadow(0 0 4px ${color})"><path d="M12 20l-7-7h4.5V4h5v9H19l-7 7z" fill="${color}"/></svg>`;
+      varianceHtml = `
+        <div class="home-tile-icon">${iconSvg}</div>
+        <div class="home-tile-footer" style="color:${color}">
+          <span>${sign}${pct.toFixed(1)}% vs Janeiro ${year}</span>
+          <span class="home-tile-jan">Jan ${year}: ${money(valueJan)}</span>
+        </div>`;
     }
+    el.innerHTML = `
+      <div class="home-tile-header">
+        <h4>${label} ${MONTHS_PT[currentMonth]} ${year}</h4>
+        <p>${money(value)}</p>
+      </div>
+      ${varianceHtml}
+    `;
   }
 
   renderSavingsTile("irs", irsAccumulated, irsAccumulatedJan);

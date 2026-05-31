@@ -878,6 +878,60 @@ body:not(.coverflex-theme) .temporal-nav-card {
   min-width: 0;
 }
 
+/* Home tile internal layout */
+.resumo-pies .stat-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  padding: 14px 12px;
+}
+
+.home-tile-header {
+  width: 100%;
+  text-align: center;
+}
+
+.home-tile-header h4 {
+  margin: 0;
+  font-size: 0.68rem;
+  color: rgba(207, 230, 242, 0.84);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.home-tile-header p {
+  margin: 6px 0 0;
+  font-family: "Inter", "Segoe UI", sans-serif;
+  font-size: 1.06rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #00d4ff, #9be7ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.home-tile-icon {
+  margin: 10px 0;
+  line-height: 1;
+}
+
+.home-tile-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.home-tile-jan {
+  color: rgba(168, 197, 212, 0.86) !important;
+  font-size: 0.63rem;
+  font-weight: 400;
+}
+
 /* ─── Pie Charts ─── */
 
 .nb-pie-card {
