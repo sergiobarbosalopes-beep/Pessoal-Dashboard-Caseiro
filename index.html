@@ -8,9 +8,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="assets/css/styles.css" />
-    <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      window.CGD_SUPABASE_URL = "https://uooovgxrexpstrtfktst.supabase.co";
+      window.CGD_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvb292Z3hyZXhwc3RydGZrdHN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMTkxMjYsImV4cCI6MjA5NDc5NTEyNn0.4zYL75OJAI3Lxzofh9f0fIJ26S5EwHnUKGQuYQcf9mY";
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script defer src="assets/js/main.js"></script>
-    <script defer src="assets/js/home.js"></script>
+    <script defer src="assets/js/home.js?v=20260531-1"></script>
   </head>
   <body>
     <div class="site-shell">
@@ -45,29 +49,14 @@
       <main class="page-grid fade-up delay-2">
         <section class="card" style="grid-column: span 12;">
           <div class="section-title">
-            <h2>Resumo rapido</h2>
-            <p class="muted">Dados mock para validacao visual</p>
+            <h2 id="home-resumo-title">Resumo</h2>
           </div>
-          <div class="kpi-row">
-            <article class="kpi">
-              <div class="label">Saldo total liquido</div>
-              <div class="value">24 880.00 EUR</div>
-              <div class="trend up">+7.2% vs ano anterior</div>
-            </article>
-            <article class="kpi">
-              <div class="label">Receitas mensais medias</div>
-              <div class="value">4 842.00 EUR</div>
-              <div class="trend up">+3.6% em 3 meses</div>
-            </article>
-            <article class="kpi">
-              <div class="label">Despesas mensais medias</div>
-              <div class="value">3 260.00 EUR</div>
-              <div class="trend down">+1.8% pressao de custos</div>
-            </article>
-            <article class="kpi">
-              <div class="label">Taxa de poupanca</div>
-              <div class="value">32.7%</div>
-              <div class="trend up">Acima da meta de 28%</div>
+          <div class="resumo-pies" id="home-resumo-content">
+            <div class="card nb-pie-card" id="home-pie-saldo"></div>
+            <article class="stat-tile stat-tile--cyan" id="home-tile-disponivel" style="display:none;">
+              <h4 id="home-tile-disponivel-title">Saldo disponivel</h4>
+              <p id="home-tile-disponivel-value"></p>
+              <span class="stat-tile-meta stat-tile-meta--right" id="home-tile-disponivel-variance"></span>
             </article>
           </div>
         </section>
