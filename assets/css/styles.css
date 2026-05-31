@@ -868,14 +868,16 @@ body:not(.coverflex-theme) .temporal-nav-card {
 
 .resumo-pies {
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
   margin-top: 10px;
   margin-bottom: 14px;
 }
 
 .resumo-pies .nb-pie-card {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 280px;
+  min-width: 260px;
+  max-width: 340px;
 }
 
 /* Home tile internal layout */
@@ -886,6 +888,9 @@ body:not(.coverflex-theme) .temporal-nav-card {
   justify-content: flex-start;
   text-align: left;
   padding: 14px 12px;
+  flex: 1 1 180px;
+  min-width: 160px;
+  max-width: 220px;
 }
 
 .home-tile-header {
