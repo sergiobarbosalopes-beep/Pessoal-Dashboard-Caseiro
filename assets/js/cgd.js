@@ -2043,7 +2043,6 @@ function renderExpenseRows(expenses, rubricName, kind) {
               <button type='button' role='menuitem' data-expense-menu-action='down'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 6V18M12 18L7 13M12 18L17 13' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para baixo</span></button>
               <div class='menu-separator' role='separator' aria-hidden='true'></div>
               <button type='button' role='menuitem' data-expense-menu-action='rename-expense'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Renomear ${entryLabel}</span></button>
-              <div class='menu-separator' role='separator' aria-hidden='true'></div>
               <button type='button' role='menuitem' data-expense-menu-action='delete-expense'><span class='menu-icon danger' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M8 8L16 16M16 8L8 16' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Eliminar ${entryLabel}</span></button>
             </div>
           </div>
@@ -2080,8 +2079,8 @@ function renderRubrics(rubrics, kind) {
                 <button type='button' role='menuitem' data-rubric-menu-action='down'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 6V18M12 18L7 13M12 18L17 13' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para baixo</span></button>
                 <div class='menu-separator' role='separator' aria-hidden='true'></div>
                 <button type='button' role='menuitem' data-rubric-menu-action='create-expense'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 5V19M5 12H19' stroke='currentColor' stroke-width='2.2' stroke-linecap='round'/></svg></span><span>Criar ${createLabel}</span></button>
-                <button type='button' role='menuitem' data-rubric-menu-action='rename-rubric'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Renomear rubrica</span></button>
                 <div class='menu-separator' role='separator' aria-hidden='true'></div>
+                <button type='button' role='menuitem' data-rubric-menu-action='rename-rubric'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Renomear rubrica</span></button>
                 <button type='button' role='menuitem' data-rubric-menu-action='delete-rubric'><span class='menu-icon danger' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M8 8L16 16M16 8L8 16' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Eliminar rubrica</span></button>
               </div>
             </div>
@@ -4624,6 +4623,13 @@ function requestEntityDescription(options) {
     if (label) {
       label.textContent = options?.label || "Descricao";
     }
+    confirmBtn.textContent = options?.confirmText || "Adicionar";
+    const actionsContainer = confirmBtn.parentElement;
+    if (options?.confirmFirst && actionsContainer) {
+      actionsContainer.insertBefore(confirmBtn, cancelBtn);
+    } else if (actionsContainer) {
+      actionsContainer.insertBefore(cancelBtn, confirmBtn);
+    }
 
     const close = (result) => {
       modal.classList.remove("show");
@@ -4944,7 +4950,9 @@ window.cgdRenameRubric = async (rubricaId) => {
     subtitle: "Indica o novo nome para a rubrica.",
     label: "Nome da rubrica",
     promptText: "Novo nome da rubrica",
-    defaultValue: rubric.name || ""
+    defaultValue: rubric.name || "",
+    confirmText: "Gravar",
+    confirmFirst: true
   });
 
   if (!newName || newName === rubric.name) return false;
@@ -4978,7 +4986,9 @@ window.cgdRenameExpense = async (rubricaId, despesaId) => {
     subtitle: `Indica o novo nome para a ${entryLabel}.`,
     label: `Nome da ${entryLabel}`,
     promptText: `Novo nome da ${entryLabel}`,
-    defaultValue: found.expense.name || ""
+    defaultValue: found.expense.name || "",
+    confirmText: "Gravar",
+    confirmFirst: true
   });
 
   if (!newName || newName === found.expense.name) return false;
