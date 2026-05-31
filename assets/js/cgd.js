@@ -1745,15 +1745,16 @@ function renderCgdTopTiles() {
 
   const savingsAverage = averageOfSeries(sumRubricsValuesByMonth(savingsRubrics));
 
+  const outcomeExcludeTerms = TABLE_PREFIX === "cgd" ? ["movimentos"] : ["movimentos", "impostos"];
   const outcomeFilteredRubrics = outcomeRubrics.filter(
-    (rubric) => !rubricNameMatchesAny(rubric?.name, ["movimentos", "impostos"])
+    (rubric) => !rubricNameMatchesAny(rubric?.name, outcomeExcludeTerms)
   );
   const outcomeAverage = averageOfSeries(sumRubricsValuesByMonth(outcomeFilteredRubrics));
 
   const incomeFilteredRubrics = incomeRubrics.filter((rubric) => !rubricNameMatchesAny(rubric?.name, ["movimentos"]));
   const incomeAverage = averageOfSeries(sumRubricsValuesByMonth(incomeFilteredRubrics));
   const incomeAverageSubtitle = IS_COVERFLEX ? "" : "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos</span>";
-  const outcomeAverageSubtitle = IS_COVERFLEX ? "" : "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos e impostos</span>";
+  const outcomeAverageSubtitle = IS_COVERFLEX ? "" : (TABLE_PREFIX === "cgd" ? "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos</span>" : "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos e impostos</span>");
 
   const incomeTotalYear = sumRubricsValuesByMonth(incomeFilteredRubrics).reduce((acc, v) => acc + (Number(v) || 0), 0);
   const outcomeTotalYear = sumRubricsValuesByMonth(outcomeFilteredRubrics).reduce((acc, v) => acc + (Number(v) || 0), 0);
