@@ -1505,6 +1505,7 @@ function renderNbPieCharts() {
         for (const expense of expenses) {
           const name = (expense?.name || "").trim();
           if (!name) continue;
+          if (rubricNameMatchesAny(name, ["movimentos receitas"])) continue;
           const yearTotal = (Array.isArray(expense?.values) ? expense.values : [])
             .slice(0, 12)
             .reduce((sum, v) => sum + (Number(v) || 0), 0);
