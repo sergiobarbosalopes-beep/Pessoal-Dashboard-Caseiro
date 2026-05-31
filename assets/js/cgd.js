@@ -1484,12 +1484,55 @@ function renderNbPieCharts() {
   const despesasHost = document.getElementById("nb-pie-despesas");
   if (!receitasHost && !despesasHost) return;
 
-  const mockReceitas = [
-    { label: "Salario", value: 2400, color: "#00dc6e" },
-    { label: "Subsidios", value: 480, color: "#00b84f" },
-    { label: "Outros", value: 320, color: "#41b37a" },
-    { label: "Rendas", value: 150, color: "#2f9ad4" }
+  const PIE_COLORS = [
+    "#6ecf9a", "#7cc4ff", "#9ed86b", "#58d2c3", "#8bcf7a",
+    "#5fb3de", "#9edfb7", "#71d0ff", "#77c87f", "#79bdf0",
+    "#f2c46a", "#f08b5f", "#5fc8b6", "#84d56b", "#f29db1",
+    "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0", "#70c3ff"
   ];
+
+  function buildReceitasSlices() {
+    const incomeRubrics = Array.isArray(cgdState.data?.income) ? cgdState.data.income : [];
+    const savingsRubrics = Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
+    const allRubrics = [...incomeRubrics, ...savingsRubrics];
+
+    const aggregated = {};
+
+    for (const rubric of allRubrics) {
+      if (rubricNameMatchesAny(rubric?.name, ["movimentos"])) continue;
+      const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
+      if (expenses.length) {
+        for (const expense of expenses) {
+          const name = (expense?.name || "").trim();
+          if (!name) continue;
+          const yearTotal = (Array.isArray(expense?.values) ? expense.values : [])
+            .slice(0, 12)
+            .reduce((sum, v) => sum + (Number(v) || 0), 0);
+          const key = name.toLowerCase();
+          aggregated[key] = aggregated[key] || { label: name, value: 0 };
+          aggregated[key].value += yearTotal;
+        }
+      } else {
+        const name = (rubric?.name || "").trim();
+        if (!name) continue;
+        const yearTotal = (Array.isArray(rubric?.values) ? rubric.values : [])
+          .slice(0, 12)
+          .reduce((sum, v) => sum + (Number(v) || 0), 0);
+        const key = name.toLowerCase();
+        aggregated[key] = aggregated[key] || { label: name, value: 0 };
+        aggregated[key].value += yearTotal;
+      }
+    }
+
+    return Object.values(aggregated)
+      .filter((entry) => entry.value !== 0)
+      .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+      .map((entry, i) => ({
+        label: entry.label,
+        value: Math.abs(entry.value),
+        color: PIE_COLORS[i % PIE_COLORS.length]
+      }));
+  }
 
   const mockDespesas = [
     { label: "Habitacao", value: 850, color: "#ff6b6b" },
@@ -1562,7 +1605,9 @@ function renderNbPieCharts() {
     `;
   }
 
-  buildPie(receitasHost, "Receitas", mockReceitas);
+  const isCgdPage = TABLE_PREFIX === "cgd";
+  const receitasSlices = isCgdPage ? buildReceitasSlices() : mockDespesas;
+  buildPie(receitasHost, "Receitas", receitasSlices);
   buildPie(despesasHost, "Despesas", mockDespesas);
 }
 
