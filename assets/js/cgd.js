@@ -1545,30 +1545,55 @@ function renderNbPieCharts() {
   function buildDespesasSlices() {
     const outcomeRubrics = Array.isArray(cgdState.data?.outcome) ? cgdState.data.outcome : [];
     const aggregated = {};
+    const isNbPage = TABLE_PREFIX === "nb";
 
     for (const rubric of outcomeRubrics) {
       if (rubricNameMatchesAny(rubric?.name, ["movimentos"])) continue;
-      const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
-      if (expenses.length) {
-        for (const expense of expenses) {
-          const name = (expense?.name || "").trim();
+
+      if (isNbPage) {
+        // NovoBanco: aggregate by rubric name
+        const rubricName = (rubric?.name || "").trim();
+        if (!rubricName) continue;
+        const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
+        let rubricTotal = 0;
+        if (expenses.length) {
+          for (const expense of expenses) {
+            rubricTotal += (Array.isArray(expense?.values) ? expense.values : [])
+              .slice(0, 12)
+              .reduce((sum, v) => sum + (Number(v) || 0), 0);
+          }
+        } else {
+          rubricTotal = (Array.isArray(rubric?.values) ? rubric.values : [])
+            .slice(0, 12)
+            .reduce((sum, v) => sum + (Number(v) || 0), 0);
+        }
+        const key = rubricName.toLowerCase();
+        aggregated[key] = aggregated[key] || { label: rubricName, value: 0 };
+        aggregated[key].value += rubricTotal;
+      } else {
+        // CGD / others: aggregate by expense name
+        const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
+        if (expenses.length) {
+          for (const expense of expenses) {
+            const name = (expense?.name || "").trim();
+            if (!name) continue;
+            const yearTotal = (Array.isArray(expense?.values) ? expense.values : [])
+              .slice(0, 12)
+              .reduce((sum, v) => sum + (Number(v) || 0), 0);
+            const key = name.toLowerCase();
+            aggregated[key] = aggregated[key] || { label: name, value: 0 };
+            aggregated[key].value += yearTotal;
+          }
+        } else {
+          const name = (rubric?.name || "").trim();
           if (!name) continue;
-          const yearTotal = (Array.isArray(expense?.values) ? expense.values : [])
+          const yearTotal = (Array.isArray(rubric?.values) ? rubric.values : [])
             .slice(0, 12)
             .reduce((sum, v) => sum + (Number(v) || 0), 0);
           const key = name.toLowerCase();
           aggregated[key] = aggregated[key] || { label: name, value: 0 };
           aggregated[key].value += yearTotal;
         }
-      } else {
-        const name = (rubric?.name || "").trim();
-        if (!name) continue;
-        const yearTotal = (Array.isArray(rubric?.values) ? rubric.values : [])
-          .slice(0, 12)
-          .reduce((sum, v) => sum + (Number(v) || 0), 0);
-        const key = name.toLowerCase();
-        aggregated[key] = aggregated[key] || { label: name, value: 0 };
-        aggregated[key].value += yearTotal;
       }
     }
 
