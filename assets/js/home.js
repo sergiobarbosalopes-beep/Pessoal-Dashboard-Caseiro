@@ -35,17 +35,18 @@ function escapeHtml(str) {
   };
 
   // Fetch CGD savings rubrics + expenses to compute accumulated savings (total, IRS, Audi)
+  // IRS and Audi accumulate across all years, so we query without year filter for those
   const fetchCgdSavings = async () => {
-    const empty = { total: Array.from({ length: 12 }, () => 0), irs: Array.from({ length: 12 }, () => 0), audi: Array.from({ length: 12 }, () => 0) };
+    const empty = { total: Array.from({ length: 12 }, () => 0), irsAccumulated: 0, audiAccumulated: 0, irsAccumulatedJan: 0, audiAccumulatedJan: 0 };
     try {
       const [rubRes, despRes] = await Promise.all([
-        sb.from("cgd_rubrica").select("rubrica_id,mes,rubrica_tipo,rubrica_desc").eq("ano", year).in("rubrica_tipo", ["Aprovisionamento"]),
-        sb.from("cgd_despesa").select("rubrica_id,mes,valor,valor_estimado,zerado").eq("ano", year)
+        sb.from("cgd_rubrica").select("rubrica_id,ano,mes,rubrica_tipo,rubrica_desc").in("rubrica_tipo", ["Aprovisionamento"]),
+        sb.from("cgd_despesa").select("rubrica_id,ano,mes,valor,valor_estimado,zerado")
       ]);
       const rubrics = Array.isArray(rubRes.data) ? rubRes.data : [];
       const expenses = Array.isArray(despRes.data) ? despRes.data : [];
 
-      // Build sets for IRS and Audi rubric IDs
+      // Build sets for all savings, IRS and Audi rubric IDs
       const allSavingsIds = new Set();
       const irsIds = new Set();
       const audiIds = new Set();
@@ -56,21 +57,40 @@ function escapeHtml(str) {
         if (name.includes("audi")) audiIds.add(r.rubrica_id);
       }
 
+      // Current year monthly totals (for disponivel calculation)
       const totalMonthly = Array.from({ length: 12 }, () => 0);
-      const irsMonthly = Array.from({ length: 12 }, () => 0);
-      const audiMonthly = Array.from({ length: 12 }, () => 0);
+      // IRS/Audi: accumulate ALL expenses before the target month
+      let irsAccumulated = 0;   // all expenses before current month of current year
+      let audiAccumulated = 0;
+      let irsAccumulatedJan = 0; // all expenses before January of current year
+      let audiAccumulatedJan = 0;
 
       for (const exp of expenses) {
         if (!allSavingsIds.has(exp.rubrica_id)) continue;
-        const monthIdx = Number(exp.mes) - 1;
-        if (monthIdx < 0 || monthIdx > 11) continue;
         if (exp.zerado === true || exp.zerado === "true") continue;
         const val = Number(exp.valor) || Number(exp.valor_estimado) || 0;
-        totalMonthly[monthIdx] += val;
-        if (irsIds.has(exp.rubrica_id)) irsMonthly[monthIdx] += val;
-        if (audiIds.has(exp.rubrica_id)) audiMonthly[monthIdx] += val;
+        const expYear = Number(exp.ano);
+        const expMonth = Number(exp.mes) - 1; // 0-indexed
+
+        // Total savings monthly (current year only, for disponivel)
+        if (expYear === year && expMonth >= 0 && expMonth <= 11) {
+          totalMonthly[expMonth] += val;
+        }
+
+        // IRS/Audi: sum everything BEFORE the target month (cross-year)
+        const isBeforeCurrentMonth = expYear < year || (expYear === year && expMonth < currentMonth);
+        const isBeforeJanuary = expYear < year;
+
+        if (irsIds.has(exp.rubrica_id)) {
+          if (isBeforeCurrentMonth) irsAccumulated += val;
+          if (isBeforeJanuary) irsAccumulatedJan += val;
+        }
+        if (audiIds.has(exp.rubrica_id)) {
+          if (isBeforeCurrentMonth) audiAccumulated += val;
+          if (isBeforeJanuary) audiAccumulatedJan += val;
+        }
       }
-      return { total: totalMonthly, irs: irsMonthly, audi: audiMonthly };
+      return { total: totalMonthly, irsAccumulated, audiAccumulated, irsAccumulatedJan, audiAccumulatedJan };
     } catch { return empty; }
   };
 
@@ -82,8 +102,6 @@ function escapeHtml(str) {
   ]);
 
   const cgdSavingsMonthly = cgdSavingsData.total;
-  const irsSavingsMonthly = cgdSavingsData.irs;
-  const audiSavingsMonthly = cgdSavingsData.audi;
 
   const getRealForMonth = (reals, monthIndex) => {
     const row = reals.find(r => Number(r.mes) === monthIndex + 1);
@@ -112,15 +130,11 @@ function escapeHtml(str) {
   const cgdDisponivelJan = cgdRealJan;
   const saldoDisponivelJan = cgdDisponivelJan + nbRealJan + coverflexRealJan;
 
-  // IRS accumulated savings (sum months 0 to N-1)
-  let irsAccumulated = 0;
-  for (let i = 0; i < currentMonth; i++) irsAccumulated += irsSavingsMonthly[i];
-  let irsAccumulatedJan = 0; // January = 0
-
-  // Audi accumulated savings (sum months 0 to N-1)
-  let audiAccumulated = 0;
-  for (let i = 0; i < currentMonth; i++) audiAccumulated += audiSavingsMonthly[i];
-  let audiAccumulatedJan = 0; // January = 0
+  // IRS and Audi accumulated (already computed cross-year in fetchCgdSavings)
+  const irsAccumulated = cgdSavingsData.irsAccumulated;
+  const irsAccumulatedJan = cgdSavingsData.irsAccumulatedJan;
+  const audiAccumulated = cgdSavingsData.audiAccumulated;
+  const audiAccumulatedJan = cgdSavingsData.audiAccumulatedJan;
 
   // Build pie chart
   const PIE_COLORS = ["#00dc6e", "#2f9ad4", "#f2c46a"];
