@@ -34,6 +34,68 @@ function escapeHtml(str) {
     } catch { return []; }
   };
 
+  // Compute estimated real series for a bank (mimics CGD totalizer logic)
+  // Returns array of 12 values for the given year, using stored real when available, otherwise estimating
+  function computeEstimatedRealSeries(dbReals, monthlyTotals, yr) {
+    // dbReals: array of {ano, mes, real}
+    // monthlyTotals: { income: [12], outcome: [12] } for the given year
+    const result = new Array(12).fill(0);
+    const dbMap = new Map();
+    for (const r of dbReals) {
+      if (Number(r.ano) === yr) dbMap.set(Number(r.mes) - 1, Number(r.real) || 0);
+    }
+
+    for (let m = 0; m < 12; m++) {
+      if (dbMap.has(m)) {
+        result[m] = dbMap.get(m);
+      } else {
+        // Estimate: previous real + income[prev] - outcome[prev]
+        if (m === 0) {
+          // For January, we'd need December of previous year - use 0 if no data
+          result[m] = 0;
+        } else {
+          const prevReal = result[m - 1];
+          const prevIncome = monthlyTotals.income[m - 1] || 0;
+          const prevOutcome = monthlyTotals.outcome[m - 1] || 0;
+          result[m] = prevReal + prevIncome - prevOutcome;
+        }
+      }
+    }
+    return result;
+  }
+
+  // Fetch monthly income/outcome totals for a bank
+  const fetchBankTotals = async (rubricTable, expenseTable, yr) => {
+    const empty = { income: new Array(12).fill(0), outcome: new Array(12).fill(0) };
+    try {
+      const [rubRes, despRes] = await Promise.all([
+        sb.from(rubricTable).select("rubrica_id,rubrica_tipo").eq("ano", yr),
+        sb.from(expenseTable).select("rubrica_id,ano,mes,valor,valor_estimado,zerado").eq("ano", yr)
+      ]);
+      const rubrics = Array.isArray(rubRes.data) ? rubRes.data : [];
+      const expenses = Array.isArray(despRes.data) ? despRes.data : [];
+
+      const incomeIds = new Set();
+      const outcomeIds = new Set();
+      for (const r of rubrics) {
+        if (r.rubrica_tipo === "Receita") incomeIds.add(r.rubrica_id);
+        else if (r.rubrica_tipo === "Despesa") outcomeIds.add(r.rubrica_id);
+      }
+
+      const income = new Array(12).fill(0);
+      const outcome = new Array(12).fill(0);
+      for (const exp of expenses) {
+        if (exp.zerado === true || exp.zerado === "true") continue;
+        const val = Number(exp.valor) || Number(exp.valor_estimado) || 0;
+        const m = Number(exp.mes) - 1;
+        if (m < 0 || m > 11) continue;
+        if (incomeIds.has(exp.rubrica_id)) income[m] += val;
+        else if (outcomeIds.has(exp.rubrica_id)) outcome[m] += val;
+      }
+      return { income, outcome };
+    } catch { return empty; }
+  };
+
   // Fetch CGD savings rubrics + expenses to compute accumulated savings (total, IRS, Audi)
   const fetchCgdSavings = async () => {
     const empty = { totalAccumulated: 0, totalAccumulatedJan: 0, totalAccumulatedPrev: 0, irsAccumulated: 0, audiAccumulated: 0, irsAccumulatedJan: 0, audiAccumulatedJan: 0, irsAccumulatedPrev: 0, audiAccumulatedPrev: 0, totalAccumulatedNext: 0, irsAccumulatedNext: 0, audiAccumulatedNext: 0, totalAccumulatedJanNext: 0, irsAccumulatedJanNext: 0, audiAccumulatedJanNext: 0 };
@@ -105,34 +167,62 @@ function escapeHtml(str) {
     } catch { return empty; }
   };
 
-  const [cgdReals, nbReals, coverflexReals, cgdRealsNext, nbRealsNext, coverflexRealsNext, cgdSavingsData] = await Promise.all([
+  const [cgdReals, nbReals, coverflexReals, cgdRealsNext, nbRealsNext, coverflexRealsNext, cgdSavingsData, cgdTotals, nbTotals, coverflexTotals, cgdTotalsNext, nbTotalsNext, coverflexTotalsNext] = await Promise.all([
     fetchReal("cgd_real", year),
     fetchReal("nb_real", year),
     fetchReal("coverflex_real", year),
     fetchReal("cgd_real", year + 1),
     fetchReal("nb_real", year + 1),
     fetchReal("coverflex_real", year + 1),
-    fetchCgdSavings()
+    fetchCgdSavings(),
+    fetchBankTotals("cgd_rubrica", "cgd_despesa", year),
+    fetchBankTotals("nb_rubrica", "nb_despesa", year),
+    fetchBankTotals("coverflex_rubrica", "coverflex_despesa", year),
+    fetchBankTotals("cgd_rubrica", "cgd_despesa", year + 1),
+    fetchBankTotals("nb_rubrica", "nb_despesa", year + 1),
+    fetchBankTotals("coverflex_rubrica", "coverflex_despesa", year + 1)
   ]);
 
-  const getRealForMonth = (reals, monthIndex) => {
-    const row = reals.find(r => Number(r.mes) === monthIndex + 1);
-    return row ? Number(row.real) || 0 : 0;
-  };
+  // Build estimated real series for each bank (current year and next year)
+  const cgdEstimated = computeEstimatedRealSeries(cgdReals, cgdTotals, year);
+  const nbEstimated = computeEstimatedRealSeries(nbReals, nbTotals, year);
+  const coverflexEstimated = computeEstimatedRealSeries(coverflexReals, coverflexTotals, year);
+  const cgdEstimatedNext = computeEstimatedRealSeries(cgdRealsNext, cgdTotalsNext, year + 1);
+  const nbEstimatedNext = computeEstimatedRealSeries(nbRealsNext, nbTotalsNext, year + 1);
+  const coverflexEstimatedNext = computeEstimatedRealSeries(coverflexRealsNext, coverflexTotalsNext, year + 1);
+
+  // For next year January estimation, chain from December of current year
+  // If Jan next year has no DB value, estimate from Dec current year
+  const hasJanNextCgd = cgdRealsNext.some(r => Number(r.mes) === 1);
+  const hasJanNextNb = nbRealsNext.some(r => Number(r.mes) === 1);
+  const hasJanNextCover = coverflexRealsNext.some(r => Number(r.mes) === 1);
+  if (!hasJanNextCgd) {
+    cgdEstimatedNext[0] = cgdEstimated[11] + (cgdTotals.income[11] || 0) - (cgdTotals.outcome[11] || 0);
+  }
+  if (!hasJanNextNb) {
+    nbEstimatedNext[0] = nbEstimated[11] + (nbTotals.income[11] || 0) - (nbTotals.outcome[11] || 0);
+  }
+  if (!hasJanNextCover) {
+    coverflexEstimatedNext[0] = coverflexEstimated[11] + (coverflexTotals.income[11] || 0) - (coverflexTotals.outcome[11] || 0);
+  }
+
+  // Helper: get value from estimated series
+  const getVal = (series, monthIndex) => series[monthIndex] || 0;
+  const getValNext = (series, monthIndex) => series[monthIndex] || 0;
 
   // Current month values
-  const cgdReal = getRealForMonth(cgdReals, currentMonth);
-  const nbReal = getRealForMonth(nbReals, currentMonth);
-  const coverflexReal = getRealForMonth(coverflexReals, currentMonth);
+  const cgdReal = getVal(cgdEstimated, currentMonth);
+  const nbReal = getVal(nbEstimated, currentMonth);
+  const coverflexReal = getVal(coverflexEstimated, currentMonth);
   const cgdAccumulatedSavings = cgdSavingsData.totalAccumulated;
   const totalSaldo = cgdReal + nbReal + coverflexReal;
   const cgdDisponivel = cgdReal - cgdAccumulatedSavings;
   const saldoDisponivel = cgdDisponivel + nbReal + coverflexReal;
 
   // January values
-  const cgdRealJan = getRealForMonth(cgdReals, 0);
-  const nbRealJan = getRealForMonth(nbReals, 0);
-  const coverflexRealJan = getRealForMonth(coverflexReals, 0);
+  const cgdRealJan = getVal(cgdEstimated, 0);
+  const nbRealJan = getVal(nbEstimated, 0);
+  const coverflexRealJan = getVal(coverflexEstimated, 0);
   const cgdAccumulatedSavingsJan = cgdSavingsData.totalAccumulatedJan;
   const cgdDisponivelJan = cgdRealJan - cgdAccumulatedSavingsJan;
   const saldoDisponivelJan = cgdDisponivelJan + nbRealJan + coverflexRealJan;
@@ -140,9 +230,9 @@ function escapeHtml(str) {
   // Previous month values
   const prevMonthIdx = currentMonth > 0 ? currentMonth - 1 : 11;
   const prevMonthName = MONTHS_PT[prevMonthIdx];
-  const cgdRealPrev = getRealForMonth(cgdReals, prevMonthIdx);
-  const nbRealPrev = getRealForMonth(nbReals, prevMonthIdx);
-  const coverflexRealPrev = getRealForMonth(coverflexReals, prevMonthIdx);
+  const cgdRealPrev = getVal(cgdEstimated, prevMonthIdx);
+  const nbRealPrev = getVal(nbEstimated, prevMonthIdx);
+  const coverflexRealPrev = getVal(coverflexEstimated, prevMonthIdx);
   const cgdAccumulatedSavingsPrev = cgdSavingsData.totalAccumulatedPrev;
   const cgdDisponivelPrev = cgdRealPrev - cgdAccumulatedSavingsPrev;
   const saldoDisponivelPrev = cgdDisponivelPrev + nbRealPrev + coverflexRealPrev;
@@ -150,17 +240,14 @@ function escapeHtml(str) {
   // Next month values
   const nextMonthIdx = currentMonth < 11 ? currentMonth + 1 : 0;
   const nextMonthYear = currentMonth < 11 ? year : year + 1;
-  const nextRealsC = nextMonthYear === year ? cgdReals : cgdRealsNext;
-  const nextRealsN = nextMonthYear === year ? nbReals : nbRealsNext;
-  const nextRealsF = nextMonthYear === year ? coverflexReals : coverflexRealsNext;
-  const cgdRealNext = getRealForMonth(nextRealsC, nextMonthIdx);
-  const nbRealNext = getRealForMonth(nextRealsN, nextMonthIdx);
-  const coverflexRealNext = getRealForMonth(nextRealsF, nextMonthIdx);
+  const cgdRealNext = nextMonthYear === year ? getVal(cgdEstimated, nextMonthIdx) : getValNext(cgdEstimatedNext, nextMonthIdx);
+  const nbRealNext = nextMonthYear === year ? getVal(nbEstimated, nextMonthIdx) : getValNext(nbEstimatedNext, nextMonthIdx);
+  const coverflexRealNext = nextMonthYear === year ? getVal(coverflexEstimated, nextMonthIdx) : getValNext(coverflexEstimatedNext, nextMonthIdx);
 
   // January next year values
-  const cgdRealJanNext = getRealForMonth(cgdRealsNext, 0);
-  const nbRealJanNext = getRealForMonth(nbRealsNext, 0);
-  const coverflexRealJanNext = getRealForMonth(coverflexRealsNext, 0);
+  const cgdRealJanNext = getValNext(cgdEstimatedNext, 0);
+  const nbRealJanNext = getValNext(nbEstimatedNext, 0);
+  const coverflexRealJanNext = getValNext(coverflexEstimatedNext, 0);
 
   // IRS and Audi accumulated
   const irsAccumulated = cgdSavingsData.irsAccumulated;
