@@ -1364,7 +1364,7 @@ function renderCgdTemporalSummaryChart() {
     host.innerHTML = `
       <div class='cgd-summary-map'>
         <div class='outcome-evolution-head'>
-          <h3>Mapa ${year}</h3>
+          <h3>Saldo ${year}</h3>
         </div>
         <p class='outcome-evolution-empty'>Nenhuma serie selecionada. Clica na legenda para voltar a mostrar.</p>
         <div class='outcome-evolution-legend'>${legend}</div>
@@ -1437,7 +1437,7 @@ function renderCgdTemporalSummaryChart() {
     host.innerHTML = `
       <div class='cgd-summary-map'>
         <div class='outcome-evolution-head'>
-          <h3>Mapa ${year}</h3>
+          <h3>Saldo ${year}</h3>
         </div>
         <div class='outcome-evolution-legend'>${legend}</div>
         <div class='outcome-evolution-svg-wrap cgd-summary-svg-wrap'>
@@ -1926,9 +1926,7 @@ function renderCgdTopTiles() {
 
     const projectionTitle = document.querySelector(".cgd-top-tiles-projection-card .cgd-top-tiles-section-title");
     if (projectionTitle) {
-      projectionTitle.textContent = TABLE_PREFIX === "cgd"
-        ? `Projeccao ${projectionYear}`
-        : `Projeccao (${projectionYear})`;
+      projectionTitle.textContent = `Projeccao ${projectionYear}`;
     }
 
     projectionHost.innerHTML = `

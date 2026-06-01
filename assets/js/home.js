@@ -456,7 +456,7 @@ function escapeHtml(str) {
         }).join("");
 
         if (!visibleSeries.length) {
-          host.innerHTML = `<div class='cgd-summary-map'><div class='outcome-evolution-head'><h3>Mapa ${year}</h3></div><p class='outcome-evolution-empty'>Nenhuma serie selecionada.</p><div class='outcome-evolution-legend'>${legend}</div></div>`;
+          host.innerHTML = `<div class='cgd-summary-map'><div class='outcome-evolution-head'><h3>Saldo ${year}</h3></div><p class='outcome-evolution-empty'>Nenhuma serie selecionada.</p><div class='outcome-evolution-legend'>${legend}</div></div>`;
           return;
         }
 
