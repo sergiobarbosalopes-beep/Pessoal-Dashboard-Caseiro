@@ -872,16 +872,25 @@ body:not(.coverflex-theme) .temporal-nav-card {
   gap: 14px;
   margin-top: 10px;
   margin-bottom: 14px;
+  justify-content: center;
 }
 
 .resumo-pies .nb-pie-card {
-  flex: 1 1 280px;
-  min-width: 260px;
-  max-width: 340px;
+  flex: 1 1 170px;
+  min-width: 160px;
+  max-width: 220px;
+}
+
+.resumo-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 10px;
+  margin-bottom: 14px;
 }
 
 /* Home tile internal layout */
-.resumo-pies .stat-tile {
+.resumo-tiles .stat-tile {
   display: flex;
   flex-direction: column;
   align-items: flex-start;

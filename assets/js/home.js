@@ -25,19 +25,18 @@ function escapeHtml(str) {
     titleEl.textContent = `Resumo ${MONTHS_PT[currentMonth]}`;
   }
 
-  // Fetch real values from all 3 tables
-  const fetchReal = async (table) => {
+  // Fetch real values from all 3 tables (for current year AND next year)
+  const fetchReal = async (table, yr) => {
     try {
-      const { data, error } = await sb.from(table).select("ano,mes,real").eq("ano", year).order("mes", { ascending: true });
+      const { data, error } = await sb.from(table).select("ano,mes,real").eq("ano", yr).order("mes", { ascending: true });
       if (error) return [];
       return Array.isArray(data) ? data : [];
     } catch { return []; }
   };
 
   // Fetch CGD savings rubrics + expenses to compute accumulated savings (total, IRS, Audi)
-  // IRS and Audi accumulate across all years, so we query without year filter for those
   const fetchCgdSavings = async () => {
-    const empty = { totalAccumulated: 0, totalAccumulatedJan: 0, totalAccumulatedPrev: 0, irsAccumulated: 0, audiAccumulated: 0, irsAccumulatedJan: 0, audiAccumulatedJan: 0, irsAccumulatedPrev: 0, audiAccumulatedPrev: 0 };
+    const empty = { totalAccumulated: 0, totalAccumulatedJan: 0, totalAccumulatedPrev: 0, irsAccumulated: 0, audiAccumulated: 0, irsAccumulatedJan: 0, audiAccumulatedJan: 0, irsAccumulatedPrev: 0, audiAccumulatedPrev: 0, totalAccumulatedNext: 0, irsAccumulatedNext: 0, audiAccumulatedNext: 0, totalAccumulatedJanNext: 0, irsAccumulatedJanNext: 0, audiAccumulatedJanNext: 0 };
     try {
       const [rubRes, despRes] = await Promise.all([
         sb.from("cgd_rubrica").select("rubrica_id,ano,mes,rubrica_tipo,rubrica_desc").in("rubrica_tipo", ["Aprovisionamento"]),
@@ -46,7 +45,6 @@ function escapeHtml(str) {
       const rubrics = Array.isArray(rubRes.data) ? rubRes.data : [];
       const expenses = Array.isArray(despRes.data) ? despRes.data : [];
 
-      // Build sets for all savings, IRS and Audi rubric IDs
       const allSavingsIds = new Set();
       const irsIds = new Set();
       const audiIds = new Set();
@@ -57,56 +55,63 @@ function escapeHtml(str) {
         if (name.includes("audi")) audiIds.add(r.rubrica_id);
       }
 
-      // Previous month reference
       const prevMonth = currentMonth > 0 ? currentMonth - 1 : 11;
       const prevYear = currentMonth > 0 ? year : year - 1;
+      const nextMonth = currentMonth < 11 ? currentMonth + 1 : 0;
+      const nextYear = currentMonth < 11 ? year : year + 1;
 
-      // Accumulate ALL savings before target months (cross-year)
-      let totalAccumulated = 0;
-      let totalAccumulatedJan = 0;
-      let totalAccumulatedPrev = 0;
-      let irsAccumulated = 0;
-      let audiAccumulated = 0;
-      let irsAccumulatedJan = 0;
-      let audiAccumulatedJan = 0;
-      let irsAccumulatedPrev = 0;
-      let audiAccumulatedPrev = 0;
+      let totalAccumulated = 0, totalAccumulatedJan = 0, totalAccumulatedPrev = 0;
+      let irsAccumulated = 0, audiAccumulated = 0;
+      let irsAccumulatedJan = 0, audiAccumulatedJan = 0;
+      let irsAccumulatedPrev = 0, audiAccumulatedPrev = 0;
+      let totalAccumulatedNext = 0, irsAccumulatedNext = 0, audiAccumulatedNext = 0;
+      let totalAccumulatedJanNext = 0, irsAccumulatedJanNext = 0, audiAccumulatedJanNext = 0;
 
       for (const exp of expenses) {
         if (!allSavingsIds.has(exp.rubrica_id)) continue;
         if (exp.zerado === true || exp.zerado === "true") continue;
         const val = Number(exp.valor) || Number(exp.valor_estimado) || 0;
         const expYear = Number(exp.ano);
-        const expMonth = Number(exp.mes) - 1; // 0-indexed
+        const expMonth = Number(exp.mes) - 1;
 
-        // Sum everything BEFORE the target month (cross-year)
         const isBeforeCurrentMonth = expYear < year || (expYear === year && expMonth < currentMonth);
         const isBeforeJanuary = expYear < year;
         const isBeforePrevMonth = expYear < prevYear || (expYear === prevYear && expMonth < prevMonth);
+        const isBeforeNextMonth = expYear < nextYear || (expYear === nextYear && expMonth < nextMonth);
+        const isBeforeJanNextYear = expYear < year + 1;
 
         if (isBeforeCurrentMonth) totalAccumulated += val;
         if (isBeforeJanuary) totalAccumulatedJan += val;
         if (isBeforePrevMonth) totalAccumulatedPrev += val;
+        if (isBeforeNextMonth) totalAccumulatedNext += val;
+        if (isBeforeJanNextYear) totalAccumulatedJanNext += val;
 
         if (irsIds.has(exp.rubrica_id)) {
           if (isBeforeCurrentMonth) irsAccumulated += val;
           if (isBeforeJanuary) irsAccumulatedJan += val;
           if (isBeforePrevMonth) irsAccumulatedPrev += val;
+          if (isBeforeNextMonth) irsAccumulatedNext += val;
+          if (isBeforeJanNextYear) irsAccumulatedJanNext += val;
         }
         if (audiIds.has(exp.rubrica_id)) {
           if (isBeforeCurrentMonth) audiAccumulated += val;
           if (isBeforeJanuary) audiAccumulatedJan += val;
           if (isBeforePrevMonth) audiAccumulatedPrev += val;
+          if (isBeforeNextMonth) audiAccumulatedNext += val;
+          if (isBeforeJanNextYear) audiAccumulatedJanNext += val;
         }
       }
-      return { totalAccumulated, totalAccumulatedJan, totalAccumulatedPrev, irsAccumulated, audiAccumulated, irsAccumulatedJan, audiAccumulatedJan, irsAccumulatedPrev, audiAccumulatedPrev };
+      return { totalAccumulated, totalAccumulatedJan, totalAccumulatedPrev, irsAccumulated, audiAccumulated, irsAccumulatedJan, audiAccumulatedJan, irsAccumulatedPrev, audiAccumulatedPrev, totalAccumulatedNext, irsAccumulatedNext, audiAccumulatedNext, totalAccumulatedJanNext, irsAccumulatedJanNext, audiAccumulatedJanNext };
     } catch { return empty; }
   };
 
-  const [cgdReals, nbReals, coverflexReals, cgdSavingsData] = await Promise.all([
-    fetchReal("cgd_real"),
-    fetchReal("nb_real"),
-    fetchReal("coverflex_real"),
+  const [cgdReals, nbReals, coverflexReals, cgdRealsNext, nbRealsNext, coverflexRealsNext, cgdSavingsData] = await Promise.all([
+    fetchReal("cgd_real", year),
+    fetchReal("nb_real", year),
+    fetchReal("coverflex_real", year),
+    fetchReal("cgd_real", year + 1),
+    fetchReal("nb_real", year + 1),
+    fetchReal("coverflex_real", year + 1),
     fetchCgdSavings()
   ]);
 
@@ -115,29 +120,22 @@ function escapeHtml(str) {
     return row ? Number(row.real) || 0 : 0;
   };
 
+  // Current month values
   const cgdReal = getRealForMonth(cgdReals, currentMonth);
   const nbReal = getRealForMonth(nbReals, currentMonth);
   const coverflexReal = getRealForMonth(coverflexReals, currentMonth);
-
   const cgdAccumulatedSavings = cgdSavingsData.totalAccumulated;
-  const cgdAccumulatedSavingsJan = cgdSavingsData.totalAccumulatedJan;
-
   const totalSaldo = cgdReal + nbReal + coverflexReal;
   const cgdDisponivel = cgdReal - cgdAccumulatedSavings;
   const saldoDisponivel = cgdDisponivel + nbReal + coverflexReal;
 
-  // January values for variance
+  // January values
   const cgdRealJan = getRealForMonth(cgdReals, 0);
   const nbRealJan = getRealForMonth(nbReals, 0);
   const coverflexRealJan = getRealForMonth(coverflexReals, 0);
+  const cgdAccumulatedSavingsJan = cgdSavingsData.totalAccumulatedJan;
   const cgdDisponivelJan = cgdRealJan - cgdAccumulatedSavingsJan;
   const saldoDisponivelJan = cgdDisponivelJan + nbRealJan + coverflexRealJan;
-
-  // IRS and Audi accumulated (already computed cross-year in fetchCgdSavings)
-  const irsAccumulated = cgdSavingsData.irsAccumulated;
-  const irsAccumulatedJan = cgdSavingsData.irsAccumulatedJan;
-  const audiAccumulated = cgdSavingsData.audiAccumulated;
-  const audiAccumulatedJan = cgdSavingsData.audiAccumulatedJan;
 
   // Previous month values
   const prevMonthIdx = currentMonth > 0 ? currentMonth - 1 : 11;
@@ -148,20 +146,44 @@ function escapeHtml(str) {
   const cgdAccumulatedSavingsPrev = cgdSavingsData.totalAccumulatedPrev;
   const cgdDisponivelPrev = cgdRealPrev - cgdAccumulatedSavingsPrev;
   const saldoDisponivelPrev = cgdDisponivelPrev + nbRealPrev + coverflexRealPrev;
+
+  // Next month values
+  const nextMonthIdx = currentMonth < 11 ? currentMonth + 1 : 0;
+  const nextMonthYear = currentMonth < 11 ? year : year + 1;
+  const nextRealsC = nextMonthYear === year ? cgdReals : cgdRealsNext;
+  const nextRealsN = nextMonthYear === year ? nbReals : nbRealsNext;
+  const nextRealsF = nextMonthYear === year ? coverflexReals : coverflexRealsNext;
+  const cgdRealNext = getRealForMonth(nextRealsC, nextMonthIdx);
+  const nbRealNext = getRealForMonth(nextRealsN, nextMonthIdx);
+  const coverflexRealNext = getRealForMonth(nextRealsF, nextMonthIdx);
+
+  // January next year values
+  const cgdRealJanNext = getRealForMonth(cgdRealsNext, 0);
+  const nbRealJanNext = getRealForMonth(nbRealsNext, 0);
+  const coverflexRealJanNext = getRealForMonth(coverflexRealsNext, 0);
+
+  // IRS and Audi accumulated
+  const irsAccumulated = cgdSavingsData.irsAccumulated;
+  const irsAccumulatedJan = cgdSavingsData.irsAccumulatedJan;
+  const audiAccumulated = cgdSavingsData.audiAccumulated;
+  const audiAccumulatedJan = cgdSavingsData.audiAccumulatedJan;
   const irsAccumulatedPrev = cgdSavingsData.irsAccumulatedPrev;
   const audiAccumulatedPrev = cgdSavingsData.audiAccumulatedPrev;
 
-  // Build pie chart
+  // ─── Pie chart renderer ────────────────────────────────────────────────
   const PIE_COLORS = ["#00dc6e", "#2f9ad4", "#f2c46a"];
-  const slices = [
-    { label: "CGD", value: Math.abs(cgdReal), color: PIE_COLORS[0] },
-    { label: "Novo Banco", value: Math.abs(nbReal), color: PIE_COLORS[1] },
-    { label: "Coverflex", value: Math.abs(coverflexReal), color: PIE_COLORS[2] }
-  ].filter(s => s.value !== 0);
 
-  const pieHost = document.getElementById("home-pie-saldo");
-  if (pieHost && slices.length) {
-    const total = slices.reduce((s, e) => s + e.value, 0);
+  function renderPieChart(hostId, title, cgdVal, nbVal, coverVal) {
+    const slices = [
+      { label: "CGD", value: Math.abs(cgdVal), color: PIE_COLORS[0] },
+      { label: "Novo Banco", value: Math.abs(nbVal), color: PIE_COLORS[1] },
+      { label: "Coverflex", value: Math.abs(coverVal), color: PIE_COLORS[2] }
+    ].filter(s => s.value !== 0);
+
+    const pieHost = document.getElementById(hostId);
+    if (!pieHost || !slices.length) return;
+
+    const totalVal = slices.reduce((s, e) => s + e.value, 0);
     const cx = 50, cy = 50, outerR = 40, innerR = 24;
     let currentAngle = 0;
 
@@ -171,7 +193,7 @@ function escapeHtml(str) {
     }
 
     const paths = slices.map((slice) => {
-      const sliceAngle = (slice.value / total) * 360;
+      const sliceAngle = (slice.value / totalVal) * 360;
       const startAngle = currentAngle;
       const endAngle = currentAngle + sliceAngle;
       currentAngle = endAngle;
@@ -190,24 +212,24 @@ function escapeHtml(str) {
         "Z"
       ].join(" ");
 
-      const pct = ((slice.value / total) * 100).toFixed(1);
+      const pct = ((slice.value / totalVal) * 100).toFixed(1);
       return `<path class='nb-pie-slice' d='${d}' fill='${slice.color}' stroke='rgba(0,0,0,0.3)' stroke-width='0.5' data-pie-label='${escapeHtml(slice.label)}' data-pie-value='${money(slice.value)}' data-pie-pct='${pct}%' data-pie-color='${slice.color}'/>`;
     }).join("");
 
     const legend = slices.map((slice) => {
-      const pct = ((slice.value / total) * 100).toFixed(0);
+      const pct = ((slice.value / totalVal) * 100).toFixed(0);
       return `<span class='nb-pie-legend-item'><span class='nb-pie-legend-dot' style='background:${slice.color}'></span>${escapeHtml(slice.label)} ${pct}%</span>`;
     }).join("");
 
     pieHost.innerHTML = `
-      <h4 class='nb-pie-title'>Saldo actual ${MONTHS_PT[currentMonth]} ${year}</h4>
+      <h4 class='nb-pie-title'>${escapeHtml(title)}</h4>
       <div class='nb-pie-body'>
         <div class='nb-pie-svg-wrap'>
           <svg class='nb-pie-svg' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'>
             ${paths}
           </svg>
           <div class='nb-pie-center-label'>
-            <span class='nb-pie-center-value'>${money(totalSaldo)}</span>
+            <span class='nb-pie-center-value'>${money(cgdVal + nbVal + coverVal)}</span>
             <span class='nb-pie-center-sub'>EUR</span>
           </div>
         </div>
@@ -244,6 +266,13 @@ function escapeHtml(str) {
       });
     }
   }
+
+  // Render 5 pie charts
+  renderPieChart("home-pie-jan", `Janeiro ${year}`, cgdRealJan, nbRealJan, coverflexRealJan);
+  renderPieChart("home-pie-prev", `${MONTHS_PT[prevMonthIdx]} ${year}`, cgdRealPrev, nbRealPrev, coverflexRealPrev);
+  renderPieChart("home-pie-saldo", `${MONTHS_PT[currentMonth]} ${year}`, cgdReal, nbReal, coverflexReal);
+  renderPieChart("home-pie-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, cgdRealNext, nbRealNext, coverflexRealNext);
+  renderPieChart("home-pie-jan-next", `Janeiro ${year + 1}`, cgdRealJanNext, nbRealJanNext, coverflexRealJanNext);
 
   // Generic tile renderer
   function renderTile(id, label, value, valueJan, valuePrev) {
