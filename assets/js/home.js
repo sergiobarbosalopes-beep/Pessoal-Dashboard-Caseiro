@@ -420,7 +420,7 @@ function escapeHtml(str) {
   renderTile("home-tile-audi", "Saldo Audi", audiAccumulated, audiAccumulatedJan, audiAccumulatedPrev);
 
   // ─── CGD Disponivel section (5 tiles aligned with pie charts) ──────────
-  function renderCgdDispTile(id, label, value, { highlight = false, vsJan = null, vsPrev = null } = {}) {
+  function renderCgdDispTile(id, label, value, { highlight = false, vsJan = null, vsPrev = null, vsPrevLabel = null } = {}) {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = "";
@@ -437,7 +437,7 @@ function escapeHtml(str) {
       const pct = ((value - vsPrev) / Math.abs(vsPrev)) * 100;
       const sign = pct >= 0 ? "+" : "";
       const color = pct >= 0 ? "#00dc6e" : "#ff6b6b";
-      varianceHtml += `<div class="home-tile-footer" style="color:${color}"><span>${sign}${pct.toFixed(1)}% vs ${MONTHS_PT[prevMonthIdx]}</span></div>`;
+      varianceHtml += `<div class="home-tile-footer" style="color:${color}"><span>${sign}${pct.toFixed(1)}% vs ${vsPrevLabel || MONTHS_PT[prevMonthIdx]}</span></div>`;
     }
 
     el.innerHTML = `
@@ -452,6 +452,6 @@ function escapeHtml(str) {
   renderCgdDispTile("home-cgd-disp-jan", `Janeiro ${year}`, cgdDisponivelJan);
   renderCgdDispTile("home-cgd-disp-prev", `${MONTHS_PT[prevMonthIdx]} ${prevMonthYear}`, cgdDisponivelPrev, { vsJan: cgdDisponivelJan });
   renderCgdDispTile("home-cgd-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, cgdDisponivel, { highlight: true, vsJan: cgdDisponivelJan, vsPrev: cgdDisponivelPrev });
-  renderCgdDispTile("home-cgd-disp-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, cgdDisponivelNext, { vsJan: cgdDisponivelJan, vsPrev: cgdDisponivel });
-  renderCgdDispTile("home-cgd-disp-jan-next", `Janeiro ${year + 1}`, cgdDisponivelJanNext, { vsJan: cgdDisponivelJan, vsPrev: cgdDisponivelNext });
+  renderCgdDispTile("home-cgd-disp-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, cgdDisponivelNext, { vsJan: cgdDisponivelJan, vsPrev: cgdDisponivel, vsPrevLabel: MONTHS_PT[currentMonth] });
+  renderCgdDispTile("home-cgd-disp-jan-next", `Janeiro ${year + 1}`, cgdDisponivelJanNext, { vsJan: cgdDisponivelJan });
 })();
