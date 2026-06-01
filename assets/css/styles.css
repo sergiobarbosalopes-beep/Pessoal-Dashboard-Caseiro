@@ -883,6 +883,20 @@ body:not(.coverflex-theme) .temporal-nav-card {
   max-width: 220px;
 }
 
+.resumo-pies .cgd-pie-card {
+  flex: 1 1 280px;
+  min-width: 260px;
+  max-width: 380px;
+}
+
+.cgd-pie-card .nb-pie-svg-wrap {
+  max-width: 220px;
+}
+
+.cgd-pie-card .nb-pie-center-value {
+  font-size: 0.82rem;
+}
+
 .resumo-pies .stat-tile {
   text-align: center;
   padding: 18px 12px;

@@ -1661,7 +1661,7 @@ function renderNbPieCharts() {
     const total = slices.reduce((s, entry) => s + entry.value, 0);
     if (!total) { host.innerHTML = ""; return; }
 
-    const cx = 50, cy = 50, outerR = 40, innerR = 24;
+    const cx = 50, cy = 50, outerR = 40, innerR = IS_COVERFLEX ? 24 : (TABLE_PREFIX === "cgd" ? 20 : 24);
     let currentAngle = 0;
 
     const paths = slices.map((slice, idx) => {
