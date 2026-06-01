@@ -439,9 +439,7 @@ function escapeHtml(str) {
   const irsJanNext = cgdSavingsData.irsAccumulatedJanNext;
 
   renderDispTile("home-irs-disp-jan", `Janeiro ${year}`, irsAccumulatedJan);
-  renderDispTile("home-irs-disp-prev", `${MONTHS_PT[prevMonthIdx]} ${prevMonthYear}`, irsAccumulatedPrev, { vsJan: irsAccumulatedJan });
-  renderDispTile("home-irs-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, irsAccumulated, { highlight: true, vsJan: irsAccumulatedJan, vsPrev: irsAccumulatedPrev });
-  renderDispTile("home-irs-disp-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, irsNext, { vsJan: irsAccumulatedJan, vsPrev: irsAccumulated, vsPrevLabel: MONTHS_PT[currentMonth] });
+  renderDispTile("home-irs-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, irsAccumulated, { highlight: true, vsJan: irsAccumulatedJan });
   renderDispTile("home-irs-disp-jan-next", `Janeiro ${year + 1}`, irsJanNext, { vsJan: irsAccumulatedJan });
 
   // Audi Poupanca tiles
@@ -449,8 +447,6 @@ function escapeHtml(str) {
   const audiJanNext = cgdSavingsData.audiAccumulatedJanNext;
 
   renderDispTile("home-audi-disp-jan", `Janeiro ${year}`, audiAccumulatedJan);
-  renderDispTile("home-audi-disp-prev", `${MONTHS_PT[prevMonthIdx]} ${prevMonthYear}`, audiAccumulatedPrev, { vsJan: audiAccumulatedJan });
-  renderDispTile("home-audi-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, audiAccumulated, { highlight: true, vsJan: audiAccumulatedJan, vsPrev: audiAccumulatedPrev });
-  renderDispTile("home-audi-disp-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, audiNext, { vsJan: audiAccumulatedJan, vsPrev: audiAccumulated, vsPrevLabel: MONTHS_PT[currentMonth] });
+  renderDispTile("home-audi-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, audiAccumulated, { highlight: true, vsJan: audiAccumulatedJan });
   renderDispTile("home-audi-disp-jan-next", `Janeiro ${year + 1}`, audiJanNext, { vsJan: audiAccumulatedJan });
 })();
