@@ -1500,24 +1500,19 @@ function renderCgdAlerts() {
     for (const expense of expenses) {
       const name = (expense?.name || "").trim();
       if (!name) continue;
-      const monthData = Array.isArray(expense?.monthData) ? expense.monthData : [];
+      const values = Array.isArray(expense?.values) ? expense.values : [];
 
       for (const m of monthsToCheck) {
         if (m < 1) continue; // can't compare month 0 with previous
         const prevM = m - 1;
 
-        // Get value for current analyzed month
-        const currData = monthData[m];
-        const prevData = monthData[prevM];
-        if (!currData) continue;
-
-        const currVal = currData.valor != null ? currData.valor : (currData.valorEstimado || 0);
-        const prevVal = prevData ? (prevData.valor != null ? prevData.valor : (prevData.valorEstimado || 0)) : 0;
+        const currVal = Number(values[m]) || 0;
+        const prevVal = Number(values[prevM]) || 0;
 
         // Skip if current has no value
         if (currVal === 0) continue;
 
-        // If prev is 0/null and current > 0, always alert (show as "novo")
+        // If prev is 0 and current > 0, always alert (show as "novo")
         if (prevVal === 0) {
           alerts.push({
             month: m,
@@ -1525,7 +1520,7 @@ function renderCgdAlerts() {
             desc: name,
             value: currVal,
             prevValue: 0,
-            pct: null // new expense
+            pct: null
           });
           continue;
         }
