@@ -377,6 +377,183 @@ function escapeHtml(str) {
   renderPieChart("home-pie-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, cgdRealNext, nbRealNext, coverflexRealNext);
   renderPieChart("home-pie-jan-next", `Janeiro ${year + 1}`, cgdRealJanNext, nbRealJanNext, coverflexRealJanNext);
 
+  // ─── Temporal Evolution Chart ──────────────────────────────────────────
+  (function renderTemporalChart() {
+    const host = document.getElementById("home-temporal-chart");
+    if (!host) return;
+
+    // Build 12-month accumulated savings for IRS and Audi from raw expenses
+    const buildMonthlySavings = async (filterFn) => {
+      try {
+        const [rubRes, despRes] = await Promise.all([
+          sb.from("cgd_rubrica").select("rubrica_id,rubrica_desc,rubrica_tipo").in("rubrica_tipo", ["Aprovisionamento"]),
+          sb.from("cgd_despesa").select("rubrica_id,ano,mes,valor,valor_estimado,zerado")
+        ]);
+        const rubrics = Array.isArray(rubRes.data) ? rubRes.data : [];
+        const expenses = Array.isArray(despRes.data) ? despRes.data : [];
+        const ids = new Set();
+        for (const r of rubrics) {
+          if (filterFn(r.rubrica_desc || "")) ids.add(r.rubrica_id);
+        }
+        // Accumulated up to each month
+        const result = new Array(12).fill(0);
+        for (const exp of expenses) {
+          if (!ids.has(exp.rubrica_id)) continue;
+          if (exp.zerado === true || exp.zerado === "true") continue;
+          const val = Number(exp.valor) || Number(exp.valor_estimado) || 0;
+          const expYear = Number(exp.ano);
+          const expMonth = Number(exp.mes) - 1;
+          for (let m = 0; m < 12; m++) {
+            if (expYear < year || (expYear === year && expMonth < m)) {
+              result[m] += val;
+            }
+          }
+        }
+        return result;
+      } catch { return new Array(12).fill(0); }
+    };
+
+    // Compute all monthly accumulated savings
+    Promise.all([
+      buildMonthlySavings((desc) => true), // all savings
+      buildMonthlySavings((desc) => desc.toLowerCase().includes("irs")),
+      buildMonthlySavings((desc) => desc.toLowerCase().includes("audi"))
+    ]).then(([allSavingsMonthly, irsMonthly, audiMonthly]) => {
+      // CGD disponivel = cgdEstimated - allSavingsMonthly
+      const cgdDispSeries = cgdEstimated.map((v, m) => v - allSavingsMonthly[m]);
+      const nbSeries = nbEstimated.slice();
+      const cfSeries = coverflexEstimated.slice();
+      const irsSeries = irsMonthly;
+      const audiSeries = audiMonthly;
+      const totalSeries = cgdDispSeries.map((v, m) => v + nbSeries[m] + cfSeries[m]);
+
+      const CHART_COLORS = {
+        cgd: "#2f9ad4",
+        nb: "#00dc6e",
+        cf: "#f2c46a",
+        irs: "#ef9a9a",
+        audi: "#b388ff",
+        total: "#ffffff"
+      };
+
+      const allSeries = [
+        { key: "total", label: "Total Disponivel", color: CHART_COLORS.total, values: totalSeries },
+        { key: "cgd", label: "CGD", color: CHART_COLORS.cgd, values: cgdDispSeries },
+        { key: "nb", label: "Novo Banco", color: CHART_COLORS.nb, values: nbSeries },
+        { key: "cf", label: "Coverflex", color: CHART_COLORS.cf, values: cfSeries },
+        { key: "irs", label: "Poupanca IRS", color: CHART_COLORS.irs, values: irsSeries },
+        { key: "audi", label: "Poupanca Audi", color: CHART_COLORS.audi, values: audiSeries }
+      ];
+
+      const hiddenKeys = new Set();
+
+      function render() {
+        const visibleSeries = allSeries.filter(s => !hiddenKeys.has(s.key));
+
+        const legend = allSeries.map(s => {
+          const active = !hiddenKeys.has(s.key);
+          return `<button type='button' class='outcome-evolution-legend-item ${active ? "is-active" : "is-inactive"}' data-home-chart-toggle='${s.key}'><span class='outcome-evolution-legend-dot' style='background:${s.color}'></span>${s.label}</button>`;
+        }).join("");
+
+        if (!visibleSeries.length) {
+          host.innerHTML = `<div class='cgd-summary-map'><div class='outcome-evolution-head'><h3>Mapa ${year}</h3></div><p class='outcome-evolution-empty'>Nenhuma serie selecionada.</p><div class='outcome-evolution-legend'>${legend}</div></div>`;
+          return;
+        }
+
+        const chartWidth = 980, chartHeight = 320;
+        const padding = { top: 20, right: 18, bottom: 38, left: 54 };
+        const plotWidth = chartWidth - padding.left - padding.right;
+        const plotHeight = chartHeight - padding.top - padding.bottom;
+        const monthBand = plotWidth / 11;
+        const xFor = (m) => padding.left + monthBand * m;
+
+        const allVals = visibleSeries.flatMap(s => s.values.map(v => Number(v) || 0));
+        const minVal = Math.min(0, ...allVals);
+        const maxVal = Math.max(0, ...allVals);
+        const range = maxVal - minVal || 1;
+        const yFor = (v) => padding.top + ((maxVal - (Number(v) || 0)) / range) * plotHeight;
+        const zeroY = yFor(0);
+
+        const gridCount = 6;
+        const gridLines = Array.from({ length: gridCount + 1 }, (_, i) => {
+          const ratio = i / gridCount;
+          const y = padding.top + ratio * plotHeight;
+          const val = maxVal - ratio * (maxVal - minVal);
+          return `<line x1='${padding.left}' y1='${y.toFixed(1)}' x2='${(chartWidth - padding.right).toFixed(1)}' y2='${y.toFixed(1)}' stroke='rgba(176,210,226,0.18)' stroke-width='0.7'/><text x='${(padding.left - 8).toFixed(1)}' y='${(y + 4).toFixed(1)}' text-anchor='end' fill='rgba(197,220,231,0.82)' font-size='9'>${val.toFixed(0)}</text>`;
+        }).join("");
+
+        const monthLabels = MONTHS_PT.map((name, m) => {
+          const x = xFor(m);
+          return `<text x='${x.toFixed(1)}' y='${(chartHeight - 12).toFixed(1)}' text-anchor='middle' fill='rgba(197,220,231,0.9)' font-size='10'>${name.substring(0, 3)}</text>`;
+        }).join("");
+
+        function buildSmoothPath(points) {
+          if (points.length < 2) return "";
+          let path = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
+          for (let i = 0; i < points.length - 1; i++) {
+            const p0 = points[i - 1] || points[i];
+            const p1 = points[i];
+            const p2 = points[i + 1];
+            const p3 = points[i + 2] || p2;
+            const cp1x = p1.x + (p2.x - p0.x) / 6;
+            const cp1y = p1.y + (p2.y - p0.y) / 6;
+            const cp2x = p2.x - (p3.x - p1.x) / 6;
+            const cp2y = p2.y - (p3.y - p1.y) / 6;
+            path += ` C ${cp1x.toFixed(2)} ${cp1y.toFixed(2)}, ${cp2x.toFixed(2)} ${cp2y.toFixed(2)}, ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
+          }
+          return path;
+        }
+
+        const seriesMarkup = visibleSeries.map(s => {
+          const points = s.values.map((v, m) => ({ x: xFor(m), y: yFor(v), value: Number(v) || 0, month: MONTHS_PT[m] }));
+          const pathData = buildSmoothPath(points);
+          const areaPath = `${pathData} L ${points[11].x.toFixed(2)} ${zeroY.toFixed(2)} L ${points[0].x.toFixed(2)} ${zeroY.toFixed(2)} Z`;
+          const dots = points.map(p => `<circle class='outcome-evolution-point' cx='${p.x.toFixed(2)}' cy='${p.y.toFixed(2)}' r='2.2' fill='${s.color}' data-month-name='${p.month}' data-series-name='${s.label}' data-value='${money(p.value)}' data-series-color='${s.color}'/>`).join("");
+          return `<g class='outcome-evolution-series'><path d='${areaPath}' fill='${s.color}' fill-opacity='0.08'/><path d='${pathData}' fill='none' stroke='${s.color}' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/>${dots}</g>`;
+        }).join("");
+
+        host.innerHTML = `
+          <div class='cgd-summary-map'>
+            <div class='outcome-evolution-head'><h3>Mapa ${year}</h3></div>
+            <div class='outcome-evolution-legend'>${legend}</div>
+            <div class='outcome-evolution-svg-wrap cgd-summary-svg-wrap'>
+              <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}'>
+                ${gridLines}
+                ${seriesMarkup}
+                ${monthLabels}
+              </svg>
+              <div class='outcome-evolution-tooltip' aria-hidden='true'></div>
+            </div>
+          </div>
+        `;
+
+        // Tooltip
+        const wrap = host.querySelector(".outcome-evolution-svg-wrap");
+        const tooltip = host.querySelector(".outcome-evolution-tooltip");
+        if (wrap && tooltip) {
+          wrap.querySelectorAll(".outcome-evolution-point").forEach(dot => {
+            dot.addEventListener("pointerenter", () => {
+              tooltip.innerHTML = `<span style='color:${dot.dataset.seriesColor}'>${dot.dataset.seriesName}</span>: ${dot.dataset.value} (${dot.dataset.monthName})`;
+              tooltip.classList.add("is-visible");
+            });
+            dot.addEventListener("pointerleave", () => tooltip.classList.remove("is-visible"));
+          });
+        }
+      }
+
+      render();
+
+      // Legend toggle
+      host.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-home-chart-toggle]");
+        if (!btn) return;
+        const key = btn.dataset.homeChartToggle;
+        if (hiddenKeys.has(key)) hiddenKeys.delete(key); else hiddenKeys.add(key);
+        render();
+      });
+    });
+  })();
+
   // ─── Generic disponivel tile renderer ─────────────────────────────────
   function renderDispTile(id, label, value, { highlight = false, whiteGlow = false, past = false, meta = null, vsJan = null, vsPrev = null, vsPrevLabel = null } = {}) {
     const el = document.getElementById(id);
