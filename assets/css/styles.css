@@ -790,6 +790,8 @@ body:not(.coverflex-theme) .temporal-nav-card {
   display: block;
   position: relative;
   overflow: hidden;
+  opacity: 1;
+  transform: translateY(0);
   border: 1px solid rgba(0, 200, 100, 0.44);
   background:
     radial-gradient(580px 280px at 96% -6%, rgba(0, 220, 110, 0.3), transparent 72%),
