@@ -414,13 +414,12 @@ function escapeHtml(str) {
 
   // Render all tiles
   renderTile("home-tile-disponivel", "Saldo Total disponivel", saldoDisponivel, saldoDisponivelJan, saldoDisponivelPrev);
-  renderTile("home-tile-nb", "Saldo disponivel Novo Banco", nbReal, nbRealJan, nbRealPrev);
   renderTile("home-tile-coverflex", "Saldo disponivel Coverflex", coverflexReal, coverflexRealJan, coverflexRealPrev);
   renderTile("home-tile-irs", "Saldo IRS", irsAccumulated, irsAccumulatedJan, irsAccumulatedPrev);
   renderTile("home-tile-audi", "Saldo Audi", audiAccumulated, audiAccumulatedJan, audiAccumulatedPrev);
 
-  // ─── CGD Disponivel section (5 tiles aligned with pie charts) ──────────
-  function renderCgdDispTile(id, label, value, { highlight = false, vsJan = null, vsPrev = null, vsPrevLabel = null } = {}) {
+  // ─── Generic disponivel tile renderer (CGD + NB) ──────────────────────
+  function renderDispTile(id, label, value, { highlight = false, vsJan = null, vsPrev = null, vsPrevLabel = null } = {}) {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = "";
@@ -449,9 +448,20 @@ function escapeHtml(str) {
     `;
   }
 
-  renderCgdDispTile("home-cgd-disp-jan", `Janeiro ${year}`, cgdDisponivelJan);
-  renderCgdDispTile("home-cgd-disp-prev", `${MONTHS_PT[prevMonthIdx]} ${prevMonthYear}`, cgdDisponivelPrev, { vsJan: cgdDisponivelJan });
-  renderCgdDispTile("home-cgd-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, cgdDisponivel, { highlight: true, vsJan: cgdDisponivelJan, vsPrev: cgdDisponivelPrev });
-  renderCgdDispTile("home-cgd-disp-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, cgdDisponivelNext, { vsJan: cgdDisponivelJan, vsPrev: cgdDisponivel, vsPrevLabel: MONTHS_PT[currentMonth] });
-  renderCgdDispTile("home-cgd-disp-jan-next", `Janeiro ${year + 1}`, cgdDisponivelJanNext, { vsJan: cgdDisponivelJan });
+  // CGD Disponivel tiles
+  renderDispTile("home-cgd-disp-jan", `Janeiro ${year}`, cgdDisponivelJan);
+  renderDispTile("home-cgd-disp-prev", `${MONTHS_PT[prevMonthIdx]} ${prevMonthYear}`, cgdDisponivelPrev, { vsJan: cgdDisponivelJan });
+  renderDispTile("home-cgd-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, cgdDisponivel, { highlight: true, vsJan: cgdDisponivelJan, vsPrev: cgdDisponivelPrev });
+  renderDispTile("home-cgd-disp-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, cgdDisponivelNext, { vsJan: cgdDisponivelJan, vsPrev: cgdDisponivel, vsPrevLabel: MONTHS_PT[currentMonth] });
+  renderDispTile("home-cgd-disp-jan-next", `Janeiro ${year + 1}`, cgdDisponivelJanNext, { vsJan: cgdDisponivelJan });
+
+  // NB Disponivel tiles (NB has no savings deduction, value = real)
+  const nbRealNextDisp = nextMonthYear === year ? getVal(nbEstimated, nextMonthIdx) : getValNext(nbEstimatedNext, nextMonthIdx);
+  const nbRealJanNextDisp = getValNext(nbEstimatedNext, 0);
+
+  renderDispTile("home-nb-disp-jan", `Janeiro ${year}`, nbRealJan);
+  renderDispTile("home-nb-disp-prev", `${MONTHS_PT[prevMonthIdx]} ${prevMonthYear}`, nbRealPrev, { vsJan: nbRealJan });
+  renderDispTile("home-nb-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, nbReal, { highlight: true, vsJan: nbRealJan, vsPrev: nbRealPrev });
+  renderDispTile("home-nb-disp-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, nbRealNextDisp, { vsJan: nbRealJan, vsPrev: nbReal, vsPrevLabel: MONTHS_PT[currentMonth] });
+  renderDispTile("home-nb-disp-jan-next", `Janeiro ${year + 1}`, nbRealJanNextDisp, { vsJan: nbRealJan });
 })();
