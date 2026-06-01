@@ -22,7 +22,7 @@ function escapeHtml(str) {
   // Update title
   const titleEl = document.getElementById("home-resumo-title");
   if (titleEl) {
-    titleEl.textContent = `Resumo ${MONTHS_PT[currentMonth]}`;
+    titleEl.textContent = "Resumo Saldo Total";
   }
 
   // Fetch real values from all 3 tables (for current year AND next year)
@@ -263,9 +263,9 @@ function escapeHtml(str) {
   const audiAccumulatedPrev = cgdSavingsData.audiAccumulatedPrev;
 
   // ─── Pie chart renderer ────────────────────────────────────────────────
-  const PIE_COLORS = ["#00dc6e", "#2f9ad4", "#f2c46a"];
+  const PIE_COLORS = ["#2f9ad4", "#00dc6e", "#f2c46a"];
 
-  function renderPieChart(hostId, title, cgdVal, nbVal, coverVal) {
+  function renderPieChart(hostId, title, cgdVal, nbVal, coverVal, { highlight = false } = {}) {
     const slices = [
       { label: "CGD", value: Math.abs(cgdVal), color: PIE_COLORS[0] },
       { label: "Novo Banco", value: Math.abs(nbVal), color: PIE_COLORS[1] },
@@ -275,26 +275,31 @@ function escapeHtml(str) {
     const pieHost = document.getElementById(hostId);
     if (!pieHost || !slices.length) return;
 
+    if (highlight) pieHost.classList.add("nb-pie-card--active");
+
     const totalVal = slices.reduce((s, e) => s + e.value, 0);
-    const cx = 50, cy = 50, outerR = 40, innerR = 24;
+    const cx = 50, cy = 50, outerR = 42, innerR = 24;
     let currentAngle = 0;
+    const gap = 1.5; // gap degrees between slices
 
     function polarToCartesian(ccx, ccy, r, angleDeg) {
       const rad = (angleDeg - 90) * Math.PI / 180;
       return { x: ccx + r * Math.cos(rad), y: ccy + r * Math.sin(rad) };
     }
 
-    const paths = slices.map((slice) => {
+    const paths = slices.map((slice, i) => {
       const sliceAngle = (slice.value / totalVal) * 360;
-      const startAngle = currentAngle;
-      const endAngle = currentAngle + sliceAngle;
-      currentAngle = endAngle;
+      const startAngle = currentAngle + (i === 0 ? 0 : gap / 2);
+      const endAngle = currentAngle + sliceAngle - gap / 2;
+      currentAngle += sliceAngle;
+
+      if (endAngle - startAngle < 0.5) return "";
 
       const outerStart = polarToCartesian(cx, cy, outerR, startAngle);
       const outerEnd = polarToCartesian(cx, cy, outerR, endAngle);
       const innerStart = polarToCartesian(cx, cy, innerR, endAngle);
       const innerEnd = polarToCartesian(cx, cy, innerR, startAngle);
-      const largeArc = sliceAngle > 180 ? 1 : 0;
+      const largeArc = (endAngle - startAngle) > 180 ? 1 : 0;
 
       const d = [
         `M ${outerStart.x.toFixed(2)} ${outerStart.y.toFixed(2)}`,
@@ -305,13 +310,15 @@ function escapeHtml(str) {
       ].join(" ");
 
       const pct = ((slice.value / totalVal) * 100).toFixed(1);
-      return `<path class='nb-pie-slice' d='${d}' fill='${slice.color}' stroke='rgba(0,0,0,0.3)' stroke-width='0.5' data-pie-label='${escapeHtml(slice.label)}' data-pie-value='${money(slice.value)}' data-pie-pct='${pct}%' data-pie-color='${slice.color}'/>`;
+      return `<path class='nb-pie-slice' d='${d}' fill='${slice.color}' stroke='none' data-pie-label='${escapeHtml(slice.label)}' data-pie-value='${money(slice.value)}' data-pie-pct='${pct}%' data-pie-color='${slice.color}'/>`;
     }).join("");
 
     const legend = slices.map((slice) => {
       const pct = ((slice.value / totalVal) * 100).toFixed(0);
       return `<span class='nb-pie-legend-item'><span class='nb-pie-legend-dot' style='background:${slice.color}'></span>${escapeHtml(slice.label)} ${pct}%</span>`;
     }).join("");
+
+    const totalDisplay = money(cgdVal + nbVal + coverVal);
 
     pieHost.innerHTML = `
       <h4 class='nb-pie-title'>${escapeHtml(title)}</h4>
@@ -321,12 +328,11 @@ function escapeHtml(str) {
             ${paths}
           </svg>
           <div class='nb-pie-center-label'>
-            <span class='nb-pie-center-value'>${money(cgdVal + nbVal + coverVal)}</span>
-            <span class='nb-pie-center-sub'>EUR</span>
+            <span class='nb-pie-center-value'>${totalDisplay}</span>
           </div>
         </div>
-        <div class='nb-pie-legend'>${legend}</div>
       </div>
+      <div class='nb-pie-legend nb-pie-legend--bottom'>${legend}</div>
       <div class='nb-pie-tooltip' aria-hidden='true'></div>
     `;
 
@@ -360,9 +366,10 @@ function escapeHtml(str) {
   }
 
   // Render 5 pie charts
+  const prevMonthYear = currentMonth > 0 ? year : year - 1;
   renderPieChart("home-pie-jan", `Janeiro ${year}`, cgdRealJan, nbRealJan, coverflexRealJan);
-  renderPieChart("home-pie-prev", `${MONTHS_PT[prevMonthIdx]} ${year}`, cgdRealPrev, nbRealPrev, coverflexRealPrev);
-  renderPieChart("home-pie-saldo", `${MONTHS_PT[currentMonth]} ${year}`, cgdReal, nbReal, coverflexReal);
+  renderPieChart("home-pie-prev", `${MONTHS_PT[prevMonthIdx]} ${prevMonthYear}`, cgdRealPrev, nbRealPrev, coverflexRealPrev);
+  renderPieChart("home-pie-saldo", `${MONTHS_PT[currentMonth]} ${year}`, cgdReal, nbReal, coverflexReal, { highlight: true });
   renderPieChart("home-pie-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, cgdRealNext, nbRealNext, coverflexRealNext);
   renderPieChart("home-pie-jan-next", `Janeiro ${year + 1}`, cgdRealJanNext, nbRealJanNext, coverflexRealJanNext);
 

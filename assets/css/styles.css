@@ -962,6 +962,14 @@ body:not(.coverflex-theme) .temporal-nav-card {
   overflow: visible;
 }
 
+.nb-pie-card--active {
+  border-color: rgba(0, 220, 110, 0.55);
+  box-shadow:
+    0 0 24px rgba(0, 200, 100, 0.45),
+    0 0 48px rgba(0, 180, 90, 0.2),
+    0 8px 18px rgba(0, 5, 3, 0.3);
+}
+
 .nb-pie-card::before {
   content: "";
   position: absolute;
@@ -1049,6 +1057,14 @@ body:not(.coverflex-theme) .temporal-nav-card {
   display: flex;
   flex-direction: column;
   gap: 5px;
+}
+
+.nb-pie-legend--bottom {
+  flex-direction: row;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 6px;
 }
 
 .nb-pie-legend-item {
