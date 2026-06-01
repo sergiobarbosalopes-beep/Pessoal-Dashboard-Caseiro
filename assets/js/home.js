@@ -38,11 +38,13 @@ function escapeHtml(str) {
   // Returns array of 12 values for the given year, using stored real when available, otherwise estimating
   function computeEstimatedRealSeries(dbReals, monthlyTotals, yr) {
     // dbReals: array of {ano, mes, real}
-    // monthlyTotals: { income: [12], outcome: [12] } for the given year
+    // monthlyTotals: { income: [12], savings: [12], outcome: [12] } for the given year
     const result = new Array(12).fill(0);
     const dbMap = new Map();
     for (const r of dbReals) {
-      if (Number(r.ano) === yr) dbMap.set(Number(r.mes) - 1, Number(r.real) || 0);
+      if (Number(r.ano) === yr && r.real != null && Number.isFinite(Number(r.real))) {
+        dbMap.set(Number(r.mes) - 1, Number(r.real));
+      }
     }
 
     for (let m = 0; m < 12; m++) {
@@ -197,17 +199,15 @@ function escapeHtml(str) {
   const coverflexEstimatedNext = computeEstimatedRealSeries(coverflexRealsNext, coverflexTotalsNext, year + 1);
 
   // For next year January estimation, chain from December of current year
-  // If Jan next year has no DB value, estimate from Dec current year
-  const hasJanNextCgd = cgdRealsNext.some(r => Number(r.mes) === 1);
-  const hasJanNextNb = nbRealsNext.some(r => Number(r.mes) === 1);
-  const hasJanNextCover = coverflexRealsNext.some(r => Number(r.mes) === 1);
-  if (!hasJanNextCgd) {
+  // If Jan next year has no valid DB value, estimate from Dec current year
+  const hasValidReal = (reals, mes) => reals.some(r => Number(r.mes) === mes && r.real != null && Number.isFinite(Number(r.real)));
+  if (!hasValidReal(cgdRealsNext, 1)) {
     cgdEstimatedNext[0] = cgdEstimated[11] + (cgdTotals.income[11] || 0) + (cgdTotals.savings[11] || 0) - (cgdTotals.outcome[11] || 0);
   }
-  if (!hasJanNextNb) {
+  if (!hasValidReal(nbRealsNext, 1)) {
     nbEstimatedNext[0] = nbEstimated[11] + (nbTotals.income[11] || 0) + (nbTotals.savings[11] || 0) - (nbTotals.outcome[11] || 0);
   }
-  if (!hasJanNextCover) {
+  if (!hasValidReal(coverflexRealsNext, 1)) {
     coverflexEstimatedNext[0] = coverflexEstimated[11] + (coverflexTotals.income[11] || 0) + (coverflexTotals.savings[11] || 0) - (coverflexTotals.outcome[11] || 0);
   }
 
