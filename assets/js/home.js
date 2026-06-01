@@ -442,8 +442,31 @@ function escapeHtml(str) {
   renderDispTile("home-irs-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, irsAccumulated, { highlight: true, vsJan: irsAccumulatedJan });
   renderDispTile("home-irs-disp-jan-next", `Janeiro ${year + 1}`, irsJanNext, { vsJan: irsAccumulatedJan });
 
-  // IRS Coverflex tile (sum of coverflex outcome for next year × 0.45)
-  const coverflexIrsNextYear = coverflexTotalsNext.outcome.reduce((s, v) => s + (v || 0), 0) * 0.45;
+  // IRS Coverflex tile (replicate cgd.js computeEstimatedIrsMonthlyTotals logic)
+  const coverflexIrsNextYear = await (async () => {
+    try {
+      const [rubRes, despRes] = await Promise.all([
+        sb.from("coverflex_rubrica").select("rubrica_id,rubrica_desc,rubrica_tipo").eq("ano", year + 1).eq("rubrica_tipo", "Despesa"),
+        sb.from("coverflex_despesa").select("rubrica_id,mes,valor,valor_estimado,zerado").eq("ano", year + 1)
+      ]);
+      const rubrics = Array.isArray(rubRes.data) ? rubRes.data : [];
+      const expenses = Array.isArray(despRes.data) ? despRes.data : [];
+      const excludedTerms = ["chica beni"];
+      const outcomeIds = new Set();
+      for (const r of rubrics) {
+        const name = (r.rubrica_desc || "").toLowerCase();
+        if (!excludedTerms.some(t => name.includes(t))) outcomeIds.add(r.rubrica_id);
+      }
+      let total = 0;
+      for (const exp of expenses) {
+        if (!outcomeIds.has(exp.rubrica_id)) continue;
+        if (exp.zerado === true || exp.zerado === "true") continue;
+        const val = Number(exp.valor) || Number(exp.valor_estimado) || 0;
+        total += val;
+      }
+      return total * 0.45;
+    } catch { return 0; }
+  })();
   renderDispTile("home-irs-disp-coverflex", `IRS Coverflex ${year + 1}`, coverflexIrsNextYear, { highlight: true });
 
   // Audi Poupanca tiles

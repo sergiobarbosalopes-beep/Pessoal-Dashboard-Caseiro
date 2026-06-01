@@ -942,6 +942,16 @@ body:not(.coverflex-theme) .temporal-nav-card {
 }
 
 /* Danger red tile glow override */
+.stat-tile--danger.nb-pie-card {
+  border-color: rgba(229, 57, 53, 0.5) !important;
+}
+.stat-tile--danger.nb-pie-card .home-tile-header h4 {
+  color: rgba(239, 154, 154, 0.95) !important;
+}
+.stat-tile--danger.nb-pie-card .home-tile-header p {
+  color: #ef9a9a !important;
+  text-shadow: 0 0 8px rgba(229, 57, 53, 0.4) !important;
+}
 .stat-tile--danger.nb-pie-card--active {
   border-color: rgba(229, 57, 53, 0.7) !important;
   background: linear-gradient(145deg, rgba(80, 15, 15, 0.5), rgba(60, 10, 10, 0.6)) !important;
