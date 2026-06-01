@@ -378,7 +378,7 @@ function escapeHtml(str) {
   renderPieChart("home-pie-jan-next", `Janeiro ${year + 1}`, cgdRealJanNext, nbRealJanNext, coverflexRealJanNext);
 
   // ─── Generic disponivel tile renderer ─────────────────────────────────
-  function renderDispTile(id, label, value, { highlight = false, whiteGlow = false, past = false, vsJan = null, vsPrev = null, vsPrevLabel = null } = {}) {
+  function renderDispTile(id, label, value, { highlight = false, whiteGlow = false, past = false, meta = null, vsJan = null, vsPrev = null, vsPrevLabel = null } = {}) {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = "";
@@ -387,6 +387,9 @@ function escapeHtml(str) {
     if (past) el.classList.add("nb-pie-card--past");
 
     let varianceHtml = "";
+    if (meta) {
+      varianceHtml += `<div class="home-tile-footer" style="color:rgba(180,200,220,0.7);font-size:0.63rem;"><span>${meta}</span></div>`;
+    }
     if (vsJan !== null && vsJan !== 0) {
       const pct = ((value - vsJan) / Math.abs(vsJan)) * 100;
       const sign = pct >= 0 ? "+" : "";
@@ -463,7 +466,7 @@ function escapeHtml(str) {
       for (const exp of expenses) {
         if (!outcomeIds.has(exp.rubrica_id)) continue;
         if (exp.zerado === true || exp.zerado === "true") continue;
-        const val = Number(exp.valor) || Number(exp.valor_estimado) || 0;
+        const val = Number(exp.valor_estimado) || 0;
         total += val;
       }
       return total * 0.45;
@@ -477,5 +480,5 @@ function escapeHtml(str) {
 
   renderDispTile("home-audi-disp-jan", `Janeiro ${year}`, audiAccumulatedJan, { past: true });
   renderDispTile("home-audi-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, audiAccumulated, { highlight: true, vsJan: audiAccumulatedJan });
-  renderDispTile("home-audi-disp-jan-next", `Janeiro ${year + 1}`, audiJanNext, { whiteGlow: true, vsJan: audiAccumulatedJan });
+  renderDispTile("home-audi-disp-jan-next", `Janeiro ${year + 1}`, audiJanNext, { whiteGlow: true, vsJan: audiAccumulatedJan, meta: `Meta 2028: ${money(5900)}` });
 })();

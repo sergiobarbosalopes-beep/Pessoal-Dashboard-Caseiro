@@ -945,6 +945,9 @@ body:not(.coverflex-theme) .temporal-nav-card {
 .stat-tile--danger.nb-pie-card {
   border-color: rgba(229, 57, 53, 0.5) !important;
 }
+.stat-tile--danger.nb-pie-card::before {
+  background: linear-gradient(90deg, #b72f2d, #e53935, #ef9a9a) !important;
+}
 .stat-tile--danger.nb-pie-card .home-tile-header h4 {
   color: rgba(239, 154, 154, 0.95) !important;
 }
@@ -1063,8 +1066,8 @@ body:not(.coverflex-theme) .temporal-nav-card {
 }
 
 .nb-pie-card--past {
-  opacity: 0.65;
-  filter: saturate(0.75);
+  opacity: 0.75;
+  filter: saturate(0.82);
 }
 
 .stat-tile.nb-pie-card--active {
