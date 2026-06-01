@@ -1509,14 +1509,26 @@ function renderCgdAlerts() {
         // Get value for current analyzed month
         const currData = monthData[m];
         const prevData = monthData[prevM];
-        if (!currData || !prevData) continue;
+        if (!currData) continue;
 
         const currVal = currData.valor != null ? currData.valor : (currData.valorEstimado || 0);
-        const prevVal = prevData.valor != null ? prevData.valor : (prevData.valorEstimado || 0);
+        const prevVal = prevData ? (prevData.valor != null ? prevData.valor : (prevData.valorEstimado || 0)) : 0;
 
-        // Skip if no meaningful values
-        if (currVal === 0 && prevVal === 0) continue;
-        if (currVal === 0 || prevVal === 0) continue; // can't compute % if prev is 0
+        // Skip if current has no value
+        if (currVal === 0) continue;
+
+        // If prev is 0/null and current > 0, always alert (show as "novo")
+        if (prevVal === 0) {
+          alerts.push({
+            month: m,
+            monthLabel: MONTHS_SHORT[m],
+            desc: name,
+            value: currVal,
+            prevValue: 0,
+            pct: null // new expense
+          });
+          continue;
+        }
 
         const increase = (currVal - prevVal) / Math.abs(prevVal);
         if (increase > THRESHOLD) {
@@ -1550,7 +1562,7 @@ function renderCgdAlerts() {
         <span class='cgd-alert-month'>${escapeHtml(a.monthLabel)}</span>
         <span class='cgd-alert-desc'>${escapeHtml(a.desc)}</span>
         <span class='cgd-alert-value'>${money(a.value)}</span>
-        <span class='cgd-alert-pct'>+${a.pct}%</span>
+        <span class='cgd-alert-pct'>${a.pct != null ? `+${a.pct}%` : "novo"}</span>
       </li>
     `).join("");
   }
