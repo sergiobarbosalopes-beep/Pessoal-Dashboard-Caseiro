@@ -269,7 +269,7 @@ function escapeHtml(str) {
   // ─── Pie chart renderer ────────────────────────────────────────────────
   const PIE_COLORS = ["#2f9ad4", "#00dc6e", "#f2c46a"];
 
-  function renderPieChart(hostId, title, cgdVal, nbVal, coverVal, { highlight = false } = {}) {
+  function renderPieChart(hostId, title, cgdVal, nbVal, coverVal, { highlight = false, past = false } = {}) {
     const slices = [
       { label: "CGD", value: Math.abs(cgdVal), color: PIE_COLORS[0] },
       { label: "Novo Banco", value: Math.abs(nbVal), color: PIE_COLORS[1] },
@@ -280,6 +280,7 @@ function escapeHtml(str) {
     if (!pieHost || !slices.length) return;
 
     if (highlight) pieHost.classList.add("nb-pie-card--active");
+    if (past) pieHost.classList.add("nb-pie-card--past");
 
     const totalVal = slices.reduce((s, e) => s + e.value, 0);
     const cx = 50, cy = 50, outerR = 42, innerR = 24;
@@ -371,8 +372,8 @@ function escapeHtml(str) {
 
   // Render 5 pie charts
   const prevMonthYear = currentMonth > 0 ? year : year - 1;
-  renderPieChart("home-pie-jan", `Janeiro ${year}`, cgdRealJan, nbRealJan, coverflexRealJan);
-  renderPieChart("home-pie-prev", `${MONTHS_PT[prevMonthIdx]} ${prevMonthYear}`, cgdRealPrev, nbRealPrev, coverflexRealPrev);
+  renderPieChart("home-pie-jan", `Janeiro ${year}`, cgdRealJan, nbRealJan, coverflexRealJan, { past: true });
+  renderPieChart("home-pie-prev", `${MONTHS_PT[prevMonthIdx]} ${prevMonthYear}`, cgdRealPrev, nbRealPrev, coverflexRealPrev, { past: true });
   renderPieChart("home-pie-saldo", `${MONTHS_PT[currentMonth]} ${year}`, cgdReal, nbReal, coverflexReal, { highlight: true });
   renderPieChart("home-pie-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, cgdRealNext, nbRealNext, coverflexRealNext);
   renderPieChart("home-pie-jan-next", `Janeiro ${year + 1}`, cgdRealJanNext, nbRealJanNext, coverflexRealJanNext);
@@ -508,13 +509,13 @@ function escapeHtml(str) {
           const points = s.values.map((v, m) => ({ x: xFor(m), y: yFor(v), value: Number(v) || 0, month: MONTHS_PT[m] }));
           const pathData = buildSmoothPath(points);
           const areaPath = `${pathData} L ${points[11].x.toFixed(2)} ${zeroY.toFixed(2)} L ${points[0].x.toFixed(2)} ${zeroY.toFixed(2)} Z`;
-          const dots = points.map(p => `<circle class='outcome-evolution-point' cx='${p.x.toFixed(2)}' cy='${p.y.toFixed(2)}' r='2.2' fill='${s.color}' data-month-name='${p.month}' data-series-name='${s.label}' data-value='${money(p.value)}' data-series-color='${s.color}'/>`).join("");
+          const dots = points.map((p, m) => `<circle class='outcome-evolution-point${m === currentMonth ? " is-active-month" : ""}' cx='${p.x.toFixed(2)}' cy='${p.y.toFixed(2)}' r='${m === currentMonth ? "4.5" : "2.2"}' fill='${s.color}' data-month-name='${p.month}' data-series-name='${s.label}' data-value='${money(p.value)}' data-series-color='${s.color}'/>`).join("");
           return `<g class='outcome-evolution-series'><path d='${areaPath}' fill='${s.color}' fill-opacity='0.08'/><path d='${pathData}' fill='none' stroke='${s.color}' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/>${dots}</g>`;
         }).join("");
 
         host.innerHTML = `
           <div class='cgd-summary-map'>
-            <div class='outcome-evolution-head'><h3>Mapa ${year}</h3></div>
+            <div class='outcome-evolution-head'><h3>Saldo ${year}</h3></div>
             <div class='outcome-evolution-legend'>${legend}</div>
             <div class='outcome-evolution-svg-wrap cgd-summary-svg-wrap'>
               <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}'>
@@ -531,12 +532,39 @@ function escapeHtml(str) {
         const wrap = host.querySelector(".outcome-evolution-svg-wrap");
         const tooltip = host.querySelector(".outcome-evolution-tooltip");
         if (wrap && tooltip) {
+          const hideTooltip = () => tooltip.classList.remove("is-visible");
+          wrap.addEventListener("pointerleave", hideTooltip);
           wrap.querySelectorAll(".outcome-evolution-point").forEach(dot => {
-            dot.addEventListener("pointerenter", () => {
-              tooltip.innerHTML = `<span style='color:${dot.dataset.seriesColor}'>${dot.dataset.seriesName}</span>: ${dot.dataset.value} (${dot.dataset.monthName})`;
+            const showTooltip = (event) => {
+              const monthName = dot.dataset.monthName || "";
+              const seriesName = dot.dataset.seriesName || "";
+              const value = dot.dataset.value || "0";
+              const color = dot.dataset.seriesColor || "#fff";
+              tooltip.innerHTML = `
+                <div class='outcome-evolution-tooltip-month'>${monthName}</div>
+                <div class='outcome-evolution-tooltip-row'>
+                  <span class='outcome-evolution-tooltip-dot' style='background:${color};'></span>
+                  <span class='outcome-evolution-tooltip-series'>${seriesName}</span>
+                  <strong class='outcome-evolution-tooltip-value'>${value}</strong>
+                </div>
+              `;
               tooltip.classList.add("is-visible");
-            });
-            dot.addEventListener("pointerleave", () => tooltip.classList.remove("is-visible"));
+              // Position near the point
+              const wrapRect = wrap.getBoundingClientRect();
+              const tooltipRect = tooltip.getBoundingClientRect();
+              const margin = 10;
+              let left = event.clientX - wrapRect.left + 12;
+              let top = event.clientY - wrapRect.top - tooltipRect.height - 12;
+              if (left + tooltipRect.width > wrapRect.width - margin) left = wrapRect.width - tooltipRect.width - margin;
+              if (left < margin) left = margin;
+              if (top < margin) top = event.clientY - wrapRect.top + 14;
+              if (top + tooltipRect.height > wrapRect.height - margin) top = wrapRect.height - tooltipRect.height - margin;
+              tooltip.style.left = `${left}px`;
+              tooltip.style.top = `${top}px`;
+            };
+            dot.addEventListener("pointerenter", showTooltip);
+            dot.addEventListener("pointermove", showTooltip);
+            dot.addEventListener("pointerleave", hideTooltip);
           });
         }
       }
