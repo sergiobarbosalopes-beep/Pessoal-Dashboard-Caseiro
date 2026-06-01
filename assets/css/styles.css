@@ -963,10 +963,11 @@ body:not(.coverflex-theme) .temporal-nav-card {
 }
 
 .nb-pie-card--active {
-  border-color: rgba(0, 220, 110, 0.55);
+  border-color: rgba(0, 220, 110, 0.7);
   box-shadow:
-    0 0 24px rgba(0, 200, 100, 0.45),
-    0 0 48px rgba(0, 180, 90, 0.2),
+    0 0 32px rgba(0, 200, 100, 0.6),
+    0 0 64px rgba(0, 180, 90, 0.35),
+    0 0 96px rgba(0, 160, 80, 0.15),
     0 8px 18px rgba(0, 5, 3, 0.3);
 }
 
