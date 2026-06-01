@@ -1066,8 +1066,8 @@ body:not(.coverflex-theme) .temporal-nav-card {
 }
 
 .nb-pie-card--past {
-  opacity: 0.75;
-  filter: saturate(0.82);
+  opacity: 0.7;
+  filter: saturate(0.7);
 }
 
 .stat-tile.nb-pie-card--active {
