@@ -878,12 +878,6 @@ body:not(.coverflex-theme) .temporal-nav-card {
 }
 
 .resumo-pies .nb-pie-card {
-  flex: 1 1 170px;
-  min-width: 160px;
-  max-width: 220px;
-}
-
-.resumo-pies .cgd-pie-card {
   flex: 1 1 280px;
   min-width: 260px;
   max-width: 380px;
@@ -1140,7 +1134,7 @@ body:not(.coverflex-theme) .temporal-nav-card {
 .nb-pie-svg-wrap {
   position: relative;
   width: 100%;
-  max-width: 180px;
+  max-width: 220px;
   aspect-ratio: 1;
 }
 
@@ -1162,7 +1156,7 @@ body:not(.coverflex-theme) .temporal-nav-card {
 }
 
 .nb-pie-center-value {
-  font-size: 0.92rem;
+  font-size: 0.82rem;
   font-weight: 800;
   color: #e0fff0;
   text-shadow: 0 0 8px rgba(0, 200, 100, 0.4);
