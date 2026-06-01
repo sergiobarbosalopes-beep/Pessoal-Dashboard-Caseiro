@@ -49,24 +49,25 @@ function escapeHtml(str) {
       if (dbMap.has(m)) {
         result[m] = dbMap.get(m);
       } else {
-        // Estimate: previous real + income[prev] - outcome[prev]
+        // Estimate: previous real + income[prev] + savings[prev] - outcome[prev]
         if (m === 0) {
           // For January, we'd need December of previous year - use 0 if no data
           result[m] = 0;
         } else {
           const prevReal = result[m - 1];
           const prevIncome = monthlyTotals.income[m - 1] || 0;
+          const prevSavings = monthlyTotals.savings[m - 1] || 0;
           const prevOutcome = monthlyTotals.outcome[m - 1] || 0;
-          result[m] = prevReal + prevIncome - prevOutcome;
+          result[m] = prevReal + prevIncome + prevSavings - prevOutcome;
         }
       }
     }
     return result;
   }
 
-  // Fetch monthly income/outcome totals for a bank
+  // Fetch monthly income/outcome/savings totals for a bank
   const fetchBankTotals = async (rubricTable, expenseTable, yr) => {
-    const empty = { income: new Array(12).fill(0), outcome: new Array(12).fill(0) };
+    const empty = { income: new Array(12).fill(0), savings: new Array(12).fill(0), outcome: new Array(12).fill(0) };
     try {
       const [rubRes, despRes] = await Promise.all([
         sb.from(rubricTable).select("rubrica_id,rubrica_tipo").eq("ano", yr),
@@ -76,13 +77,16 @@ function escapeHtml(str) {
       const expenses = Array.isArray(despRes.data) ? despRes.data : [];
 
       const incomeIds = new Set();
+      const savingsIds = new Set();
       const outcomeIds = new Set();
       for (const r of rubrics) {
         if (r.rubrica_tipo === "Receita") incomeIds.add(r.rubrica_id);
+        else if (r.rubrica_tipo === "Aprovisionamento") savingsIds.add(r.rubrica_id);
         else if (r.rubrica_tipo === "Despesa") outcomeIds.add(r.rubrica_id);
       }
 
       const income = new Array(12).fill(0);
+      const savings = new Array(12).fill(0);
       const outcome = new Array(12).fill(0);
       for (const exp of expenses) {
         if (exp.zerado === true || exp.zerado === "true") continue;
@@ -90,9 +94,10 @@ function escapeHtml(str) {
         const m = Number(exp.mes) - 1;
         if (m < 0 || m > 11) continue;
         if (incomeIds.has(exp.rubrica_id)) income[m] += val;
+        else if (savingsIds.has(exp.rubrica_id)) savings[m] += val;
         else if (outcomeIds.has(exp.rubrica_id)) outcome[m] += val;
       }
-      return { income, outcome };
+      return { income, savings, outcome };
     } catch { return empty; }
   };
 
@@ -197,13 +202,13 @@ function escapeHtml(str) {
   const hasJanNextNb = nbRealsNext.some(r => Number(r.mes) === 1);
   const hasJanNextCover = coverflexRealsNext.some(r => Number(r.mes) === 1);
   if (!hasJanNextCgd) {
-    cgdEstimatedNext[0] = cgdEstimated[11] + (cgdTotals.income[11] || 0) - (cgdTotals.outcome[11] || 0);
+    cgdEstimatedNext[0] = cgdEstimated[11] + (cgdTotals.income[11] || 0) + (cgdTotals.savings[11] || 0) - (cgdTotals.outcome[11] || 0);
   }
   if (!hasJanNextNb) {
-    nbEstimatedNext[0] = nbEstimated[11] + (nbTotals.income[11] || 0) - (nbTotals.outcome[11] || 0);
+    nbEstimatedNext[0] = nbEstimated[11] + (nbTotals.income[11] || 0) + (nbTotals.savings[11] || 0) - (nbTotals.outcome[11] || 0);
   }
   if (!hasJanNextCover) {
-    coverflexEstimatedNext[0] = coverflexEstimated[11] + (coverflexTotals.income[11] || 0) - (coverflexTotals.outcome[11] || 0);
+    coverflexEstimatedNext[0] = coverflexEstimated[11] + (coverflexTotals.income[11] || 0) + (coverflexTotals.savings[11] || 0) - (coverflexTotals.outcome[11] || 0);
   }
 
   // Helper: get value from estimated series
