@@ -1048,6 +1048,109 @@ body:not(.coverflex-theme) .temporal-nav-card {
   font-weight: 400;
 }
 
+/* ─── CGD Alerts ─── */
+
+.cgd-alerts-section {
+  margin-bottom: 4px;
+}
+
+.cgd-alerts-card {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 140, 50, 0.45);
+  background: linear-gradient(145deg, rgba(80, 30, 5, 0.6), rgba(50, 18, 2, 0.7));
+  box-shadow: 0 0 18px rgba(255, 100, 30, 0.15), 0 6px 14px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.cgd-alerts-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 18px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #ffd6b0;
+  font-family: "Inter", "Segoe UI", sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  transition: background 160ms ease;
+}
+
+.cgd-alerts-header:hover {
+  background: rgba(255, 140, 50, 0.08);
+}
+
+.cgd-alerts-icon {
+  font-size: 1.1rem;
+  filter: drop-shadow(0 0 4px rgba(255, 140, 50, 0.6));
+}
+
+.cgd-alerts-chevron {
+  margin-left: auto;
+  font-size: 0.7rem;
+  transition: transform 200ms ease;
+  opacity: 0.7;
+}
+
+.cgd-alerts-header[aria-expanded="true"] .cgd-alerts-chevron {
+  transform: rotate(180deg);
+}
+
+.cgd-alerts-body {
+  padding: 0 18px 14px;
+}
+
+.cgd-alerts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cgd-alerts-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 100, 30, 0.08);
+  border: 1px solid rgba(255, 140, 50, 0.2);
+  font-size: 0.78rem;
+  color: #ffecd6;
+}
+
+.cgd-alert-month {
+  font-weight: 700;
+  color: #ffb070;
+  min-width: 36px;
+  text-transform: capitalize;
+}
+
+.cgd-alert-desc {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cgd-alert-value {
+  font-weight: 800;
+  color: #ff9040;
+  white-space: nowrap;
+}
+
+.cgd-alert-pct {
+  font-size: 0.68rem;
+  color: rgba(255, 180, 120, 0.8);
+  white-space: nowrap;
+}
+
 /* ─── Pie Charts ─── */
 
 .nb-pie-card {

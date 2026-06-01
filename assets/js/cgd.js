@@ -993,6 +993,7 @@ async function refreshYearDataAndFutureTotalizerFromMonth(startMonthIndex) {
   renderCgdTopTiles();
   renderCgdTemporalSummaryChart();
   renderNbPieCharts();
+  renderCgdAlerts();
   renderSoberTotalizer();
   syncRealTotalizerEditableMonth(document.querySelector(".month-tile.active")?.getAttribute("data-month"));
 }
@@ -1476,6 +1477,96 @@ function renderCgdTemporalSummaryChart() {
     });
 
     bindOutcomeChartHover(host);
+  }
+}
+
+// ─── CGD Alerts (exclusive to CGD page) ─────────────────────────────────
+function renderCgdAlerts() {
+  if (TABLE_PREFIX !== "cgd") return;
+  const section = document.getElementById("cgd-alerts-section");
+  if (!section) return;
+
+  const MONTHS_SHORT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const now = new Date();
+  const currentMonth = now.getMonth(); // 0-based
+  const monthsToCheck = [currentMonth, Math.min(currentMonth + 1, 11)];
+  const THRESHOLD = 0.30; // 30%
+
+  const outcomeRubrics = Array.isArray(cgdState.data?.outcome) ? cgdState.data.outcome : [];
+  const alerts = [];
+
+  for (const rubric of outcomeRubrics) {
+    const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
+    for (const expense of expenses) {
+      const name = (expense?.name || "").trim();
+      if (!name) continue;
+      const monthData = Array.isArray(expense?.monthData) ? expense.monthData : [];
+
+      for (const m of monthsToCheck) {
+        if (m < 1) continue; // can't compare month 0 with previous
+        const prevM = m - 1;
+
+        // Get value for current analyzed month
+        const currData = monthData[m];
+        const prevData = monthData[prevM];
+        if (!currData || !prevData) continue;
+
+        const currVal = currData.valor != null ? currData.valor : (currData.valorEstimado || 0);
+        const prevVal = prevData.valor != null ? prevData.valor : (prevData.valorEstimado || 0);
+
+        // Skip if no meaningful values
+        if (currVal === 0 && prevVal === 0) continue;
+        if (currVal === 0 || prevVal === 0) continue; // can't compute % if prev is 0
+
+        const increase = (currVal - prevVal) / Math.abs(prevVal);
+        if (increase > THRESHOLD) {
+          alerts.push({
+            month: m,
+            monthLabel: MONTHS_SHORT[m],
+            desc: name,
+            value: currVal,
+            prevValue: prevVal,
+            pct: Math.round(increase * 100)
+          });
+        }
+      }
+    }
+  }
+
+  if (!alerts.length) {
+    section.style.display = "none";
+    return;
+  }
+
+  // Sort: month desc, then value desc
+  alerts.sort((a, b) => b.month - a.month || b.value - a.value);
+
+  const titleEl = document.getElementById("cgd-alerts-title");
+  const listEl = document.getElementById("cgd-alerts-list");
+  if (titleEl) titleEl.textContent = `Alertas (${alerts.length})`;
+  if (listEl) {
+    listEl.innerHTML = alerts.map(a => `
+      <li>
+        <span class='cgd-alert-month'>${escapeHtml(a.monthLabel)}</span>
+        <span class='cgd-alert-desc'>${escapeHtml(a.desc)}</span>
+        <span class='cgd-alert-value'>${money(a.value)}</span>
+        <span class='cgd-alert-pct'>+${a.pct}%</span>
+      </li>
+    `).join("");
+  }
+
+  section.style.display = "";
+
+  // Bind toggle (only once)
+  const toggle = document.getElementById("cgd-alerts-toggle");
+  const body = document.getElementById("cgd-alerts-body");
+  if (toggle && body && !toggle.dataset.bound) {
+    toggle.dataset.bound = "1";
+    toggle.addEventListener("click", () => {
+      const expanded = toggle.getAttribute("aria-expanded") === "true";
+      toggle.setAttribute("aria-expanded", String(!expanded));
+      body.hidden = expanded;
+    });
   }
 }
 

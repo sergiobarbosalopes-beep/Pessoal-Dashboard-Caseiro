@@ -51,6 +51,19 @@
       </section>
 
       <main class="page-grid fade-up delay-2">
+        <section class="cgd-alerts-section" id="cgd-alerts-section" style="grid-column: span 12; display: none;">
+          <div class="cgd-alerts-card">
+            <button class="cgd-alerts-header" type="button" id="cgd-alerts-toggle" aria-expanded="false">
+              <span class="cgd-alerts-icon">⚠</span>
+              <span class="cgd-alerts-title" id="cgd-alerts-title">Alertas</span>
+              <span class="cgd-alerts-chevron">&#9660;</span>
+            </button>
+            <div class="cgd-alerts-body" id="cgd-alerts-body" hidden>
+              <ul class="cgd-alerts-list" id="cgd-alerts-list"></ul>
+            </div>
+          </div>
+        </section>
+
         <section class="card cgd-temporal-chart-card" style="grid-column: span 12;">
           <div id="cgd-temporal-summary-chart"></div>
         </section>
