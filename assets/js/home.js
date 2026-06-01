@@ -378,11 +378,12 @@ function escapeHtml(str) {
   renderPieChart("home-pie-jan-next", `Janeiro ${year + 1}`, cgdRealJanNext, nbRealJanNext, coverflexRealJanNext);
 
   // ─── Generic disponivel tile renderer ─────────────────────────────────
-  function renderDispTile(id, label, value, { highlight = false, past = false, vsJan = null, vsPrev = null, vsPrevLabel = null } = {}) {
+  function renderDispTile(id, label, value, { highlight = false, whiteGlow = false, past = false, vsJan = null, vsPrev = null, vsPrevLabel = null } = {}) {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = "";
     if (highlight) el.classList.add("nb-pie-card--active");
+    if (whiteGlow) el.classList.add("nb-pie-card--white-glow");
     if (past) el.classList.add("nb-pie-card--past");
 
     let varianceHtml = "";
@@ -413,7 +414,7 @@ function escapeHtml(str) {
   renderDispTile("home-cgd-disp-prev", `${MONTHS_PT[prevMonthIdx]} ${prevMonthYear}`, cgdDisponivelPrev, { past: true, vsJan: cgdDisponivelJan });
   renderDispTile("home-cgd-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, cgdDisponivel, { highlight: true, vsJan: cgdDisponivelJan, vsPrev: cgdDisponivelPrev });
   renderDispTile("home-cgd-disp-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, cgdDisponivelNext, { vsJan: cgdDisponivelJan, vsPrev: cgdDisponivel, vsPrevLabel: MONTHS_PT[currentMonth] });
-  renderDispTile("home-cgd-disp-jan-next", `Janeiro ${year + 1}`, cgdDisponivelJanNext, { vsJan: cgdDisponivelJan });
+  renderDispTile("home-cgd-disp-jan-next", `Janeiro ${year + 1}`, cgdDisponivelJanNext, { whiteGlow: true, vsJan: cgdDisponivelJan });
 
   // NB Disponivel tiles (NB has no savings deduction, value = real)
   const nbRealNextDisp = nextMonthYear === year ? getVal(nbEstimated, nextMonthIdx) : getValNext(nbEstimatedNext, nextMonthIdx);
@@ -423,7 +424,7 @@ function escapeHtml(str) {
   renderDispTile("home-nb-disp-prev", `${MONTHS_PT[prevMonthIdx]} ${prevMonthYear}`, nbRealPrev, { past: true, vsJan: nbRealJan });
   renderDispTile("home-nb-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, nbReal, { highlight: true, vsJan: nbRealJan, vsPrev: nbRealPrev });
   renderDispTile("home-nb-disp-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, nbRealNextDisp, { vsJan: nbRealJan, vsPrev: nbReal, vsPrevLabel: MONTHS_PT[currentMonth] });
-  renderDispTile("home-nb-disp-jan-next", `Janeiro ${year + 1}`, nbRealJanNextDisp, { vsJan: nbRealJan });
+  renderDispTile("home-nb-disp-jan-next", `Janeiro ${year + 1}`, nbRealJanNextDisp, { whiteGlow: true, vsJan: nbRealJan });
 
   // Coverflex Disponivel tiles (no savings deduction, value = real)
   const cfRealNextDisp = nextMonthYear === year ? getVal(coverflexEstimated, nextMonthIdx) : getValNext(coverflexEstimatedNext, nextMonthIdx);
@@ -433,7 +434,7 @@ function escapeHtml(str) {
   renderDispTile("home-cf-disp-prev", `${MONTHS_PT[prevMonthIdx]} ${prevMonthYear}`, coverflexRealPrev, { past: true, vsJan: coverflexRealJan });
   renderDispTile("home-cf-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, coverflexReal, { highlight: true, vsJan: coverflexRealJan, vsPrev: coverflexRealPrev });
   renderDispTile("home-cf-disp-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, cfRealNextDisp, { vsJan: coverflexRealJan, vsPrev: coverflexReal, vsPrevLabel: MONTHS_PT[currentMonth] });
-  renderDispTile("home-cf-disp-jan-next", `Janeiro ${year + 1}`, cfRealJanNextDisp, { vsJan: coverflexRealJan });
+  renderDispTile("home-cf-disp-jan-next", `Janeiro ${year + 1}`, cfRealJanNextDisp, { whiteGlow: true, vsJan: coverflexRealJan });
 
   // IRS Poupanca tiles
   const irsNext = cgdSavingsData.irsAccumulatedNext;
@@ -441,14 +442,14 @@ function escapeHtml(str) {
 
   renderDispTile("home-irs-disp-jan", `Janeiro ${year}`, irsAccumulatedJan, { past: true });
   renderDispTile("home-irs-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, irsAccumulated, { highlight: true, vsJan: irsAccumulatedJan });
-  renderDispTile("home-irs-disp-jan-next", `Janeiro ${year + 1}`, irsJanNext, { vsJan: irsAccumulatedJan });
+  renderDispTile("home-irs-disp-jan-next", `Janeiro ${year + 1}`, irsJanNext, { whiteGlow: true, vsJan: irsAccumulatedJan });
 
   // IRS Coverflex tile (replicate cgd.js computeEstimatedIrsMonthlyTotals logic)
   const coverflexIrsNextYear = await (async () => {
     try {
       const [rubRes, despRes] = await Promise.all([
-        sb.from("coverflex_rubrica").select("rubrica_id,rubrica_desc,rubrica_tipo").eq("ano", year + 1).eq("rubrica_tipo", "Despesa"),
-        sb.from("coverflex_despesa").select("rubrica_id,mes,valor,valor_estimado,zerado").eq("ano", year + 1)
+        sb.from("coverflex_rubrica").select("rubrica_id,rubrica_desc,rubrica_tipo").eq("ano", year).eq("rubrica_tipo", "Despesa"),
+        sb.from("coverflex_despesa").select("rubrica_id,mes,valor,valor_estimado,zerado").eq("ano", year)
       ]);
       const rubrics = Array.isArray(rubRes.data) ? rubRes.data : [];
       const expenses = Array.isArray(despRes.data) ? despRes.data : [];
@@ -476,5 +477,5 @@ function escapeHtml(str) {
 
   renderDispTile("home-audi-disp-jan", `Janeiro ${year}`, audiAccumulatedJan, { past: true });
   renderDispTile("home-audi-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, audiAccumulated, { highlight: true, vsJan: audiAccumulatedJan });
-  renderDispTile("home-audi-disp-jan-next", `Janeiro ${year + 1}`, audiJanNext, { vsJan: audiAccumulatedJan });
+  renderDispTile("home-audi-disp-jan-next", `Janeiro ${year + 1}`, audiJanNext, { whiteGlow: true, vsJan: audiAccumulatedJan });
 })();

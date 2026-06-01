@@ -952,13 +952,23 @@ body:not(.coverflex-theme) .temporal-nav-card {
   color: #ef9a9a !important;
   text-shadow: 0 0 8px rgba(229, 57, 53, 0.4) !important;
 }
-.stat-tile--danger.nb-pie-card--active {
+.stat-tile--danger.nb-pie-card--active,
+.section-theme-cgd .stat-tile--danger.nb-pie-card--active {
   border-color: rgba(229, 57, 53, 0.7) !important;
   background: linear-gradient(145deg, rgba(80, 15, 15, 0.5), rgba(60, 10, 10, 0.6)) !important;
   box-shadow:
     0 0 32px rgba(229, 57, 53, 0.6),
     0 0 64px rgba(200, 40, 40, 0.35),
     0 0 96px rgba(180, 30, 30, 0.15),
+    0 8px 18px rgba(0, 5, 3, 0.3) !important;
+}
+
+/* White glow for Jan next year tiles */
+.nb-pie-card--white-glow {
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  box-shadow:
+    0 0 24px rgba(255, 255, 255, 0.35),
+    0 0 48px rgba(255, 255, 255, 0.15),
     0 8px 18px rgba(0, 5, 3, 0.3) !important;
 }
 
@@ -1053,8 +1063,8 @@ body:not(.coverflex-theme) .temporal-nav-card {
 }
 
 .nb-pie-card--past {
-  opacity: 0.45;
-  filter: saturate(0.5);
+  opacity: 0.65;
+  filter: saturate(0.75);
 }
 
 .stat-tile.nb-pie-card--active {
