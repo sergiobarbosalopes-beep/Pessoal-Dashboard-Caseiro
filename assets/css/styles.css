@@ -900,6 +900,47 @@ body:not(.coverflex-theme) .temporal-nav-card {
   text-shadow: 0 0 8px rgba(0, 200, 100, 0.4);
 }
 
+/* ─── Section color themes ─── */
+
+/* CGD Blue theme */
+.section-theme-cgd .section-title h2 { color: #2f9ad4; }
+.section-theme-cgd .stat-tile::before { background: linear-gradient(90deg, #1a6fa8, #2f9ad4, #5bb8e8) !important; }
+.section-theme-cgd .stat-tile.nb-pie-card--active {
+  border-color: rgba(47, 154, 212, 0.7) !important;
+  background: linear-gradient(145deg, rgba(10, 40, 80, 0.5), rgba(5, 30, 60, 0.6)) !important;
+  box-shadow:
+    0 0 32px rgba(47, 154, 212, 0.6),
+    0 0 64px rgba(30, 120, 180, 0.35),
+    0 0 96px rgba(20, 100, 160, 0.15),
+    0 8px 18px rgba(0, 5, 3, 0.3) !important;
+}
+
+/* NB Green theme */
+.section-theme-nb .section-title h2 { color: #00dc6e; }
+.section-theme-nb .stat-tile::before { background: linear-gradient(90deg, #009c4e, #00dc6e, #4dffaa) !important; }
+.section-theme-nb .stat-tile.nb-pie-card--active {
+  border-color: rgba(0, 220, 110, 0.7) !important;
+  background: linear-gradient(145deg, rgba(0, 60, 30, 0.5), rgba(0, 40, 20, 0.6)) !important;
+  box-shadow:
+    0 0 32px rgba(0, 200, 100, 0.6),
+    0 0 64px rgba(0, 180, 90, 0.35),
+    0 0 96px rgba(0, 160, 80, 0.15),
+    0 8px 18px rgba(0, 5, 3, 0.3) !important;
+}
+
+/* Coverflex Orange theme */
+.section-theme-cf .section-title h2 { color: #f2c46a; }
+.section-theme-cf .stat-tile::before { background: linear-gradient(90deg, #d4a030, #f2c46a, #ffe0a0) !important; }
+.section-theme-cf .stat-tile.nb-pie-card--active {
+  border-color: rgba(242, 196, 106, 0.7) !important;
+  background: linear-gradient(145deg, rgba(80, 50, 10, 0.5), rgba(60, 40, 5, 0.6)) !important;
+  box-shadow:
+    0 0 32px rgba(242, 196, 106, 0.6),
+    0 0 64px rgba(210, 160, 60, 0.35),
+    0 0 96px rgba(180, 130, 40, 0.15),
+    0 8px 18px rgba(0, 5, 3, 0.3) !important;
+}
+
 .resumo-tiles {
   display: flex;
   flex-wrap: wrap;
