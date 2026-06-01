@@ -248,11 +248,15 @@ function escapeHtml(str) {
   const cgdRealNext = nextMonthYear === year ? getVal(cgdEstimated, nextMonthIdx) : getValNext(cgdEstimatedNext, nextMonthIdx);
   const nbRealNext = nextMonthYear === year ? getVal(nbEstimated, nextMonthIdx) : getValNext(nbEstimatedNext, nextMonthIdx);
   const coverflexRealNext = nextMonthYear === year ? getVal(coverflexEstimated, nextMonthIdx) : getValNext(coverflexEstimatedNext, nextMonthIdx);
+  const cgdAccumulatedSavingsNext = cgdSavingsData.totalAccumulatedNext;
+  const cgdDisponivelNext = cgdRealNext - cgdAccumulatedSavingsNext;
 
   // January next year values
   const cgdRealJanNext = getValNext(cgdEstimatedNext, 0);
   const nbRealJanNext = getValNext(nbEstimatedNext, 0);
   const coverflexRealJanNext = getValNext(coverflexEstimatedNext, 0);
+  const cgdAccumulatedSavingsJanNext = cgdSavingsData.totalAccumulatedJanNext;
+  const cgdDisponivelJanNext = cgdRealJanNext - cgdAccumulatedSavingsJanNext;
 
   // IRS and Audi accumulated
   const irsAccumulated = cgdSavingsData.irsAccumulated;
@@ -410,9 +414,28 @@ function escapeHtml(str) {
 
   // Render all tiles
   renderTile("home-tile-disponivel", "Saldo Total disponivel", saldoDisponivel, saldoDisponivelJan, saldoDisponivelPrev);
-  renderTile("home-tile-cgd", "Saldo disponivel CGD", cgdDisponivel, cgdDisponivelJan, cgdDisponivelPrev);
   renderTile("home-tile-nb", "Saldo disponivel Novo Banco", nbReal, nbRealJan, nbRealPrev);
   renderTile("home-tile-coverflex", "Saldo disponivel Coverflex", coverflexReal, coverflexRealJan, coverflexRealPrev);
   renderTile("home-tile-irs", "Saldo IRS", irsAccumulated, irsAccumulatedJan, irsAccumulatedPrev);
   renderTile("home-tile-audi", "Saldo Audi", audiAccumulated, audiAccumulatedJan, audiAccumulatedPrev);
+
+  // ─── CGD Disponivel section (5 tiles aligned with pie charts) ──────────
+  function renderCgdDispTile(id, label, value, { highlight = false } = {}) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = "";
+    if (highlight) el.classList.add("nb-pie-card--active");
+    el.innerHTML = `
+      <div class="home-tile-header">
+        <h4>${label}</h4>
+        <p>${money(value)}</p>
+      </div>
+    `;
+  }
+
+  renderCgdDispTile("home-cgd-disp-jan", `Janeiro ${year}`, cgdDisponivelJan);
+  renderCgdDispTile("home-cgd-disp-prev", `${MONTHS_PT[prevMonthIdx]} ${prevMonthYear}`, cgdDisponivelPrev);
+  renderCgdDispTile("home-cgd-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, cgdDisponivel, { highlight: true });
+  renderCgdDispTile("home-cgd-disp-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, cgdDisponivelNext);
+  renderCgdDispTile("home-cgd-disp-jan-next", `Janeiro ${year + 1}`, cgdDisponivelJanNext);
 })();

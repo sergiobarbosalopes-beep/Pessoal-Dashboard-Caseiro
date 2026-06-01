@@ -881,6 +881,25 @@ body:not(.coverflex-theme) .temporal-nav-card {
   max-width: 220px;
 }
 
+.resumo-pies .stat-tile {
+  text-align: center;
+  padding: 18px 12px;
+}
+
+.resumo-pies .stat-tile .home-tile-header h4 {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(180, 240, 210, 0.85);
+  margin-bottom: 6px;
+}
+
+.resumo-pies .stat-tile .home-tile-header p {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #e0fff0;
+  text-shadow: 0 0 8px rgba(0, 200, 100, 0.4);
+}
+
 .resumo-tiles {
   display: flex;
   flex-wrap: wrap;
