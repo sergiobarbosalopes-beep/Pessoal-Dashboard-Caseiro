@@ -990,6 +990,16 @@ body:not(.coverflex-theme) .temporal-nav-card {
     0 8px 18px rgba(0, 5, 3, 0.3);
 }
 
+.stat-tile.nb-pie-card--active {
+  border-color: rgba(0, 220, 110, 0.7) !important;
+  background: linear-gradient(145deg, rgba(0, 60, 30, 0.5), rgba(0, 40, 20, 0.6)) !important;
+  box-shadow:
+    0 0 32px rgba(0, 200, 100, 0.6),
+    0 0 64px rgba(0, 180, 90, 0.35),
+    0 0 96px rgba(0, 160, 80, 0.15),
+    0 8px 18px rgba(0, 5, 3, 0.3) !important;
+}
+
 .nb-pie-card::before {
   content: "";
   position: absolute;
