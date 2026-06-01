@@ -414,7 +414,6 @@ function escapeHtml(str) {
 
   // Render all tiles
   renderTile("home-tile-disponivel", "Saldo Total disponivel", saldoDisponivel, saldoDisponivelJan, saldoDisponivelPrev);
-  renderTile("home-tile-coverflex", "Saldo disponivel Coverflex", coverflexReal, coverflexRealJan, coverflexRealPrev);
   renderTile("home-tile-irs", "Saldo IRS", irsAccumulated, irsAccumulatedJan, irsAccumulatedPrev);
   renderTile("home-tile-audi", "Saldo Audi", audiAccumulated, audiAccumulatedJan, audiAccumulatedPrev);
 
@@ -464,4 +463,14 @@ function escapeHtml(str) {
   renderDispTile("home-nb-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, nbReal, { highlight: true, vsJan: nbRealJan, vsPrev: nbRealPrev });
   renderDispTile("home-nb-disp-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, nbRealNextDisp, { vsJan: nbRealJan, vsPrev: nbReal, vsPrevLabel: MONTHS_PT[currentMonth] });
   renderDispTile("home-nb-disp-jan-next", `Janeiro ${year + 1}`, nbRealJanNextDisp, { vsJan: nbRealJan });
+
+  // Coverflex Disponivel tiles (no savings deduction, value = real)
+  const cfRealNextDisp = nextMonthYear === year ? getVal(coverflexEstimated, nextMonthIdx) : getValNext(coverflexEstimatedNext, nextMonthIdx);
+  const cfRealJanNextDisp = getValNext(coverflexEstimatedNext, 0);
+
+  renderDispTile("home-cf-disp-jan", `Janeiro ${year}`, coverflexRealJan);
+  renderDispTile("home-cf-disp-prev", `${MONTHS_PT[prevMonthIdx]} ${prevMonthYear}`, coverflexRealPrev, { vsJan: coverflexRealJan });
+  renderDispTile("home-cf-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, coverflexReal, { highlight: true, vsJan: coverflexRealJan, vsPrev: coverflexRealPrev });
+  renderDispTile("home-cf-disp-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, cfRealNextDisp, { vsJan: coverflexRealJan, vsPrev: coverflexReal, vsPrevLabel: MONTHS_PT[currentMonth] });
+  renderDispTile("home-cf-disp-jan-next", `Janeiro ${year + 1}`, cfRealJanNextDisp, { vsJan: coverflexRealJan });
 })();
