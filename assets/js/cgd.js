@@ -1926,7 +1926,9 @@ function renderCgdTopTiles() {
 
     const projectionTitle = document.querySelector(".cgd-top-tiles-projection-card .cgd-top-tiles-section-title");
     if (projectionTitle) {
-      projectionTitle.textContent = `Projeccao (${projectionYear})`;
+      projectionTitle.textContent = TABLE_PREFIX === "cgd"
+        ? `Projeccao ${projectionYear}`
+        : `Projeccao (${projectionYear})`;
     }
 
     projectionHost.innerHTML = `
