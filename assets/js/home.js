@@ -442,6 +442,10 @@ function escapeHtml(str) {
   renderDispTile("home-irs-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, irsAccumulated, { highlight: true, vsJan: irsAccumulatedJan });
   renderDispTile("home-irs-disp-jan-next", `Janeiro ${year + 1}`, irsJanNext, { vsJan: irsAccumulatedJan });
 
+  // IRS Coverflex tile (sum of coverflex outcome for next year × 0.45)
+  const coverflexIrsNextYear = coverflexTotalsNext.outcome.reduce((s, v) => s + (v || 0), 0) * 0.45;
+  renderDispTile("home-irs-disp-coverflex", `IRS Coverflex ${year + 1}`, coverflexIrsNextYear, { highlight: true });
+
   // Audi Poupanca tiles
   const audiNext = cgdSavingsData.audiAccumulatedNext;
   const audiJanNext = cgdSavingsData.audiAccumulatedJanNext;
