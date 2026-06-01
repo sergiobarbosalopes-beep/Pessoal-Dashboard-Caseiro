@@ -377,45 +377,7 @@ function escapeHtml(str) {
   renderPieChart("home-pie-next", `${MONTHS_PT[nextMonthIdx]} ${nextMonthYear}`, cgdRealNext, nbRealNext, coverflexRealNext);
   renderPieChart("home-pie-jan-next", `Janeiro ${year + 1}`, cgdRealJanNext, nbRealJanNext, coverflexRealJanNext);
 
-  // Generic tile renderer
-  function renderTile(id, label, value, valueJan, valuePrev) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.style.display = "";
-    let varianceHtml = "";
-    if (valueJan) {
-      const pct = ((value - valueJan) / Math.abs(valueJan)) * 100;
-      const sign = pct >= 0 ? "+" : "";
-      const color = pct >= 0 ? "#00dc6e" : "#ff6b6b";
-      varianceHtml += `
-        <div class="home-tile-footer" style="color:${color}">
-          <span>${sign}${pct.toFixed(1)}% vs Janeiro ${year}</span>
-          <span class="home-tile-jan">Jan ${year}: ${money(valueJan)}</span>
-        </div>`;
-    }
-    if (valuePrev) {
-      const pctPrev = ((value - valuePrev) / Math.abs(valuePrev)) * 100;
-      const signPrev = pctPrev >= 0 ? "+" : "";
-      const colorPrev = pctPrev >= 0 ? "#00dc6e" : "#ff6b6b";
-      varianceHtml += `
-        <div class="home-tile-footer" style="color:${colorPrev}">
-          <span>${signPrev}${pctPrev.toFixed(1)}% vs ${prevMonthName} ${year}</span>
-          <span class="home-tile-jan">${prevMonthName} ${year}: ${money(valuePrev)}</span>
-        </div>`;
-    }
-    el.innerHTML = `
-      <div class="home-tile-header">
-        <h4>${label} ${MONTHS_PT[currentMonth]} ${year}</h4>
-        <p>${money(value)}</p>
-      </div>
-      ${varianceHtml}
-    `;
-  }
-
-  // Render all tiles
-  renderTile("home-tile-disponivel", "Saldo Total disponivel", saldoDisponivel, saldoDisponivelJan, saldoDisponivelPrev);
-
-  // ─── Generic disponivel tile renderer (CGD + NB) ──────────────────────
+  // ─── Generic disponivel tile renderer ─────────────────────────────────
   function renderDispTile(id, label, value, { highlight = false, vsJan = null, vsPrev = null, vsPrevLabel = null } = {}) {
     const el = document.getElementById(id);
     if (!el) return;
