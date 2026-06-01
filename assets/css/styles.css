@@ -3195,7 +3195,9 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
 .expense-detail-modal {
   width: min(540px, calc(100% - 24px));
   max-height: min(88vh, 760px);
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .expense-detail-modal .modal-actions {
@@ -3272,6 +3274,9 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   align-items: stretch;
   width: calc(var(--expense-left-col-width) + var(--expense-right-col-width) + 8px);
   max-width: 100%;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .expense-modal-left-stack {
@@ -3525,15 +3530,16 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   display: flex;
   flex-direction: column;
   height: 100%;
-  align-self: start;
+  min-height: 0;
+  align-self: stretch;
 }
 
 .expense-history-section .expense-history-table-wrap {
   margin-top: 6px;
   min-height: 0;
-  height: 100%;
   flex: 1;
-  overflow: auto;
+  overflow-y: auto;
+  max-height: 320px;
 }
 
 .expense-adjustment-section {
