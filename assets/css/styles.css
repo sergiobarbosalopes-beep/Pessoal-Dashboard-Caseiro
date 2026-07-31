@@ -4103,3 +4103,63 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   }
 }
 
+
+/* Home: Saldo Disponivel cards in 3+2 centered rows */
+#home-cgd-disp-content,
+#home-nb-disp-content,
+#home-cf-disp-content {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+}
+
+#home-cgd-disp-content > .nb-pie-card,
+#home-nb-disp-content > .nb-pie-card,
+#home-cf-disp-content > .nb-pie-card {
+  min-width: 260px;
+  max-width: 420px;
+}
+
+#home-cgd-disp-prev,
+#home-cgd-disp-current,
+#home-cgd-disp-next,
+#home-nb-disp-prev,
+#home-nb-disp-current,
+#home-nb-disp-next,
+#home-cf-disp-prev,
+#home-cf-disp-current,
+#home-cf-disp-next {
+  order: 1;
+  flex: 0 1 calc((100% - 28px) / 3);
+}
+
+#home-cgd-disp-jan,
+#home-cgd-disp-jan-next,
+#home-nb-disp-jan,
+#home-nb-disp-jan-next,
+#home-cf-disp-jan,
+#home-cf-disp-jan-next {
+  order: 2;
+  flex: 0 1 calc((100% - 14px) / 2);
+}
+
+@media (max-width: 1100px) {
+  #home-cgd-disp-prev,
+  #home-cgd-disp-current,
+  #home-cgd-disp-next,
+  #home-nb-disp-prev,
+  #home-nb-disp-current,
+  #home-nb-disp-next,
+  #home-cf-disp-prev,
+  #home-cf-disp-current,
+  #home-cf-disp-next,
+  #home-cgd-disp-jan,
+  #home-cgd-disp-jan-next,
+  #home-nb-disp-jan,
+  #home-nb-disp-jan-next,
+  #home-cf-disp-jan,
+  #home-cf-disp-jan-next {
+    flex: 1 1 280px;
+  }
+}
