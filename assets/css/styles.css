@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --bg-0: #07131a;
   --bg-1: #0b1d28;
   --bg-2: #102736;
@@ -4397,4 +4397,83 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   .admin-add-btn {
     width: fit-content;
   }
+}
+/* ── Admin: password badge & reset modal ─────────────────────────────────── */
+.admin-pw-badge {
+  display: inline-block;
+  font-size: .75rem;
+  font-weight: 600;
+  padding: .2rem .55rem;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+.admin-pw-badge--set {
+  background: rgba(74,222,128,.15);
+  color: #16a34a;
+  border: 1px solid rgba(74,222,128,.4);
+}
+.admin-pw-badge--unset {
+  background: rgba(251,191,36,.12);
+  color: #b45309;
+  border: 1px solid rgba(251,191,36,.35);
+}
+
+.admin-actions-cell {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+
+.admin-form-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  align-items: flex-end;
+}
+.admin-field { display: flex; flex-direction: column; gap: .3rem; }
+.admin-field--wide { flex: 1 1 220px; }
+.admin-checks-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+  padding-bottom: 2px;
+}
+
+/* Reset password modal */
+.admin-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.admin-modal--open {
+  display: flex;
+}
+.admin-modal__box {
+  background: var(--card-bg, #1e2330);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  padding: 2rem;
+  width: min(420px, 92vw);
+  box-shadow: 0 8px 40px rgba(0,0,0,.5);
+}
+.admin-modal__title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0 0 .35rem;
+}
+.admin-modal__subtitle {
+  font-size: .875rem;
+  color: var(--muted, #8892a4);
+  margin: 0 0 1.25rem;
+}
+.admin-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: .75rem;
+  margin-top: 1.5rem;
 }
