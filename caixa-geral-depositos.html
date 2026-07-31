@@ -1,9 +1,11 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt-PT">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dashboard Caseiro | Caixa Geral de Depositos</title>
+    
+    <script>!function(){try{var s=JSON.parse(localStorage.getItem("dashboard_session")||"null");if(!s||!s.email||Date.now()-s.ts>28800000)throw 0}catch(e){localStorage.removeItem("dashboard_session");sessionStorage.setItem("dashboard_redirect",location.href);location.replace("login.html")}}();</script>
+<title>Dashboard Caseiro | Caixa Geral de Depositos</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -15,6 +17,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script defer src="assets/js/main.js?v=20260531-7"></script>
     <script defer src="assets/js/cgd.js?v=20260531-14"></script>
+    <script defer src="assets/js/auth.js?v=20260731-2045"></script>
   </head>
   <body>
     <div class="site-shell">
