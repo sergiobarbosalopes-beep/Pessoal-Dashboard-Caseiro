@@ -1,0 +1,87 @@
+﻿<!doctype html>
+<html lang="pt-PT">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Caseiro | Entrar</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/css/styles.css?v=20260731-2045" />
+    <!-- Redirect if already authenticated -->
+    <script>
+      (function () {
+        try {
+          var s = JSON.parse(localStorage.getItem('dashboard_session') || 'null');
+          if (s && s.email && Date.now() - s.ts < 28800000) {
+            var redir = sessionStorage.getItem('dashboard_redirect');
+            sessionStorage.removeItem('dashboard_redirect');
+            window.location.replace(redir || 'index.html');
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <script>
+      window.CGD_SUPABASE_URL = "https://uooovgxrexpstrtfktst.supabase.co";
+      window.CGD_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvb292Z3hyZXhwc3RydGZrdHN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMTkxMjYsImV4cCI6MjA5NDc5NTEyNn0.4zYL75OJAI3Lxzofh9f0fIJ26S5EwHnUKGQuYQcf9mY";
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="assets/js/auth.js?v=20260731-2045"></script>
+  </head>
+  <body class="login-page">
+    <div class="login-shell">
+      <div class="login-card fade-up">
+        <div class="login-logo">
+          <span class="brand-mark"></span>
+          <span class="login-logo-name">Dashboard Caseiro</span>
+        </div>
+        <h1 class="login-title">Bem-vindo</h1>
+        <p class="login-sub">Introduz as tuas credenciais para aceder ao dashboard.</p>
+
+        <form id="login-form" class="login-form" novalidate>
+          <label class="login-field">
+            <span>Email</span>
+            <input id="login-email" type="email" placeholder="utilizador@dominio.com" autocomplete="email" required />
+          </label>
+          <label class="login-field">
+            <span>Password</span>
+            <input id="login-password" type="password" placeholder="A tua password" autocomplete="current-password" required />
+          </label>
+          <p id="login-error" class="login-error" aria-live="polite"></p>
+          <button type="submit" id="login-btn" class="ghost-btn login-btn">Entrar</button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      // Login form handler - runs after DOMContentLoaded + deferred scripts loaded
+      window.addEventListener('load', function () {
+        var form    = document.getElementById('login-form');
+        var emailEl = document.getElementById('login-email');
+        var pwEl    = document.getElementById('login-password');
+        var errEl   = document.getElementById('login-error');
+        var btnEl   = document.getElementById('login-btn');
+
+        if (!form) return;
+
+        form.addEventListener('submit', async function (e) {
+          e.preventDefault();
+          errEl.textContent = '';
+          btnEl.disabled = true;
+          btnEl.textContent = 'A verificar...';
+
+          try {
+            await window.DashboardAuth.login(emailEl.value, pwEl.value);
+            var redir = sessionStorage.getItem('dashboard_redirect');
+            sessionStorage.removeItem('dashboard_redirect');
+            window.location.replace(redir || 'index.html');
+          } catch (err) {
+            errEl.textContent = err.message || 'Erro ao autenticar.';
+            btnEl.disabled = false;
+            btnEl.textContent = 'Entrar';
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
