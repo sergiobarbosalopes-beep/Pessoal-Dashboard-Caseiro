@@ -4163,3 +4163,44 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
     flex: 1 1 280px;
   }
 }
+/* Home: IRS/Audi cards in centered rows */
+#home-irs-disp-content,
+#home-audi-disp-content {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+}
+
+#home-irs-disp-content > .nb-pie-card,
+#home-audi-disp-content > .nb-pie-card {
+  min-width: 260px;
+  max-width: 420px;
+}
+
+#home-irs-disp-jan,
+#home-irs-disp-current,
+#home-irs-disp-jan-next,
+#home-audi-disp-jan,
+#home-audi-disp-current,
+#home-audi-disp-jan-next {
+  order: 1;
+  flex: 0 1 calc((100% - 28px) / 3);
+}
+
+#home-irs-disp-coverflex {
+  order: 2;
+  flex: 0 1 calc((100% - 14px) / 2);
+}
+
+@media (max-width: 1100px) {
+  #home-irs-disp-jan,
+  #home-irs-disp-current,
+  #home-irs-disp-jan-next,
+  #home-irs-disp-coverflex,
+  #home-audi-disp-jan,
+  #home-audi-disp-current,
+  #home-audi-disp-jan-next {
+    flex: 1 1 280px;
+  }
+}
