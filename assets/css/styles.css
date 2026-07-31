@@ -4204,3 +4204,24 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
     flex: 1 1 280px;
   }
 }
+/* Home: IRS specific 2x2 ordering */
+#home-irs-disp-jan,
+#home-irs-disp-current {
+  order: 1;
+  flex: 0 1 calc((100% - 14px) / 2);
+}
+
+#home-irs-disp-jan-next,
+#home-irs-disp-coverflex {
+  order: 2;
+  flex: 0 1 calc((100% - 14px) / 2);
+}
+
+@media (max-width: 1100px) {
+  #home-irs-disp-jan,
+  #home-irs-disp-current,
+  #home-irs-disp-jan-next,
+  #home-irs-disp-coverflex {
+    flex: 1 1 280px;
+  }
+}
