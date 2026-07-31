@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-PT">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Caseiro | Administracao</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/css/styles.css?v=20260731-1835" />
+    <script>
+      window.CGD_SUPABASE_URL = "https://uooovgxrexpstrtfktst.supabase.co";
+      window.CGD_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvb292Z3hyZXhwc3RydGZrdHN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMTkxMjYsImV4cCI6MjA5NDc5NTEyNn0.4zYL75OJAI3Lxzofh9f0fIJ26S5EwHnUKGQuYQcf9mY";
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="assets/js/main.js?v=20260531-7"></script>
+    <script defer src="assets/js/admin.js?v=20260731-1835"></script>
+  </head>
+  <body class="admin-page">
+    <div class="site-shell">
+      <header class="topbar fade-up">
+        <a class="brand" href="index.html">
+          <span class="brand-mark"></span>
+          <span>Dashboard Caseiro</span>
+        </a>
+        <nav class="menu" aria-label="Navegacao principal">
+          <a class="menu-link" href="index.html">Home</a>
+          <a class="menu-link" href="caixa-geral-depositos.html">Caixa Geral de Depositos</a>
+          <a class="menu-link" href="novobanco.html">Novo Banco</a>
+          <a class="menu-link" href="coverflex.html">Coverflex</a>
+          <a class="menu-link" href="credito-habitacao.html">Credito Habitacao</a>
+          <a class="menu-link" href="paineis-solares.html">Paineis Solares</a>
+          <a class="menu-link" href="admin.html">Administracao</a>
+        </nav>
+      </header>
+
+      <section class="hero page-only-hero fade-up delay-1 admin-hero">
+        <h1>Area de administracao</h1>
+        <p>Gestao de utilizadores e permissoes do dashboard. Cada utilizador e identificado por email e pode ter permissao para consultar e editar.</p>
+      </section>
+
+      <main class="page-grid fade-up delay-2">
+        <section class="card admin-card" style="grid-column: span 12;">
+          <div class="section-title">
+            <h2>Utilizadores e permissoes</h2>
+          </div>
+
+          <form id="admin-user-form" class="admin-form">
+            <div class="admin-form-grid">
+              <label class="admin-field">
+                <span>Email do utilizador</span>
+                <input id="admin-email-input" type="email" placeholder="utilizador@dominio.com" required />
+              </label>
+              <label class="admin-check">
+                <input id="admin-consultar-input" type="checkbox" checked />
+                <span>Consultar</span>
+              </label>
+              <label class="admin-check">
+                <input id="admin-editar-input" type="checkbox" />
+                <span>Editar</span>
+              </label>
+              <button type="submit" class="ghost-btn admin-add-btn">Adicionar utilizador</button>
+            </div>
+          </form>
+
+          <p id="admin-feedback" class="card-sub admin-feedback">A carregar utilizadores...</p>
+
+          <div class="admin-table-wrap">
+            <table class="admin-table" aria-label="Tabela de utilizadores administracao">
+              <thead>
+                <tr>
+                  <th scope="col">Email</th>
+                  <th scope="col">Consultar</th>
+                  <th scope="col">Editar</th>
+                  <th scope="col">Acoes</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
