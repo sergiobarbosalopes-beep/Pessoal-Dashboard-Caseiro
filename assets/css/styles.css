@@ -4225,3 +4225,32 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
     flex: 1 1 280px;
   }
 }
+/* Home: IRS strict two-row layout override */
+#home-irs-disp-content {
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 14px;
+}
+
+#home-irs-disp-content > .resumo-pies--2up {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin: 0;
+}
+
+#home-irs-disp-content > .resumo-pies--2up + .resumo-pies--2up {
+  margin-top: 14px;
+}
+
+#home-irs-disp-content > .resumo-pies--2up > .nb-pie-card {
+  flex: 0 1 calc((100% - 14px) / 2);
+  min-width: 260px;
+  max-width: 420px;
+}
+
+@media (max-width: 1100px) {
+  #home-irs-disp-content > .resumo-pies--2up > .nb-pie-card {
+    flex: 1 1 280px;
+  }
+}
