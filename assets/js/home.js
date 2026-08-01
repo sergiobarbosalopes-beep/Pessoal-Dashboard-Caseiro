@@ -18,6 +18,40 @@ function escapeHtml(str) {
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   const year = new Date().getFullYear();
   const currentMonth = new Date().getMonth(); // 0-indexed
+  const requestCache = new Map();
+
+  const fetchRowsOnce = (key, requestFactory) => {
+    if (requestCache.has(key)) {
+      return requestCache.get(key);
+    }
+
+    const request = Promise.resolve()
+      .then(requestFactory)
+      .then(({ data, error }) => {
+        if (error) throw error;
+        return Array.isArray(data) ? data : [];
+      })
+      .catch((error) => {
+        if (requestCache.get(key) === request) {
+          requestCache.delete(key);
+        }
+        throw error;
+      });
+
+    requestCache.set(key, request);
+    return request;
+  };
+
+  const fetchCgdSavingsRows = () => Promise.all([
+    fetchRowsOnce(
+      "cgd_rubrica:savings:all",
+      () => sb.from("cgd_rubrica").select("rubrica_id,ano,mes,rubrica_tipo,rubrica_desc").in("rubrica_tipo", ["Aprovisionamento"])
+    ),
+    fetchRowsOnce(
+      "cgd_despesa:savings:all",
+      () => sb.from("cgd_despesa").select("rubrica_id,ano,mes,valor,valor_estimado,zerado")
+    )
+  ]).then(([rubrics, expenses]) => ({ rubrics, expenses }));
 
   // Update title
   const titleEl = document.getElementById("home-resumo-title");
@@ -28,9 +62,10 @@ function escapeHtml(str) {
   // Fetch real values from all 3 tables (for current year AND next year)
   const fetchReal = async (table, yr) => {
     try {
-      const { data, error } = await sb.from(table).select("ano,mes,real").eq("ano", yr).order("mes", { ascending: true });
-      if (error) return [];
-      return Array.isArray(data) ? data : [];
+      return await fetchRowsOnce(
+        `${table}:real:${yr}`,
+        () => sb.from(table).select("ano,mes,real").eq("ano", yr).order("mes", { ascending: true })
+      );
     } catch { return []; }
   };
 
@@ -71,12 +106,16 @@ function escapeHtml(str) {
   const fetchBankTotals = async (rubricTable, expenseTable, yr) => {
     const empty = { income: new Array(12).fill(0), savings: new Array(12).fill(0), outcome: new Array(12).fill(0) };
     try {
-      const [rubRes, despRes] = await Promise.all([
-        sb.from(rubricTable).select("rubrica_id,rubrica_tipo").eq("ano", yr),
-        sb.from(expenseTable).select("rubrica_id,ano,mes,valor,valor_estimado,zerado").eq("ano", yr)
+      const [rubrics, expenses] = await Promise.all([
+        fetchRowsOnce(
+          `${rubricTable}:totals:${yr}`,
+          () => sb.from(rubricTable).select("rubrica_id,rubrica_tipo").eq("ano", yr)
+        ),
+        fetchRowsOnce(
+          `${expenseTable}:totals:${yr}`,
+          () => sb.from(expenseTable).select("rubrica_id,ano,mes,valor,valor_estimado,zerado").eq("ano", yr)
+        )
       ]);
-      const rubrics = Array.isArray(rubRes.data) ? rubRes.data : [];
-      const expenses = Array.isArray(despRes.data) ? despRes.data : [];
 
       const incomeIds = new Set();
       const savingsIds = new Set();
@@ -107,12 +146,7 @@ function escapeHtml(str) {
   const fetchCgdSavings = async () => {
     const empty = { totalAccumulated: 0, totalAccumulatedJan: 0, totalAccumulatedPrev: 0, irsAccumulated: 0, audiAccumulated: 0, irsAccumulatedJan: 0, audiAccumulatedJan: 0, irsAccumulatedPrev: 0, audiAccumulatedPrev: 0, totalAccumulatedNext: 0, irsAccumulatedNext: 0, audiAccumulatedNext: 0, totalAccumulatedJanNext: 0, irsAccumulatedJanNext: 0, audiAccumulatedJanNext: 0 };
     try {
-      const [rubRes, despRes] = await Promise.all([
-        sb.from("cgd_rubrica").select("rubrica_id,ano,mes,rubrica_tipo,rubrica_desc").in("rubrica_tipo", ["Aprovisionamento"]),
-        sb.from("cgd_despesa").select("rubrica_id,ano,mes,valor,valor_estimado,zerado")
-      ]);
-      const rubrics = Array.isArray(rubRes.data) ? rubRes.data : [];
-      const expenses = Array.isArray(despRes.data) ? despRes.data : [];
+      const { rubrics, expenses } = await fetchCgdSavingsRows();
 
       const allSavingsIds = new Set();
       const irsIds = new Set();
@@ -353,18 +387,25 @@ function escapeHtml(str) {
           const value = sliceEl.getAttribute("data-pie-value");
           const pct = sliceEl.getAttribute("data-pie-pct");
           const color = sliceEl.getAttribute("data-pie-color");
-          tooltip.innerHTML = `
-            <div class='nb-pie-tooltip-row'>
-              <span class='nb-pie-tooltip-dot' style='background:${color}'></span>
-              <span class='nb-pie-tooltip-label'>${label}</span>
-              <strong class='nb-pie-tooltip-value'>${value}</strong>
-              <span class='nb-pie-tooltip-pct'>(${pct})</span>
-            </div>
-          `;
+          const row = document.createElement("div");
+          row.className = "nb-pie-tooltip-row";
+          const dot = document.createElement("span");
+          dot.className = "nb-pie-tooltip-dot";
+          dot.style.backgroundColor = color;
+          const labelEl = document.createElement("span");
+          labelEl.className = "nb-pie-tooltip-label";
+          labelEl.textContent = label;
+          const valueEl = document.createElement("strong");
+          valueEl.className = "nb-pie-tooltip-value";
+          valueEl.textContent = value;
+          const pctEl = document.createElement("span");
+          pctEl.className = "nb-pie-tooltip-pct";
+          pctEl.textContent = `(${pct})`;
+          row.append(dot, labelEl, valueEl, pctEl);
+          tooltip.replaceChildren(row);
           tooltip.classList.add("is-visible");
         };
         sliceEl.addEventListener("pointerenter", showTip);
-        sliceEl.addEventListener("pointermove", showTip);
         sliceEl.addEventListener("pointerleave", hideTooltip);
       });
     }
@@ -386,12 +427,7 @@ function escapeHtml(str) {
     // Build 12-month accumulated savings for IRS and Audi from raw expenses
     const buildMonthlySavings = async (filterFn) => {
       try {
-        const [rubRes, despRes] = await Promise.all([
-          sb.from("cgd_rubrica").select("rubrica_id,rubrica_desc,rubrica_tipo").in("rubrica_tipo", ["Aprovisionamento"]),
-          sb.from("cgd_despesa").select("rubrica_id,ano,mes,valor,valor_estimado,zerado")
-        ]);
-        const rubrics = Array.isArray(rubRes.data) ? rubRes.data : [];
-        const expenses = Array.isArray(despRes.data) ? despRes.data : [];
+        const { rubrics, expenses } = await fetchCgdSavingsRows();
         const ids = new Set();
         for (const r of rubrics) {
           if (filterFn(r.rubrica_desc || "")) ids.add(r.rubrica_id);
@@ -533,6 +569,27 @@ function escapeHtml(str) {
         const tooltip = host.querySelector(".outcome-evolution-tooltip");
         if (wrap && tooltip) {
           const hideTooltip = () => tooltip.classList.remove("is-visible");
+          let positionFrame = 0;
+          let pointerPosition = null;
+          const schedulePosition = (event) => {
+            pointerPosition = { clientX: event.clientX, clientY: event.clientY };
+            if (positionFrame) return;
+            positionFrame = requestAnimationFrame(() => {
+              positionFrame = 0;
+              if (!pointerPosition) return;
+              const wrapRect = wrap.getBoundingClientRect();
+              const tooltipRect = tooltip.getBoundingClientRect();
+              const margin = 10;
+              let left = pointerPosition.clientX - wrapRect.left + 12;
+              let top = pointerPosition.clientY - wrapRect.top - tooltipRect.height - 12;
+              if (left + tooltipRect.width > wrapRect.width - margin) left = wrapRect.width - tooltipRect.width - margin;
+              if (left < margin) left = margin;
+              if (top < margin) top = pointerPosition.clientY - wrapRect.top + 14;
+              if (top + tooltipRect.height > wrapRect.height - margin) top = wrapRect.height - tooltipRect.height - margin;
+              tooltip.style.left = `${left}px`;
+              tooltip.style.top = `${top}px`;
+            });
+          };
           wrap.addEventListener("pointerleave", hideTooltip);
           wrap.querySelectorAll(".outcome-evolution-point").forEach(dot => {
             const showTooltip = (event) => {
@@ -549,21 +606,10 @@ function escapeHtml(str) {
                 </div>
               `;
               tooltip.classList.add("is-visible");
-              // Position near the point
-              const wrapRect = wrap.getBoundingClientRect();
-              const tooltipRect = tooltip.getBoundingClientRect();
-              const margin = 10;
-              let left = event.clientX - wrapRect.left + 12;
-              let top = event.clientY - wrapRect.top - tooltipRect.height - 12;
-              if (left + tooltipRect.width > wrapRect.width - margin) left = wrapRect.width - tooltipRect.width - margin;
-              if (left < margin) left = margin;
-              if (top < margin) top = event.clientY - wrapRect.top + 14;
-              if (top + tooltipRect.height > wrapRect.height - margin) top = wrapRect.height - tooltipRect.height - margin;
-              tooltip.style.left = `${left}px`;
-              tooltip.style.top = `${top}px`;
+              schedulePosition(event);
             };
             dot.addEventListener("pointerenter", showTooltip);
-            dot.addEventListener("pointermove", showTooltip);
+            dot.addEventListener("pointermove", schedulePosition);
             dot.addEventListener("pointerleave", hideTooltip);
           });
         }

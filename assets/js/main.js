@@ -183,7 +183,7 @@ function initExpenseModal() {
 
   const renderHistoryRows = (entries) => {
     if (historyTableBody) {
-      historyTableBody.innerHTML = "";
+      historyTableBody.replaceChildren();
     }
 
     const validEntries = Array.isArray(entries) ? entries : [];
@@ -202,17 +202,36 @@ function initExpenseModal() {
       return;
     }
 
-    const rowsHtml = validEntries
-      .map((entry) => {
-        const counter = Number(entry?.contadorId) || 0;
-        const value = Number(entry?.valor) || 0;
-        const note = entry?.nota == null ? "" : String(entry.nota);
-        const formattedValue = value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        return `<tr data-history-counter-id='${counter}'><td class='history-value-cell'>${formattedValue}</td><td class='history-note-cell'><span>${note}</span><button type='button' class='history-delete-btn' data-expense-history-delete data-counter-id='${counter}' aria-label='Eliminar nota'>Eliminar</button></td></tr>`;
-      })
-      .join("");
+    const fragment = document.createDocumentFragment();
+    validEntries.forEach((entry) => {
+      const counter = Number(entry?.contadorId) || 0;
+      const value = Number(entry?.valor) || 0;
+      const note = entry?.nota == null ? "" : String(entry.nota);
+      const row = document.createElement("tr");
+      row.dataset.historyCounterId = String(counter);
 
-    historyTableBody.innerHTML = rowsHtml;
+      const valueCell = document.createElement("td");
+      valueCell.className = "history-value-cell";
+      valueCell.textContent = value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      const noteCell = document.createElement("td");
+      noteCell.className = "history-note-cell";
+      const noteText = document.createElement("span");
+      noteText.textContent = note;
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "history-delete-btn";
+      deleteButton.dataset.expenseHistoryDelete = "";
+      deleteButton.dataset.counterId = String(counter);
+      deleteButton.setAttribute("aria-label", "Eliminar nota");
+      deleteButton.textContent = "Eliminar";
+
+      noteCell.append(noteText, deleteButton);
+      row.append(valueCell, noteCell);
+      fragment.append(row);
+    });
+
+    historyTableBody.replaceChildren(fragment);
   };
 
   const enforceExpenseNumericInput = (input, options = {}) => {

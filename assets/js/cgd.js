@@ -58,6 +58,18 @@ let REAL_TABLE = String(window.DASHBOARD_REAL_TABLE || tableName("real")).trim()
 let EXPENSE_NOTES_TABLE = String(window.DASHBOARD_EXPENSE_NOTES_TABLE || tableName("despesa_notas")).trim();
 let EXPENSE_NOTES_TABLE_LEGACY = String(window.DASHBOARD_EXPENSE_NOTES_TABLE_LEGACY || tableName("despesas_notas")).trim();
 const EXPENSE_SEQ_COLUMN = String(window.DASHBOARD_EXPENSE_SEQ_COLUMN || "despesa_seq").trim();
+const EXPENSE_SELECT_COLUMNS = Array.from(new Set([
+  "ano",
+  "mes",
+  "rubrica_id",
+  "despesa_id",
+  "despesa_desc",
+  EXPENSE_SEQ_COLUMN,
+  "valor",
+  "valor_estimado",
+  "totalizador",
+  "zerado"
+]));
 const HAS_EXPLICIT_TABLE_CONFIG = Boolean(
   window.DASHBOARD_RUBRIC_TABLE
   && window.DASHBOARD_EXPENSE_TABLE
@@ -91,6 +103,12 @@ function getAlternateNotesTable(tableNameValue) {
 
 function isMissingTableError(error) {
   return String(error?.code || "").trim() === "42P01";
+}
+
+function isMissingColumnError(error) {
+  const code = String(error?.code || "").trim();
+  const message = String(error?.message || "");
+  return code === "42703" || code === "PGRST204" || /column .* does not exist/i.test(message);
 }
 
 function isPermissionError(error) {
@@ -252,18 +270,29 @@ async function fetchExpensesForYear(year) {
 
   await ensureResolvedTableNames();
 
-  const { data, error } = await supabaseClient
-    .from(EXPENSE_TABLE)
-    .select("*")
-    .eq("ano", year)
-    .order("mes", { ascending: true })
-    .order("despesa_id", { ascending: true });
+  let lastError = null;
+  for (const noteColumn of ["nota", "notas", null]) {
+    const selectColumns = noteColumn
+      ? [...EXPENSE_SELECT_COLUMNS, noteColumn]
+      : EXPENSE_SELECT_COLUMNS;
+    const { data, error } = await supabaseClient
+      .from(EXPENSE_TABLE)
+      .select(selectColumns.join(","))
+      .eq("ano", year)
+      .order("mes", { ascending: true })
+      .order("despesa_id", { ascending: true });
 
-  if (error) {
-    throw error;
+    if (!error) {
+      return Array.isArray(data) ? data : [];
+    }
+
+    lastError = error;
+    if (!noteColumn || !isMissingColumnError(error)) {
+      break;
+    }
   }
 
-  return Array.isArray(data) ? data : [];
+  throw lastError;
 }
 
 async function fetchRealValuesForYear(year) {
@@ -1201,6 +1230,7 @@ function renderSoberTotalizer() {
 }
 
 function monthPills(values, editable, labelPrefix, estimatedFlags = [], historyByMonth = [], detailMeta = null) {
+  const safeLabelPrefix = escapeHtml(labelPrefix);
   return values
     .map((value, monthIndex) => {
       const dataMonth = `data-month-col='${monthIndex}'`;
@@ -1211,11 +1241,11 @@ function monthPills(values, editable, labelPrefix, estimatedFlags = [], historyB
         const displayValue = Number.isFinite(numericValue) && !isZeroMoneyDisplayValue(numericValue) ? money(numericValue) : "";
         return `
           <div class='money-pill${rubricTotalClass}' ${dataMonth}>
-            <input data-money class='${isRubricTotalCell ? "rubric-total-input" : ""}' type='text' value='${displayValue}' aria-label='${labelPrefix} ${months[monthIndex]}' />
+            <input data-money class='${isRubricTotalCell ? "rubric-total-input" : ""}' type='text' value='${displayValue}' aria-label='${safeLabelPrefix} ${months[monthIndex]}' />
           </div>`;
       }
       const detailAttrs = detailMeta
-        ? `data-rubrica-id='${detailMeta.rubricaId ?? detailMeta.rubricId ?? ""}' data-expense-id='${detailMeta.expenseId ?? ""}' data-month-index='${monthIndex}' data-expense-kind='${detailMeta.kind || "outcome"}'`
+        ? `data-rubrica-id='${escapeHtml(detailMeta.rubricaId ?? detailMeta.rubricId ?? "")}' data-expense-id='${escapeHtml(detailMeta.expenseId ?? "")}' data-month-index='${monthIndex}' data-expense-kind='${escapeHtml(detailMeta.kind || "outcome")}'`
         : "";
       const isInteractiveReadonly = Boolean(detailMeta);
       const historyClass = historyByMonth?.[monthIndex] ? "has-history-note" : "";
@@ -1231,7 +1261,7 @@ function monthPills(values, editable, labelPrefix, estimatedFlags = [], historyB
       }
       return `
           <div class='money-pill readonly${rubricTotalClass}' ${dataMonth}>
-            <button type='button' class='${historyClass}${isRubricTotalCell ? " rubric-total-btn" : ""}' data-expense-field='${labelPrefix} - ${months[monthIndex]}' ${detailAttrs}>
+            <button type='button' class='${historyClass}${isRubricTotalCell ? " rubric-total-btn" : ""}' data-expense-field='${safeLabelPrefix} - ${months[monthIndex]}' ${detailAttrs}>
               <span class='${estimatedClass}'>${displayValue}</span>
             </button>
           </div>`;
@@ -1240,18 +1270,20 @@ function monthPills(values, editable, labelPrefix, estimatedFlags = [], historyB
 }
 
 function readonlySummaryPills(values, labelPrefix) {
+  const safeLabelPrefix = escapeHtml(labelPrefix);
   return values
     .map((value, monthIndex) => {
       const dataMonth = `data-month-col='${monthIndex}' data-totalizer-month='${monthIndex}'`;
       return `
       <div class='money-pill readonly income-collapsed-pill' ${dataMonth}>
-        <span aria-label='${labelPrefix} ${months[monthIndex]}'>${money(value)}</span>
+        <span aria-label='${safeLabelPrefix} ${months[monthIndex]}'>${money(value)}</span>
       </div>`;
     })
     .join("");
 }
 
 function readonlyBalanceSummaryPills(values, labelPrefix) {
+  const safeLabelPrefix = escapeHtml(labelPrefix);
   return values
     .map((value, monthIndex) => {
       const numericValue = Number(value);
@@ -1260,7 +1292,7 @@ function readonlyBalanceSummaryPills(values, labelPrefix) {
       const dataMonth = `data-month-col='${monthIndex}' data-totalizer-month='${monthIndex}'`;
       return `
       <div class='money-pill readonly income-collapsed-pill' ${dataMonth}>
-        <span class='${signClass}' aria-label='${labelPrefix} ${months[monthIndex]}'>${money(safeValue)}</span>
+        <span class='${signClass}' aria-label='${safeLabelPrefix} ${months[monthIndex]}'>${money(safeValue)}</span>
       </div>`;
     })
     .join("");
@@ -1820,18 +1852,25 @@ function renderNbPieCharts() {
           const value = slice.getAttribute("data-pie-value");
           const pct = slice.getAttribute("data-pie-pct");
           const color = slice.getAttribute("data-pie-color");
-          tooltip.innerHTML = `
-            <div class='nb-pie-tooltip-row'>
-              <span class='nb-pie-tooltip-dot' style='background:${color}'></span>
-              <span class='nb-pie-tooltip-label'>${label}</span>
-              <strong class='nb-pie-tooltip-value'>${value}</strong>
-              <span class='nb-pie-tooltip-pct'>(${pct})</span>
-            </div>
-          `;
+          const row = document.createElement("div");
+          row.className = "nb-pie-tooltip-row";
+          const dot = document.createElement("span");
+          dot.className = "nb-pie-tooltip-dot";
+          dot.style.backgroundColor = color;
+          const labelEl = document.createElement("span");
+          labelEl.className = "nb-pie-tooltip-label";
+          labelEl.textContent = label;
+          const valueEl = document.createElement("strong");
+          valueEl.className = "nb-pie-tooltip-value";
+          valueEl.textContent = value;
+          const pctEl = document.createElement("span");
+          pctEl.className = "nb-pie-tooltip-pct";
+          pctEl.textContent = `(${pct})`;
+          row.append(dot, labelEl, valueEl, pctEl);
+          tooltip.replaceChildren(row);
           tooltip.classList.add("is-visible");
         };
         slice.addEventListener("pointerenter", showTip);
-        slice.addEventListener("pointermove", showTip);
         slice.addEventListener("pointerleave", hideTooltip);
       });
     }
@@ -2149,11 +2188,12 @@ function renderExpenseRows(expenses, rubricName, kind) {
 
   return expenses
     .map((expense) => {
+      const safeExpenseName = escapeHtml(expense.name);
       return `
-      <div class='data-row expense' data-sortable data-expense-id='${expense.id ?? ""}' data-rubrica-id='${expense.rubricId ?? ""}' data-despesa-seq='${expense.seq ?? ""}'>
+      <div class='data-row expense' data-sortable data-expense-id='${escapeHtml(expense.id ?? "")}' data-rubrica-id='${escapeHtml(expense.rubricId ?? "")}' data-despesa-seq='${escapeHtml(expense.seq ?? "")}'>
         <div class='desc-cell expense-desc-cell'>
           <span class='chev-spacer' aria-hidden='true'></span>
-          <button class='desc-pill expense-menu-trigger' type='button' data-expense-menu-toggle aria-expanded='false' aria-label='Opcoes da ${entryLabel} ${expense.name}'>${expense.name}</button>
+          <button class='desc-pill expense-menu-trigger' type='button' data-expense-menu-toggle aria-expanded='false' aria-label='Opcoes da ${entryLabel} ${safeExpenseName}'>${safeExpenseName}</button>
           <div class='expense-sort-actions'>
             <div class='expense-menu' role='menu'>
               <button type='button' role='menuitem' data-expense-menu-action='up'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 18V6M12 6L7 11M12 6L17 11' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para cima</span></button>
@@ -2183,13 +2223,14 @@ function renderRubrics(rubrics, kind) {
       const rubricId = `${kind}-rubric-${rubricIndex}`;
       const expenseBodyId = `${rubricId}-expenses`;
       const totals = rubric.values || sumByMonth(rubric.expenses);
+      const safeRubricName = escapeHtml(rubric.name);
 
       return `
-      <article class='rubric' data-sortable data-rubrica-id='${rubric.id ?? ""}' data-rubrica-seq='${rubric.seq ?? ""}' data-rubrica-tipo='${kind}'>
+      <article class='rubric' data-sortable data-rubrica-id='${escapeHtml(rubric.id ?? "")}' data-rubrica-seq='${escapeHtml(rubric.seq ?? "")}' data-rubrica-tipo='${kind}'>
         <header class='rubric-head data-row'>
           <div class='desc-cell rubric-desc-cell'>
             <button class='chev' type='button' data-toggle-target='${expenseBodyId}' aria-expanded='false' aria-label='Expandir rubrica'>&#9660;</button>
-            <button class='desc-pill rubric-title rubric-menu-trigger' type='button' data-rubric-menu-toggle aria-expanded='false' aria-label='Opcoes da rubrica ${rubric.name}'>${rubric.name}</button>
+            <button class='desc-pill rubric-title rubric-menu-trigger' type='button' data-rubric-menu-toggle aria-expanded='false' aria-label='Opcoes da rubrica ${safeRubricName}'>${safeRubricName}</button>
             <div class='rubric-sort-actions'>
               <div class='rubric-menu' role='menu'>
                 <button type='button' role='menuitem' data-rubric-menu-action='up'><span class='menu-icon' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M12 18V6M12 6L7 11M12 6L17 11' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span>Mover para cima</span></button>
@@ -2511,6 +2552,23 @@ function bindOutcomeChartHover(host) {
     const hideTooltip = () => {
       tooltip.classList.remove("is-visible");
     };
+    let positionFrame = 0;
+    let pointerPosition = null;
+    const schedulePosition = (event) => {
+      if (!Number.isFinite(event?.clientX) || !Number.isFinite(event?.clientY)) {
+        return;
+      }
+      pointerPosition = { clientX: event.clientX, clientY: event.clientY };
+      if (positionFrame) {
+        return;
+      }
+      positionFrame = requestAnimationFrame(() => {
+        positionFrame = 0;
+        if (pointerPosition) {
+          positionOutcomeChartTooltip(tooltip, wrap, pointerPosition);
+        }
+      });
+    };
 
     wrap.addEventListener("pointerleave", hideTooltip);
 
@@ -2530,11 +2588,11 @@ function bindOutcomeChartHover(host) {
           </div>
         `;
         tooltip.classList.add("is-visible");
-        positionOutcomeChartTooltip(tooltip, wrap, event);
+        schedulePosition(event);
       };
 
       point.addEventListener("pointerenter", showTooltip);
-      point.addEventListener("pointermove", showTooltip);
+      point.addEventListener("pointermove", schedulePosition);
       point.addEventListener("focus", (event) => showTooltip(event));
       point.addEventListener("blur", hideTooltip);
     });
@@ -3865,6 +3923,23 @@ function bindComparisonChartHover(host) {
     const hideTooltip = () => {
       tooltip.classList.remove("is-visible");
     };
+    let positionFrame = 0;
+    let pointerPosition = null;
+    const schedulePosition = (event) => {
+      if (!Number.isFinite(event?.clientX) || !Number.isFinite(event?.clientY)) {
+        return;
+      }
+      pointerPosition = { clientX: event.clientX, clientY: event.clientY };
+      if (positionFrame) {
+        return;
+      }
+      positionFrame = requestAnimationFrame(() => {
+        positionFrame = 0;
+        if (pointerPosition) {
+          positionOutcomeChartTooltip(tooltip, wrap, pointerPosition);
+        }
+      });
+    };
 
     wrap.addEventListener("pointerleave", hideTooltip);
 
@@ -3884,11 +3959,11 @@ function bindComparisonChartHover(host) {
           </div>
         `;
         tooltip.classList.add("is-visible");
-        positionOutcomeChartTooltip(tooltip, wrap, event);
+        schedulePosition(event);
       };
 
       point.addEventListener("pointerenter", showTooltip);
-      point.addEventListener("pointermove", showTooltip);
+      point.addEventListener("pointermove", schedulePosition);
       point.addEventListener("focus", (event) => showTooltip(event));
       point.addEventListener("blur", hideTooltip);
     });
@@ -5391,4 +5466,3 @@ document.addEventListener("DOMContentLoaded", async () => {
     activeMonthTile.click();
   }
 });
-

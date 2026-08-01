@@ -3905,6 +3905,22 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .fade-up {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @media (max-width: 1180px) {
   .kpi {
     grid-column: span 6;
