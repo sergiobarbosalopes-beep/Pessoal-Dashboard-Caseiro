@@ -38,12 +38,135 @@ for (const column of [
   "despesa_desc",
   "valor",
   "valor_estimado",
+  "valor_Estimado",
   "totalizador",
   "zerado"
 ]) {
   assert.match(cgd, new RegExp(`"${column}"`));
 }
-assert.match(expenseFetch, /for \(const noteColumn of \["nota", "notas", null\]\)/);
+assert.match(cgd, /const EXPENSE_ESTIMATED_COLUMNS = \["valor_estimado", "valor_Estimado"\]/);
+assert.match(cgd, /const EXPENSE_NOTE_COLUMNS = \["nota", "notas", null\]/);
+
+const createExpenseFetchHarness = (prefix, responseForProjection) => {
+  const projections = [];
+  const expenseTable = `${prefix}_despesa`;
+  const supabase = {
+    from(table) {
+      assert.equal(table, expenseTable);
+      let projection = "";
+      const query = {
+        select(value) {
+          projection = value;
+          projections.push(value);
+          return query;
+        },
+        eq() {
+          return query;
+        },
+        order() {
+          return query;
+        },
+        then(resolve, reject) {
+          return Promise.resolve(responseForProjection(projection)).then(resolve, reject);
+        }
+      };
+      return query;
+    }
+  };
+  const window = {
+    CGD_SUPABASE_URL: "https://example.test",
+    CGD_SUPABASE_ANON_KEY: "test-key",
+    DASHBOARD_TABLE_PREFIX: prefix,
+    DASHBOARD_RUBRIC_TABLE: `${prefix}_rubrica`,
+    DASHBOARD_EXPENSE_TABLE: expenseTable,
+    DASHBOARD_REAL_TABLE: `${prefix}_real`,
+    DASHBOARD_EXPENSE_NOTES_TABLE: `${prefix}_despesa_notas`,
+    DASHBOARD_EXPENSE_NOTES_TABLE_LEGACY: `${prefix}_despesas_notas`,
+    DASHBOARD_EXPENSE_SEQ_COLUMN: "despesa_seq",
+    location: { pathname: `/${prefix}.html` },
+    supabase: { createClient: () => supabase }
+  };
+  const context = vm.createContext({
+    console,
+    document: { addEventListener() {} },
+    window
+  });
+  vm.runInContext(cgd, context);
+  return {
+    projections,
+    fetchExpenses: (year) => vm.runInContext(`fetchExpensesForYear(${year})`, context)
+  };
+};
+
+const testExpenseProjectionFallbacks = async () => {
+  for (const prefix of ["cgd", "nb", "coverflex"]) {
+    const legacyRow = {
+      ano: 2026,
+      mes: 1,
+      rubrica_id: 1,
+      despesa_id: 2,
+      despesa_desc: "Legacy",
+      despesa_seq: 3,
+      valor: null,
+      valor_Estimado: 42,
+      totalizador: true,
+      zerado: false,
+      nota: "ok"
+    };
+    const harness = createExpenseFetchHarness(prefix, (projection) => (
+      projection.includes("valor_estimado")
+        ? { data: null, error: { code: "42703", message: "column valor_estimado does not exist" } }
+        : { data: [legacyRow], error: null }
+    ));
+
+    assert.deepEqual(await harness.fetchExpenses(2026), [legacyRow]);
+    assert.equal(harness.projections.length, 2);
+    assert.match(harness.projections[0], /valor_estimado,nota$/);
+    assert.match(harness.projections[1], /valor_Estimado,nota$/);
+    for (const requiredColumn of [
+      "ano",
+      "mes",
+      "rubrica_id",
+      "despesa_id",
+      "despesa_desc",
+      "despesa_seq",
+      "valor",
+      "totalizador",
+      "zerado"
+    ]) {
+      assert.ok(harness.projections[1].split(",").includes(requiredColumn));
+    }
+  }
+
+  const notasRow = { ano: 2026, mes: 1, valor_estimado: 10, notas: "legacy note" };
+  const notasHarness = createExpenseFetchHarness("cgd", (projection) => {
+    const columns = projection.split(",");
+    if (columns.includes("valor_Estimado") || columns.at(-1) === "nota") {
+      return { data: null, error: { code: "42703", message: "projection column does not exist" } };
+    }
+    return { data: [notasRow], error: null };
+  });
+  assert.deepEqual(await notasHarness.fetchExpenses(2026), [notasRow]);
+  assert.match(notasHarness.projections.at(-1), /valor_estimado,notas$/);
+
+  const noNoteRow = { ano: 2026, mes: 1, valor_estimado: 12 };
+  const noNoteHarness = createExpenseFetchHarness("nb", (projection) => {
+    const columns = projection.split(",");
+    const noteColumn = columns.at(-1);
+    if (columns.includes("valor_Estimado") || noteColumn === "nota" || noteColumn === "notas") {
+      return { data: null, error: { code: "42703", message: "projection column does not exist" } };
+    }
+    return { data: [noNoteRow], error: null };
+  });
+  assert.deepEqual(await noNoteHarness.fetchExpenses(2026), [noNoteRow]);
+  assert.match(noNoteHarness.projections.at(-1), /valor_estimado$/);
+  assert.doesNotMatch(noNoteHarness.projections.at(-1), /,notas?$/);
+
+  const permissionError = { code: "42501", message: "permission denied" };
+  const deniedHarness = createExpenseFetchHarness("cgd", () => ({ data: null, error: permissionError }));
+  await assert.rejects(deniedHarness.fetchExpenses(2026), (error) => error === permissionError);
+  assert.equal(deniedHarness.projections.length, 1);
+};
 
 assert.equal((home.match(/\.from\("cgd_rubrica"\)/g) || []).length, 1);
 assert.equal((home.match(/\.from\("cgd_despesa"\)/g) || []).length, 1);
@@ -75,4 +198,9 @@ for (const source of html.filter((value) => value.includes("assets/js/cgd.js")))
 }
 assert.match(read("index.html"), /assets\/js\/home\.js\?v=20260801-1/);
 
-console.log("Hardening regression checks passed.");
+testExpenseProjectionFallbacks()
+  .then(() => console.log("Hardening regression checks passed."))
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });

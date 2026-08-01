@@ -58,7 +58,7 @@ let REAL_TABLE = String(window.DASHBOARD_REAL_TABLE || tableName("real")).trim()
 let EXPENSE_NOTES_TABLE = String(window.DASHBOARD_EXPENSE_NOTES_TABLE || tableName("despesa_notas")).trim();
 let EXPENSE_NOTES_TABLE_LEGACY = String(window.DASHBOARD_EXPENSE_NOTES_TABLE_LEGACY || tableName("despesas_notas")).trim();
 const EXPENSE_SEQ_COLUMN = String(window.DASHBOARD_EXPENSE_SEQ_COLUMN || "despesa_seq").trim();
-const EXPENSE_SELECT_COLUMNS = Array.from(new Set([
+const EXPENSE_BASE_SELECT_COLUMNS = Array.from(new Set([
   "ano",
   "mes",
   "rubrica_id",
@@ -66,10 +66,11 @@ const EXPENSE_SELECT_COLUMNS = Array.from(new Set([
   "despesa_desc",
   EXPENSE_SEQ_COLUMN,
   "valor",
-  "valor_estimado",
   "totalizador",
   "zerado"
 ]));
+const EXPENSE_ESTIMATED_COLUMNS = ["valor_estimado", "valor_Estimado"];
+const EXPENSE_NOTE_COLUMNS = ["nota", "notas", null];
 const HAS_EXPLICIT_TABLE_CONFIG = Boolean(
   window.DASHBOARD_RUBRIC_TABLE
   && window.DASHBOARD_EXPENSE_TABLE
@@ -270,29 +271,33 @@ async function fetchExpensesForYear(year) {
 
   await ensureResolvedTableNames();
 
-  let lastError = null;
-  for (const noteColumn of ["nota", "notas", null]) {
-    const selectColumns = noteColumn
-      ? [...EXPENSE_SELECT_COLUMNS, noteColumn]
-      : EXPENSE_SELECT_COLUMNS;
-    const { data, error } = await supabaseClient
-      .from(EXPENSE_TABLE)
-      .select(selectColumns.join(","))
-      .eq("ano", year)
-      .order("mes", { ascending: true })
-      .order("despesa_id", { ascending: true });
+  let lastMissingColumnError = null;
+  for (const noteColumn of EXPENSE_NOTE_COLUMNS) {
+    for (const estimatedColumn of EXPENSE_ESTIMATED_COLUMNS) {
+      const selectColumns = [
+        ...EXPENSE_BASE_SELECT_COLUMNS,
+        estimatedColumn,
+        ...(noteColumn ? [noteColumn] : [])
+      ];
+      const { data, error } = await supabaseClient
+        .from(EXPENSE_TABLE)
+        .select(selectColumns.join(","))
+        .eq("ano", year)
+        .order("mes", { ascending: true })
+        .order("despesa_id", { ascending: true });
 
-    if (!error) {
-      return Array.isArray(data) ? data : [];
-    }
+      if (!error) {
+        return Array.isArray(data) ? data : [];
+      }
 
-    lastError = error;
-    if (!noteColumn || !isMissingColumnError(error)) {
-      break;
+      if (!isMissingColumnError(error)) {
+        throw error;
+      }
+      lastMissingColumnError = error;
     }
   }
 
-  throw lastError;
+  throw lastMissingColumnError;
 }
 
 async function fetchRealValuesForYear(year) {
