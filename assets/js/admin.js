@@ -229,12 +229,17 @@
     if (modalPwEl)  modalPwEl.value = "";
     if (modalPwCEl) modalPwCEl.value = "";
     modalEl.dataset.targetEmail = email;
+    window.DashboardModalLifecycle?.lock(modalEl, document.activeElement);
     modalEl.classList.add("admin-modal--open");
+    modalEl.setAttribute("aria-hidden", "false");
+    requestAnimationFrame(() => modalPwEl?.focus());
   };
 
   const closeResetModal = () => {
     if (!modalEl) return;
     modalEl.classList.remove("admin-modal--open");
+    modalEl.setAttribute("aria-hidden", "true");
+    window.DashboardModalLifecycle?.unlock(modalEl);
     if (modalPwEl)  modalPwEl.value = "";
     if (modalPwCEl) modalPwCEl.value = "";
   };
@@ -243,6 +248,17 @@
 
   modalEl?.addEventListener("click", (event) => {
     if (event.target === modalEl) closeResetModal();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (
+      event.key === "Escape"
+      && modalEl?.classList.contains("admin-modal--open")
+      && window.DashboardModalLifecycle?.isTopmost(modalEl)
+    ) {
+      event.preventDefault();
+      closeResetModal();
+    }
   });
 
   modalSaveEl?.addEventListener("click", async () => {

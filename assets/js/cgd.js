@@ -3733,7 +3733,9 @@ function openRealValuePopup(monthIndex) {
   const input = modal.querySelector("[data-real-modal-input]");
   input.value = money(currentValue);
   input.setAttribute("data-real-modal-month", monthIndex);
+  window.DashboardModalLifecycle?.lock(modal, document.activeElement);
   modal.classList.add("show");
+  modal.setAttribute("aria-hidden", "false");
   input.focus();
 }
 
@@ -3741,6 +3743,8 @@ function closeRealValuePopup() {
   const modal = document.getElementById("real-value-modal");
   if (modal) {
     modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+    window.DashboardModalLifecycle?.unlock(modal);
   }
 }
 
@@ -3773,6 +3777,17 @@ function bindRealValuePopup() {
     if (e.key === "Enter") {
       e.preventDefault();
       modal.querySelector("[data-real-modal-save]").click();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (
+      event.key === "Escape"
+      && modal.classList.contains("show")
+      && window.DashboardModalLifecycle?.isTopmost(modal)
+    ) {
+      event.preventDefault();
+      closeRealValuePopup();
     }
   });
 
@@ -4831,10 +4846,12 @@ function requestEntityDescription(options) {
     const close = (result) => {
       modal.classList.remove("show");
       modal.setAttribute("aria-hidden", "true");
+      window.DashboardModalLifecycle?.unlock(modal);
       confirmBtn.removeEventListener("click", onConfirm);
       cancelBtn.removeEventListener("click", onCancel);
       modal.removeEventListener("click", onBackdrop);
       input.removeEventListener("keydown", onKeydown);
+      document.removeEventListener("keydown", onDocumentKeydown);
       resolve(result);
     };
 
@@ -4856,7 +4873,13 @@ function requestEntityDescription(options) {
         event.preventDefault();
         onConfirm();
       }
-      if (event.key === "Escape") {
+    };
+
+    const onDocumentKeydown = (event) => {
+      if (
+        event.key === "Escape"
+        && window.DashboardModalLifecycle?.isTopmost(modal)
+      ) {
         event.preventDefault();
         onCancel();
       }
@@ -4866,7 +4889,9 @@ function requestEntityDescription(options) {
     cancelBtn.addEventListener("click", onCancel);
     modal.addEventListener("click", onBackdrop);
     input.addEventListener("keydown", onKeydown);
+    document.addEventListener("keydown", onDocumentKeydown);
 
+    window.DashboardModalLifecycle?.lock(modal, document.activeElement);
     modal.classList.add("show");
     modal.setAttribute("aria-hidden", "false");
     requestAnimationFrame(() => input.focus());
@@ -4895,9 +4920,11 @@ function requestConfirmation(options) {
     const close = (result) => {
       modal.classList.remove("show");
       modal.setAttribute("aria-hidden", "true");
+      window.DashboardModalLifecycle?.unlock(modal);
       confirmBtn.removeEventListener("click", onConfirm);
       cancelBtn.removeEventListener("click", onCancel);
       modal.removeEventListener("click", onBackdrop);
+      document.removeEventListener("keydown", onKeydown);
       resolve(result);
     };
 
@@ -4908,13 +4935,25 @@ function requestConfirmation(options) {
         close(false);
       }
     };
+    const onKeydown = (event) => {
+      if (
+        event.key === "Escape"
+        && window.DashboardModalLifecycle?.isTopmost(modal)
+      ) {
+        event.preventDefault();
+        onCancel();
+      }
+    };
 
     confirmBtn.addEventListener("click", onConfirm);
     cancelBtn.addEventListener("click", onCancel);
     modal.addEventListener("click", onBackdrop);
+    document.addEventListener("keydown", onKeydown);
 
+    window.DashboardModalLifecycle?.lock(modal, document.activeElement);
     modal.classList.add("show");
     modal.setAttribute("aria-hidden", "false");
+    requestAnimationFrame(() => cancelBtn.focus());
   });
 }
 

@@ -11,6 +11,7 @@ const main = read("assets/js/main.js");
 const home = read("assets/js/home.js");
 const admin = read("assets/js/admin.js");
 const styles = fs.readFileSync(path.join(root, "assets/css/styles.css"));
+const stylesText = styles.toString("utf8");
 
 assert.doesNotMatch(main, /historyTableBody\.innerHTML/);
 assert.match(main, /noteText\.textContent = note/);
@@ -174,7 +175,39 @@ assert.match(home, /requestCache\.set\(key, request\)/);
 assert.match(home, /requestCache\.delete\(key\)/);
 
 assert.notDeepEqual(Array.from(styles.subarray(0, 3)), [0xef, 0xbb, 0xbf]);
-assert.match(styles.toString("utf8"), /@media \(prefers-reduced-motion: reduce\)/);
+assert.ok(stylesText.startsWith(":root"));
+assert.match(stylesText, /@media \(prefers-reduced-motion: reduce\)/);
+
+assert.match(main, /function initMobileNavigation\(\)/);
+assert.match(main, /toggle\.setAttribute\("aria-controls", menu\.id\)/);
+assert.match(main, /toggle\.setAttribute\("aria-expanded", String\(open\)\)/);
+assert.match(main, /event\.key === "Escape" && topbar\.classList\.contains\("menu-open"\)/);
+assert.match(main, /!topbar\.contains\(event\.target\)/);
+assert.match(main, /window\.matchMedia\("\(max-width: 1024px\)"\)/);
+assert.match(main, /menu\.addEventListener\("click"/);
+assert.match(main, /createDashboardModalLifecycle/);
+assert.match(main, /activeOwners = new Set\(\)/);
+assert.match(main, /savedBodyStyle = document\.body\.getAttribute\("style"\)/);
+assert.match(main, /const isTopmost = \(owner\)/);
+assert.match(main, /returnFocus\?\.isConnected \? returnFocus : fallbackFocus/);
+assert.match(main, /window\.DashboardModalLifecycle\?\.(lock|unlock)/);
+assert.match(main, /event\.key !== "Tab"/);
+assert.match(main, /owner\.removeAttribute\("inert"\)/);
+assert.match(main, /owner\.setAttribute\("inert", ""\)/);
+
+assert.match(stylesText, /\/\* ── Responsive hardening:/);
+assert.match(stylesText, /max-height: calc\(100dvh - 24px\)/);
+assert.match(stylesText, /\.modal,\s*\.admin-modal \{[\s\S]*?z-index: 30000/);
+assert.match(stylesText, /\.modal:not\(\.show\) \{\s*visibility: hidden/);
+assert.match(stylesText, /\.expense-modal-top-layout \{[\s\S]*?grid-template-columns: minmax\(220px, 0\.85fr\) minmax\(280px, 1\.15fr\)/);
+assert.match(stylesText, /@media \(max-width: 768px\) \{[\s\S]*?\.expense-modal-top-layout \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+assert.match(stylesText, /\.panel-menu,\s*\.rubric-menu,\s*\.expense-menu \{[\s\S]*?position: fixed/);
+assert.match(stylesText, /\.panel-sort-actions,\s*\.rubric-sort-actions,\s*\.expense-sort-actions \{[\s\S]*?transform: none/);
+assert.match(stylesText, /\.panel-sort-actions\.open,[\s\S]*?z-index: 22000/);
+assert.match(stylesText, /@media \(max-width: 430px\)/);
+assert.match(stylesText, /env\(safe-area-inset-top\)/);
+assert.match(stylesText, /-webkit-overflow-scrolling: touch/);
+assert.match(stylesText, /@media \(pointer: coarse\)/);
 
 const htmlFiles = [
   "index.html",
@@ -188,15 +221,27 @@ const htmlFiles = [
 ];
 const html = htmlFiles.map(read);
 for (const source of html) {
-  assert.match(source, /assets\/css\/styles\.css\?v=20260801-2/);
+  assert.match(source, /viewport-fit=cover/);
+  assert.match(source, /assets\/css\/styles\.css\?v=20260802-1/);
 }
 for (const source of html.filter((value) => value.includes("assets/js/main.js"))) {
-  assert.match(source, /assets\/js\/main\.js\?v=20260801-1/);
+  assert.match(source, /assets\/js\/main\.js\?v=20260802-1/);
 }
 for (const source of html.filter((value) => value.includes("assets/js/cgd.js"))) {
-  assert.match(source, /assets\/js\/cgd\.js\?v=20260801-1/);
+  assert.match(source, /assets\/js\/cgd\.js\?v=20260802-1/);
 }
+assert.match(read("admin.html"), /assets\/js\/admin\.js\?v=20260802-1/);
 assert.match(read("index.html"), /assets\/js\/home\.js\?v=20260801-1/);
+
+for (const relativePath of [
+  "caixa-geral-depositos.html",
+  "novobanco.html",
+  "coverflex.html"
+]) {
+  const source = read(relativePath);
+  assert.match(source, /id="expense-modal" role="dialog" aria-modal="true"/);
+  assert.match(source, /id="confirm-modal" role="alertdialog" aria-modal="true"/);
+}
 
 testExpenseProjectionFallbacks()
   .then(() => console.log("Hardening regression checks passed."))

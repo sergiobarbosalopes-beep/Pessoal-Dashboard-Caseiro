@@ -2,14 +2,14 @@
 <html lang="pt-PT">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     
     <script>!function(){try{var s=JSON.parse(localStorage.getItem("dashboard_session")||"null");if(!s||!s.email||Date.now()-s.ts>28800000)throw 0}catch(e){localStorage.removeItem("dashboard_session");sessionStorage.setItem("dashboard_redirect",location.href);location.replace("login.html")}}();</script>
 <title>Dashboard Caseiro | Novo Banco</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="assets/css/styles.css?v=20260801-2" />
+    <link rel="stylesheet" href="assets/css/styles.css?v=20260802-1" />
     <script>
       window.CGD_SUPABASE_URL = "https://uooovgxrexpstrtfktst.supabase.co";
       window.CGD_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvb292Z3hyZXhwc3RydGZrdHN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMTkxMjYsImV4cCI6MjA5NDc5NTEyNn0.4zYL75OJAI3Lxzofh9f0fIJ26S5EwHnUKGQuYQcf9mY";
@@ -24,8 +24,8 @@
       window.DASHBOARD_HIDE_AVAILABLE_ROW = true;
     </script>
     <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script defer src="assets/js/main.js?v=20260801-1"></script>
-    <script defer src="assets/js/cgd.js?v=20260801-1"></script>
+    <script defer src="assets/js/main.js?v=20260802-1"></script>
+    <script defer src="assets/js/cgd.js?v=20260802-1"></script>
     <script defer src="assets/js/auth.js?v=20260731-2045"></script>
   </head>
   <body class="nb-theme">
@@ -97,10 +97,10 @@
       </main>
     </div>
 
-    <div class="modal" id="expense-modal" aria-hidden="true">
+    <div class="modal" id="expense-modal" role="dialog" aria-modal="true" aria-labelledby="expense-modal-title" aria-hidden="true">
       <div class="modal-card expense-detail-modal" data-expense-modal-kind="outcome" data-expense-modal-readonly="false">
         <div class="expense-modal-title-row">
-          <h3 data-modal-title>Detalhe da despesa</h3>
+          <h3 id="expense-modal-title" data-modal-title>Detalhe da despesa</h3>
           <p class="expense-month-indicator" data-expense-month-indicator>--</p>
         </div>
 
@@ -186,9 +186,9 @@
       </div>
     </div>
 
-    <div class="modal" id="rubric-modal" aria-hidden="true">
+    <div class="modal" id="rubric-modal" role="dialog" aria-modal="true" aria-labelledby="rubric-modal-title" aria-hidden="true">
       <div class="modal-card">
-        <h3 data-rubric-modal-title>Adicionar rubrica</h3>
+        <h3 id="rubric-modal-title" data-rubric-modal-title>Adicionar rubrica</h3>
         <p data-rubric-modal-subtitle>Indica o descritivo da nova rubrica para o ano selecionado.</p>
         <div class="modal-form">
           <label for="rubric-desc-input" data-rubric-modal-label>Descricao da rubrica</label>
@@ -201,9 +201,9 @@
       </div>
     </div>
 
-    <div class="modal" id="confirm-modal" aria-hidden="true">
+    <div class="modal" id="confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-hidden="true">
       <div class="modal-card">
-        <h3 data-confirm-title>Confirmar</h3>
+        <h3 id="confirm-modal-title" data-confirm-title>Confirmar</h3>
         <p data-confirm-subtitle>Tem a certeza que pretende continuar?</p>
         <div class="modal-actions">
           <button class="ghost-btn" type="button" data-confirm-no>Cancelar</button>
@@ -212,9 +212,9 @@
       </div>
     </div>
 
-    <div class="modal" id="real-value-modal" aria-hidden="true">
+    <div class="modal" id="real-value-modal" role="dialog" aria-modal="true" aria-labelledby="real-modal-title" aria-hidden="true">
       <div class="modal-card">
-        <h3 data-real-modal-title>Real</h3>
+        <h3 id="real-modal-title" data-real-modal-title>Real</h3>
         <div class="modal-form">
           <label for="real-value-input">Valor real do mes</label>
           <input id="real-value-input" data-real-modal-input data-real-modal-month="" type="text" maxlength="12" inputmode="decimal" />

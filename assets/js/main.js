@@ -1,3 +1,163 @@
+function createDashboardModalLifecycle() {
+  const activeOwners = new Set();
+  const returnFocusByOwner = new WeakMap();
+  let savedBodyStyle = null;
+  let savedScrollY = 0;
+  const getTopmost = () => Array.from(activeOwners).at(-1);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Tab") {
+      return;
+    }
+
+    const owner = getTopmost();
+    if (!owner) {
+      return;
+    }
+
+    const focusable = Array.from(owner.querySelectorAll(
+      "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])"
+    )).filter((element) => !element.hasAttribute("inert"));
+    if (!focusable.length) {
+      event.preventDefault();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const activeElement = document.activeElement;
+    if (!owner.contains(activeElement)) {
+      event.preventDefault();
+      (event.shiftKey ? last : first).focus();
+    } else if (event.shiftKey && activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
+  const lock = (owner, returnFocus = document.activeElement) => {
+    if (!owner || activeOwners.has(owner)) {
+      return;
+    }
+
+    activeOwners.add(owner);
+    owner.removeAttribute("inert");
+    if (returnFocus instanceof HTMLElement) {
+      returnFocusByOwner.set(owner, returnFocus);
+    }
+    if (activeOwners.size > 1) {
+      return;
+    }
+
+    savedBodyStyle = document.body.getAttribute("style");
+    savedScrollY = window.scrollY;
+    const scrollbarGap = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
+    document.body.style.position = "fixed";
+    document.body.style.inset = `${-savedScrollY}px 0 auto`;
+    document.body.style.width = "100%";
+    document.body.style.overflow = "hidden";
+    if (scrollbarGap > 0) {
+      document.body.style.paddingRight = `${scrollbarGap}px`;
+    }
+    document.body.classList.add("modal-scroll-locked");
+  };
+
+  const unlock = (owner, fallbackFocus) => {
+    if (!owner || !activeOwners.delete(owner)) {
+      return;
+    }
+
+    const returnFocus = returnFocusByOwner.get(owner);
+    returnFocusByOwner.delete(owner);
+    owner.setAttribute("inert", "");
+    if (activeOwners.size === 0) {
+      document.body.classList.remove("modal-scroll-locked");
+      if (savedBodyStyle === null) {
+        document.body.removeAttribute("style");
+      } else {
+        document.body.setAttribute("style", savedBodyStyle);
+      }
+      window.scrollTo(0, savedScrollY);
+    }
+
+    const focusTarget = returnFocus?.isConnected ? returnFocus : fallbackFocus;
+    if (focusTarget?.isConnected) {
+      requestAnimationFrame(() => focusTarget.focus({ preventScroll: true }));
+    }
+  };
+
+  const isTopmost = (owner) => getTopmost() === owner;
+
+  return { lock, unlock, isTopmost };
+}
+
+window.DashboardModalLifecycle = window.DashboardModalLifecycle || createDashboardModalLifecycle();
+document.querySelectorAll(".modal, .admin-modal").forEach((modal) => modal.setAttribute("inert", ""));
+
+function initMobileNavigation() {
+  const topbar = document.querySelector(".topbar");
+  const menu = topbar?.querySelector("nav.menu");
+  if (!topbar || !menu) {
+    return;
+  }
+
+  if (!menu.id) {
+    menu.id = "primary-navigation";
+  }
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "menu-toggle";
+  toggle.setAttribute("aria-controls", menu.id);
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-label", "Abrir menu principal");
+  toggle.innerHTML = "<span aria-hidden='true'></span><span aria-hidden='true'></span><span aria-hidden='true'></span>";
+  topbar.insertBefore(toggle, menu);
+  topbar.classList.add("nav-enhanced");
+
+  const setOpen = (open, restoreFocus = false) => {
+    topbar.classList.toggle("menu-open", open);
+    toggle.setAttribute("aria-expanded", String(open));
+    toggle.setAttribute("aria-label", open ? "Fechar menu principal" : "Abrir menu principal");
+    if (restoreFocus) {
+      toggle.focus();
+    }
+  };
+
+  toggle.addEventListener("click", () => {
+    setOpen(toggle.getAttribute("aria-expanded") !== "true");
+  });
+
+  menu.addEventListener("click", (event) => {
+    if (event.target.closest("a[href], .menu-logout")) {
+      setOpen(false);
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (topbar.classList.contains("menu-open") && !topbar.contains(event.target)) {
+      setOpen(false);
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && topbar.classList.contains("menu-open")) {
+      event.preventDefault();
+      setOpen(false, true);
+    }
+  });
+
+  const mobileQuery = window.matchMedia("(max-width: 1024px)");
+  mobileQuery.addEventListener("change", (event) => {
+    if (!event.matches) {
+      setOpen(false);
+    }
+  });
+}
+
 function setActiveMenu() {
   const current = window.location.pathname.split("/").pop() || "index.html";
   document.querySelectorAll(".menu-link").forEach((link) => {
@@ -63,7 +223,16 @@ function initExpenseModal() {
   const checkApplyEndYear = modal.querySelector("[data-expense-apply-end-year]");
   const zeroBtn = modal.querySelector("[data-expense-zero]");
   const saveBtn = modal.querySelector("[data-expense-save]");
-  const closeModal = () => modal.classList.remove("show");
+  const closeModal = () => {
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+    const fallbackFocus = activeContext
+      ? document.querySelector(
+        `button[data-rubrica-id='${activeContext.rubricaId}'][data-expense-id='${activeContext.despesaId}'][data-month-index='${activeContext.monthIndex}']`
+      )
+      : document.querySelector(".brand");
+    window.DashboardModalLifecycle?.unlock(modal, fallbackFocus || document.querySelector(".brand"));
+  };
   let isModalReadonly = false;
   let initialModalValues = {
     valor: 0,
@@ -428,7 +597,9 @@ function initExpenseModal() {
 
     activeContext = { rubricaId, despesaId, monthIndex };
     applyReadonlyState(readonly);
+    window.DashboardModalLifecycle?.lock(modal, fieldBtn);
     modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
 
     if (window.cgdGetExpenseNotes) {
       window.cgdGetExpenseNotes({ rubricaId, despesaId, monthIndex })
@@ -445,6 +616,8 @@ function initExpenseModal() {
       requestAnimationFrame(() => {
         inputAdd.focus();
       });
+    } else {
+      requestAnimationFrame(() => modal.querySelector("[data-close-modal]")?.focus());
     }
   });
 
@@ -503,7 +676,10 @@ function initExpenseModal() {
     if (event.key !== "Escape") {
       return;
     }
-    if (!modal.classList.contains("show")) {
+    if (
+      !modal.classList.contains("show")
+      || !window.DashboardModalLifecycle?.isTopmost(modal)
+    ) {
       return;
     }
     event.preventDefault();
@@ -675,6 +851,34 @@ function syncExpensePastMonthsState() {
 window.syncExpensePastMonthsState = syncExpensePastMonthsState;
 
 function initDelegatedActions() {
+  const positionMenuForViewport = (menuWrap, trigger) => {
+    if (!menuWrap || !trigger || !window.matchMedia("(max-width: 768px)").matches) {
+      return;
+    }
+
+    const menu = menuWrap.querySelector(".panel-menu, .rubric-menu, .expense-menu");
+    if (!menu) {
+      return;
+    }
+
+    menu.style.left = "0";
+    menu.style.top = "0";
+    const triggerRect = trigger.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    const margin = 8;
+    const left = Math.min(
+      Math.max(margin, triggerRect.right - menuRect.width),
+      window.innerWidth - menuRect.width - margin
+    );
+    const centeredTop = triggerRect.top + (triggerRect.height - menuRect.height) / 2;
+    const top = Math.min(
+      Math.max(margin, centeredTop),
+      window.innerHeight - menuRect.height - margin
+    );
+    menu.style.left = `${Math.max(margin, left)}px`;
+    menu.style.top = `${Math.max(margin, top)}px`;
+  };
+
   const closeAllMenus = () => {
     document.querySelectorAll(".panel-sort-actions.open").forEach((openMenu) => {
       openMenu.classList.remove("open");
@@ -699,7 +903,21 @@ function initDelegatedActions() {
         btn.setAttribute("aria-expanded", "false");
       }
     });
+
+    document.querySelectorAll(".panel-menu, .rubric-menu, .expense-menu").forEach((menu) => {
+      menu.style.removeProperty("left");
+      menu.style.removeProperty("top");
+    });
   };
+
+  const closeMenusOnViewportChange = () => {
+    if (document.querySelector(".panel-sort-actions.open, .rubric-sort-actions.open, .expense-sort-actions.open")) {
+      closeAllMenus();
+    }
+  };
+
+  window.addEventListener("resize", closeMenusOnViewportChange);
+  document.addEventListener("scroll", closeMenusOnViewportChange, true);
 
   document.addEventListener("click", (event) => {
     const panelMenuToggle = event.target.closest("[data-panel-menu-toggle]");
@@ -713,6 +931,7 @@ function initDelegatedActions() {
       if (menuWrap && !isOpen) {
         menuWrap.classList.add("open");
         panelMenuToggle.setAttribute("aria-expanded", "true");
+        positionMenuForViewport(menuWrap, panelMenuToggle);
       }
       return;
     }
@@ -795,6 +1014,7 @@ function initDelegatedActions() {
       if (menuWrap && !isOpen) {
         menuWrap.classList.add("open");
         menuToggle.setAttribute("aria-expanded", "true");
+        positionMenuForViewport(menuWrap, menuToggle);
       }
       return;
     }
@@ -810,6 +1030,7 @@ function initDelegatedActions() {
       if (menuWrap && !isOpen) {
         menuWrap.classList.add("open");
         expenseMenuToggle.setAttribute("aria-expanded", "true");
+        positionMenuForViewport(menuWrap, expenseMenuToggle);
       }
       return;
     }
@@ -990,6 +1211,7 @@ function initYearNavigation() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initMobileNavigation();
   setActiveMenu();
   initDelegatedActions();
   initNumberMask();
