@@ -11,6 +11,8 @@ const main = read("assets/js/main.js");
 const home = read("assets/js/home.js");
 const admin = read("assets/js/admin.js");
 const bootstrapMigration = read("database/migrations/20260802_bootstrap_dashboard_year.sql");
+const bootstrapIntegrationSql = read("tests/bootstrap-year-integration.sql");
+const bootstrapIntegrationScript = read("tests/supabase-bootstrap-integration.js");
 const styles = fs.readFileSync(path.join(root, "assets/css/styles.css"));
 const stylesText = styles.toString("utf8");
 
@@ -1000,11 +1002,20 @@ for (const prefix of ["cgd", "nb", "coverflex"]) {
 assert.match(bootstrapMigration, /attribute\.attname in \('valor_estimado', 'valor_Estimado'\)/);
 assert.match(bootstrapMigration, /v_rubric_table is null or v_expense_table is null or v_real_table is null/);
 assert.match(bootstrapMigration, /pg_catalog\.pg_advisory_xact_lock/);
+assert.match(bootstrapMigration, /pg_catalog\.format\('%I\.%I', namespace\.nspname, relation\.relname\)/);
+assert.match(
+  bootstrapMigration,
+  /lock table %s, %s, %s in share row exclusive mode'[\s\S]+v_rubric_qualified,[\s\S]+v_expense_qualified,[\s\S]+v_real_qualified/
+);
+const advisoryLockIndex = bootstrapMigration.indexOf("pg_advisory_xact_lock");
+const tableLockIndex = bootstrapMigration.indexOf("'lock table %s, %s, %s in share row exclusive mode'");
+const firstTargetReadIndex = bootstrapMigration.indexOf("'select pg_catalog.count(*) from %s where ano = $1'");
 assert.ok(
-  bootstrapMigration.indexOf("pg_advisory_xact_lock")
-    < bootstrapMigration.indexOf("'select pg_catalog.count(*) from %s where ano = $1'"),
+  advisoryLockIndex < tableLockIndex && tableLockIndex < firstTargetReadIndex,
   "the advisory lock precedes target checks"
 );
+assert.match(bootstrapMigration, /advisory lock serializes cooperating RPC calls/i);
+assert.match(bootstrapMigration, /table[\s\S]+locks also exclude the frontend's direct INSERT\/UPDATE\/DELETE/i);
 assert.match(bootstrapMigration, /v_target_rubric_count > 0 or v_target_item_count > 0/);
 assert.match(bootstrapMigration, /'code', 'TARGET_NOT_EMPTY'/);
 assert.match(bootstrapMigration, /source\.ano = \$1\s+and source\.mes = 12/g);
@@ -1035,6 +1046,35 @@ for (const field of [
 ]) {
   assert.match(bootstrapMigration, new RegExp(`'${field}'`));
 }
+
+assert.match(bootstrapIntegrationSql, /^begin;/);
+assert.match(bootstrapIntegrationSql, /\/\*__BOOTSTRAP_MIGRATION__\*\//);
+assert.match(bootstrapIntegrationSql, /PREFLIGHT_TARGET_NOT_EMPTY/);
+assert.match(bootstrapIntegrationSql, /set local role anon/g);
+for (const prefix of ["cgd", "nb", "coverflex"]) {
+  assert.match(bootstrapIntegrationSql, new RegExp(`'${prefix}'`));
+}
+assert.match(bootstrapIntegrationSql, /v_source_rubrics \* 12/);
+assert.match(bootstrapIntegrationSql, /v_source_items \* 12/);
+assert.match(bootstrapIntegrationSql, /RUBRIC_STRUCTURE/);
+assert.match(bootstrapIntegrationSql, /ITEM_STRUCTURE/);
+assert.match(bootstrapIntegrationSql, /valor is distinct from 0/);
+assert.match(bootstrapIntegrationSql, /zerado is distinct from false/);
+assert.match(bootstrapIntegrationSql, /NOTES_MUTATED/);
+assert.match(bootstrapIntegrationSql, /TARGET_NOT_EMPTY/);
+assert.match(bootstrapIntegrationSql, /PARTIAL_TARGET/);
+assert.match(bootstrapIntegrationSql, /SOURCE_EMPTY/);
+assert.match(bootstrapIntegrationSql, /INVALID_PREFIX_NOT_REJECTED/);
+assert.match(bootstrapIntegrationSql, /INVALID_YEAR_NOT_REJECTED/);
+assert.match(bootstrapIntegrationSql, /INJECTED_BOOTSTRAP_FAILURE/);
+assert.match(bootstrapIntegrationSql, /ATOMIC_ROLLBACK/);
+assert.match(bootstrapIntegrationSql, /reset role;\s+rollback;\s+select 'BOOTSTRAP_INTEGRATION_PASS'/);
+assert.match(bootstrapIntegrationScript, /process\.env\.SUPABASE_ACCESS_TOKEN/);
+assert.match(bootstrapIntegrationScript, /process\.env\.SUPABASE_PROJECT_REF/);
+assert.match(bootstrapIntegrationScript, /\/v1\/projects\/\$\{encodeURIComponent\(projectRef\)\}\/database\/query/);
+assert.match(bootstrapIntegrationScript, /body: JSON\.stringify\(\{ query \}\)/);
+assert.doesNotMatch(bootstrapIntegrationScript, /console\.(?:log|error)\([^)]*accessToken/);
+assert.doesNotMatch(bootstrapIntegrationScript, /writeFile|mkdtemp|tmpdir/);
 
 assert.equal((home.match(/\.from\("cgd_rubrica"\)/g) || []).length, 1);
 assert.equal((home.match(/\.from\("cgd_despesa"\)/g) || []).length, 1);

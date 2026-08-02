@@ -16,6 +16,9 @@ declare
   v_rubric_table regclass;
   v_expense_table regclass;
   v_real_table regclass;
+  v_rubric_qualified text;
+  v_expense_qualified text;
+  v_real_qualified text;
   v_estimated_column text;
   v_target_rubric_count bigint := 0;
   v_target_item_count bigint := 0;
@@ -112,16 +115,45 @@ begin
     p_target_year
   );
 
+  select pg_catalog.format('%I.%I', namespace.nspname, relation.relname)
+    into v_rubric_qualified
+    from pg_catalog.pg_class as relation
+    join pg_catalog.pg_namespace as namespace on namespace.oid = relation.relnamespace
+   where relation.oid = v_rubric_table;
+
+  select pg_catalog.format('%I.%I', namespace.nspname, relation.relname)
+    into v_expense_qualified
+    from pg_catalog.pg_class as relation
+    join pg_catalog.pg_namespace as namespace on namespace.oid = relation.relnamespace
+   where relation.oid = v_expense_table;
+
+  select pg_catalog.format('%I.%I', namespace.nspname, relation.relname)
+    into v_real_qualified
+    from pg_catalog.pg_class as relation
+    join pg_catalog.pg_namespace as namespace on namespace.oid = relation.relnamespace
+   where relation.oid = v_real_table;
+
+  -- The advisory lock serializes cooperating RPC calls. These deterministic table
+  -- locks also exclude the frontend's direct INSERT/UPDATE/DELETE operations while
+  -- target emptiness and the source December snapshot are checked and copied.
+  -- Existing UPDATE/DELETE grants permit this lock mode, so no grants are broadened.
+  execute pg_catalog.format(
+    'lock table %s, %s, %s in share row exclusive mode',
+    v_rubric_qualified,
+    v_expense_qualified,
+    v_real_qualified
+  );
+
   execute pg_catalog.format(
     'select pg_catalog.count(*) from %s where ano = $1',
-    v_rubric_table
+    v_rubric_qualified
   )
   into v_target_rubric_count
   using p_target_year;
 
   execute pg_catalog.format(
     'select pg_catalog.count(*) from %s where ano = $1',
-    v_expense_table
+    v_expense_qualified
   )
   into v_target_item_count
   using p_target_year;
@@ -141,7 +173,7 @@ begin
 
   execute pg_catalog.format(
     'select pg_catalog.count(*) from %s where ano = $1 and mes = 12',
-    v_rubric_table
+    v_rubric_qualified
   )
   into v_source_rubric_count
   using p_source_year;
@@ -166,7 +198,7 @@ begin
        cross join pg_catalog.generate_series(1, 12) as target_month(mes)
       where source.ano = $1
         and source.mes = 12',
-    v_rubric_table
+    v_rubric_qualified
   )
   using p_source_year, p_target_year;
   get diagnostics v_rubrics_created = row_count;
@@ -184,7 +216,7 @@ begin
        cross join pg_catalog.generate_series(1, 12) as target_month(mes)
       where source.ano = $1
         and source.mes = 12',
-    v_expense_table,
+    v_expense_qualified,
     v_estimated_column
   )
   using p_source_year, p_target_year;
@@ -195,7 +227,7 @@ begin
      select $1, target_month.mes, 0
        from pg_catalog.generate_series(1, 12) as target_month(mes)
      on conflict (ano, mes) do nothing',
-    v_real_table
+    v_real_qualified
   )
   using p_target_year;
   get diagnostics v_real_months_created = row_count;
