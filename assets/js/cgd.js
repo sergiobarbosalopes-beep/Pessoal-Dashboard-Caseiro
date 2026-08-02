@@ -80,6 +80,10 @@ const HAS_EXPLICIT_TABLE_CONFIG = Boolean(
 );
 let tableNamesResolved = HAS_EXPLICIT_TABLE_CONFIG;
 let tableResolutionPromise = null;
+const YEAR_BOOTSTRAP_PREFIXES = new Set(["cgd", "nb", "coverflex"]);
+const YEAR_BOOTSTRAP_RPC = "bootstrap_dashboard_year";
+let yearLoadGeneration = 0;
+let activeYearBootstrapPromptCancel = null;
 
 const THEME_COLORS = {
   summary: {
@@ -4438,25 +4442,31 @@ window.cgdToggleOutcomeComparisonChart = () => {
   return cgdState.outcomeComparisonChartVisible;
 };
 
-async function loadYearData(year) {
-  cgdState.selectedYear = year;
-  cgdState.personTotalizerSeriesCache = {};
+async function loadYearData(year, options = {}) {
+  const normalizedYear = Number(year);
+  const loadGeneration = ++yearLoadGeneration;
+  if (activeYearBootstrapPromptCancel) {
+    activeYearBootstrapPromptCancel();
+    activeYearBootstrapPromptCancel = null;
+  }
+  cgdState.selectedYear = normalizedYear;
+  delete cgdState.personTotalizerSeriesCache[normalizedYear];
   const yearLabel = document.querySelector("[data-year-label]");
   if (yearLabel) {
-    yearLabel.textContent = String(year);
+    yearLabel.textContent = String(normalizedYear);
   }
 
   if (!supabaseClient) {
     cgdState.data = fallbackMock;
     cgdState.yearModels = {
-      [Number(year)]: fallbackMock,
-      [Number(year) - 1]: fallbackMock,
-      [Number(year) - 2]: fallbackMock
+      [normalizedYear]: fallbackMock,
+      [normalizedYear - 1]: fallbackMock,
+      [normalizedYear - 2]: fallbackMock
     };
     cgdState.realComputationContexts = {
-      [Number(year)]: defaultRealComputationContext(),
-      [Number(year) - 1]: defaultRealComputationContext(),
-      [Number(year) - 2]: defaultRealComputationContext()
+      [normalizedYear]: defaultRealComputationContext(),
+      [normalizedYear - 1]: defaultRealComputationContext(),
+      [normalizedYear - 2]: defaultRealComputationContext()
     };
     renderCgdTopTiles();
     renderCgdTemporalSummaryChart();
@@ -4472,17 +4482,34 @@ async function loadYearData(year) {
   } catch (tableResolutionError) {
     console.error("Erro ao resolver nomes de tabelas no Supabase:", tableResolutionError);
   }
+  if (!isCurrentYearLoad(loadGeneration, normalizedYear)) {
+    return;
+  }
 
   try {
     const [rubricsResult, expensesResult, expenseHistoryResult, realValuesResult] = await Promise.allSettled([
-      fetchRubricsForYear(year),
-      fetchExpensesForYear(year),
-      fetchExpenseHistoryMonthKeysForYear(year),
-      fetchRealValuesForYear(year)
+      fetchRubricsForYear(normalizedYear),
+      fetchExpensesForYear(normalizedYear),
+      fetchExpenseHistoryMonthKeysForYear(normalizedYear),
+      fetchRealValuesForYear(normalizedYear)
     ]);
+    if (!isCurrentYearLoad(loadGeneration, normalizedYear)) {
+      return;
+    }
 
     const rubricRows = rubricsResult.status === "fulfilled" ? rubricsResult.value : [];
     const expenseRows = expensesResult.status === "fulfilled" ? expensesResult.value : [];
+    if (!options.suppressYearBootstrap) {
+      await maybeBootstrapEmptyYear({
+        year: normalizedYear,
+        loadGeneration,
+        rubricsResult,
+        expensesResult
+      });
+      if (!isCurrentYearLoad(loadGeneration, normalizedYear)) {
+        return;
+      }
+    }
     cgdState.expenseColumns = new Set(expenseRows.flatMap((row) => Object.keys(row || {})));
 
     if (rubricsResult.status === "rejected") {
@@ -4502,22 +4529,25 @@ async function loadYearData(year) {
     cgdState.data = model;
     cgdState.yearModels = {
       ...cgdState.yearModels,
-      [Number(year)]: model
+      [normalizedYear]: model
     };
 
     // Never let totalizer context errors hide main rubric/expense panels.
     try {
-      const previousYear = Number(year) - 1;
-      const twoYearsBack = Number(year) - 2;
+      const previousYear = normalizedYear - 1;
+      const twoYearsBack = normalizedYear - 2;
       const previousYearCached = cgdState.realComputationContexts?.[previousYear];
       const twoYearsBackCached = cgdState.realComputationContexts?.[twoYearsBack];
       const [previousYearContext, twoYearsBackContext] = await Promise.all([
         previousYearCached ? Promise.resolve(previousYearCached) : fetchYearContextForRealComputation(previousYear),
         twoYearsBackCached ? Promise.resolve(twoYearsBackCached) : fetchYearContextForRealComputation(twoYearsBack)
       ]);
+      if (!isCurrentYearLoad(loadGeneration, normalizedYear)) {
+        return;
+      }
 
       cgdState.realComputationContexts = {
-        [Number(year)]: {
+        [normalizedYear]: {
           model,
           dbRealValues: buildRealValuesFromRows(realRows),
           savingsRubricsById: buildSavingsRubricsById(model),
@@ -4532,19 +4562,25 @@ async function loadYearData(year) {
         [twoYearsBack]: twoYearsBackContext?.model || cgdState.yearModels?.[twoYearsBack] || fallbackMock
       };
     } catch (realContextError) {
+      if (!isCurrentYearLoad(loadGeneration, normalizedYear)) {
+        return;
+      }
       console.error("Erro a preparar contexto real do totalizador:", realContextError);
       cgdState.realComputationContexts = {
-        [Number(year)]: {
+        [normalizedYear]: {
           model,
           dbRealValues: buildRealValuesFromRows(realRows),
           savingsRubricsById: buildSavingsRubricsById(model),
           totals: buildTotalsForModel(model)
         },
-        [Number(year) - 1]: defaultRealComputationContext(),
-        [Number(year) - 2]: defaultRealComputationContext()
+        [normalizedYear - 1]: defaultRealComputationContext(),
+        [normalizedYear - 2]: defaultRealComputationContext()
       };
     }
 
+    if (!isCurrentYearLoad(loadGeneration, normalizedYear)) {
+      return;
+    }
     try {
       renderCgdTopTiles();
     } catch (topTilesError) {
@@ -4581,17 +4617,20 @@ async function loadYearData(year) {
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
   } catch (error) {
+    if (!isCurrentYearLoad(loadGeneration, normalizedYear)) {
+      return;
+    }
     console.error("Erro a carregar dados CGD:", error);
     cgdState.data = fallbackMock;
     cgdState.yearModels = {
-      [Number(year)]: fallbackMock,
-      [Number(year) - 1]: fallbackMock,
-      [Number(year) - 2]: fallbackMock
+      [normalizedYear]: fallbackMock,
+      [normalizedYear - 1]: fallbackMock,
+      [normalizedYear - 2]: fallbackMock
     };
     cgdState.realComputationContexts = {
-      [Number(year)]: defaultRealComputationContext(),
-      [Number(year) - 1]: defaultRealComputationContext(),
-      [Number(year) - 2]: defaultRealComputationContext()
+      [normalizedYear]: defaultRealComputationContext(),
+      [normalizedYear - 1]: defaultRealComputationContext(),
+      [normalizedYear - 2]: defaultRealComputationContext()
     };
     try {
       renderCgdTopTiles();
@@ -4908,18 +4947,49 @@ function requestConfirmation(options) {
   const cancelBtn = modal?.querySelector("[data-confirm-no]");
 
   if (!modal || !confirmBtn || !cancelBtn) {
-    return Promise.resolve(window.confirm(options?.subtitle || options?.title || "Confirmar"));
+    const confirmed = window.confirm(options?.subtitle || options?.title || "Confirmar");
+    if (!confirmed || typeof options?.onConfirm !== "function") {
+      return Promise.resolve(confirmed);
+    }
+    return Promise.resolve(options.onConfirm()).then((value) => ({ confirmed: true, value }));
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
+    const modalCard = confirmBtn.closest(".modal-card") || modal;
+    const originalConfirmText = confirmBtn.textContent;
+    const originalCancelText = cancelBtn.textContent;
+    const originalConfirmDisabled = confirmBtn.disabled;
+    const originalCancelDisabled = cancelBtn.disabled;
+    const originalCancelHidden = cancelBtn.hidden;
+    const originalAriaBusy = modalCard.getAttribute("aria-busy");
+    let settled = false;
+    let busy = false;
+
     if (title) {
       title.textContent = options?.title || "Confirmar";
     }
     if (subtitle) {
       subtitle.textContent = options?.subtitle || "Tem a certeza que pretende continuar?";
     }
+    confirmBtn.textContent = options?.confirmText || originalConfirmText;
+    cancelBtn.textContent = options?.cancelText || originalCancelText;
+    cancelBtn.hidden = Boolean(options?.hideCancel);
 
-    const close = (result) => {
+    const setBusy = (nextBusy) => {
+      busy = nextBusy;
+      confirmBtn.disabled = nextBusy;
+      cancelBtn.disabled = nextBusy;
+      if (nextBusy) {
+        confirmBtn.textContent = options?.busyText || "A processar...";
+        modalCard.setAttribute("aria-busy", "true");
+      }
+    };
+
+    const close = (result, error) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
       modal.classList.remove("show");
       modal.setAttribute("aria-hidden", "true");
       window.DashboardModalLifecycle?.unlock(modal, options?.returnFocusFallback);
@@ -4927,19 +4997,55 @@ function requestConfirmation(options) {
       cancelBtn.removeEventListener("click", onCancel);
       modal.removeEventListener("click", onBackdrop);
       document.removeEventListener("keydown", onKeydown);
-      resolve(result);
+      confirmBtn.textContent = originalConfirmText;
+      cancelBtn.textContent = originalCancelText;
+      confirmBtn.disabled = originalConfirmDisabled;
+      cancelBtn.disabled = originalCancelDisabled;
+      cancelBtn.hidden = originalCancelHidden;
+      if (originalAriaBusy === null) {
+        modalCard.removeAttribute("aria-busy");
+      } else {
+        modalCard.setAttribute("aria-busy", originalAriaBusy);
+      }
+      options?.registerCancel?.(null);
+      if (error) {
+        reject(error);
+      } else {
+        resolve(result);
+      }
     };
 
-    const onConfirm = () => close(true);
-    const onCancel = () => close(false);
+    const onConfirm = async () => {
+      if (busy) {
+        return;
+      }
+      if (typeof options?.onConfirm !== "function") {
+        close(true);
+        return;
+      }
+
+      setBusy(true);
+      try {
+        const value = await options.onConfirm();
+        close({ confirmed: true, value });
+      } catch (error) {
+        close(null, error);
+      }
+    };
+    const onCancel = () => {
+      if (!busy) {
+        close(false);
+      }
+    };
     const onBackdrop = (event) => {
-      if (event.target === modal) {
+      if (!busy && event.target === modal) {
         close(false);
       }
     };
     const onKeydown = (event) => {
       if (
-        event.key === "Escape"
+        !busy
+        && event.key === "Escape"
         && window.DashboardModalLifecycle?.isTopmost(modal)
       ) {
         event.preventDefault();
@@ -4951,12 +5057,171 @@ function requestConfirmation(options) {
     cancelBtn.addEventListener("click", onCancel);
     modal.addEventListener("click", onBackdrop);
     document.addEventListener("keydown", onKeydown);
+    options?.registerCancel?.(() => close(false));
 
     window.DashboardModalLifecycle?.lock(modal, document.activeElement);
     modal.classList.add("show");
     modal.setAttribute("aria-hidden", "false");
-    requestAnimationFrame(() => cancelBtn.focus());
+    requestAnimationFrame(() => {
+      if (!settled) {
+        (options?.hideCancel ? confirmBtn : cancelBtn).focus();
+      }
+    });
   });
+}
+
+function isCurrentYearLoad(loadGeneration, year) {
+  return (
+    loadGeneration === yearLoadGeneration
+    && Number(cgdState.selectedYear) === Number(year)
+  );
+}
+
+function hasYearBootstrapEditPermission() {
+  try {
+    const session = JSON.parse(window.localStorage?.getItem("dashboard_session") || "null");
+    return session?.permissions?.editar === true;
+  } catch {
+    return false;
+  }
+}
+
+function invalidateYearContextCaches(year) {
+  const normalizedYear = Number(year);
+  delete cgdState.yearModels[normalizedYear];
+  delete cgdState.realComputationContexts[normalizedYear];
+  delete cgdState.personTotalizerSeriesCache[normalizedYear];
+}
+
+async function requestYearBootstrapModal(options) {
+  let registeredCancel = null;
+  const registerCancel = (cancel) => {
+    if (typeof cancel === "function") {
+      registeredCancel = cancel;
+      activeYearBootstrapPromptCancel = cancel;
+    } else if (activeYearBootstrapPromptCancel === registeredCancel) {
+      activeYearBootstrapPromptCancel = null;
+    }
+  };
+
+  try {
+    return await requestConfirmation({ ...options, registerCancel });
+  } finally {
+    if (activeYearBootstrapPromptCancel === registeredCancel) {
+      activeYearBootstrapPromptCancel = null;
+    }
+  }
+}
+
+async function showYearBootstrapNotice(title, subtitle) {
+  await requestYearBootstrapModal({
+    title,
+    subtitle,
+    confirmText: "Fechar",
+    hideCancel: true
+  });
+}
+
+async function reloadBootstrappedYear(year, announceCreated) {
+  if (Number(cgdState.selectedYear) !== Number(year)) {
+    return;
+  }
+
+  invalidateYearContextCaches(year);
+  const expectedReloadGeneration = yearLoadGeneration + 1;
+  await loadYearData(year, { suppressYearBootstrap: true });
+  if (
+    announceCreated
+    && yearLoadGeneration === expectedReloadGeneration
+    && Number(cgdState.selectedYear) === Number(year)
+  ) {
+    await showYearBootstrapNotice(
+      "Ano criado",
+      `A estrutura de ${year} foi criada com todos os valores a zero.`
+    );
+  }
+}
+
+async function maybeBootstrapEmptyYear({ year, loadGeneration, rubricsResult, expensesResult }) {
+  const normalizedYear = Number(year);
+  const prefix = YEAR_BOOTSTRAP_PREFIXES.has(TABLE_PREFIX) ? TABLE_PREFIX : null;
+  const hasSuccessfulEmptyQueries = (
+    rubricsResult?.status === "fulfilled"
+    && expensesResult?.status === "fulfilled"
+    && Array.isArray(rubricsResult.value)
+    && Array.isArray(expensesResult.value)
+    && rubricsResult.value.length === 0
+    && expensesResult.value.length === 0
+  );
+
+  if (
+    window.DASHBOARD_ENABLE_YEAR_BOOTSTRAP !== true
+    || !hasYearBootstrapEditPermission()
+    || !prefix
+    || !hasSuccessfulEmptyQueries
+    || !isCurrentYearLoad(loadGeneration, normalizedYear)
+  ) {
+    return;
+  }
+
+  const sourceYear = normalizedYear - 1;
+  let confirmation;
+  try {
+    confirmation = await requestYearBootstrapModal({
+      title: `Criar o ano ${normalizedYear}?`,
+      subtitle: `Pretende copiar a estrutura de receitas, despesas e poupancas de dezembro de ${sourceYear} para todos os meses de ${normalizedYear}? Todos os valores e estimativas comecam a zero.`,
+      confirmText: "Criar ano",
+      cancelText: "Cancelar",
+      busyText: "A criar...",
+      onConfirm: async () => {
+        const { data, error } = await supabaseClient.rpc(YEAR_BOOTSTRAP_RPC, {
+          p_prefix: prefix,
+          p_source_year: sourceYear,
+          p_target_year: normalizedYear
+        });
+        if (error) {
+          throw error;
+        }
+        return data;
+      }
+    });
+  } catch (error) {
+    console.error("Erro ao criar o novo ano:", error);
+    if (isCurrentYearLoad(loadGeneration, normalizedYear)) {
+      await showYearBootstrapNotice(
+        "Nao foi possivel criar o ano",
+        "Os dados existentes nao foram alterados. Pode voltar a este ano mais tarde para tentar novamente."
+      );
+    }
+    return;
+  }
+
+  if (!confirmation?.confirmed || !isCurrentYearLoad(loadGeneration, normalizedYear)) {
+    return;
+  }
+
+  const resultCode = String(confirmation.value?.code || "").trim().toUpperCase();
+  if (resultCode === "CREATED") {
+    await reloadBootstrappedYear(normalizedYear, true);
+    return;
+  }
+  if (resultCode === "TARGET_NOT_EMPTY") {
+    await reloadBootstrappedYear(normalizedYear, false);
+    return;
+  }
+  if (resultCode === "SOURCE_EMPTY") {
+    await showYearBootstrapNotice(
+      "Ano anterior sem estrutura",
+      `Dezembro de ${sourceYear} nao tem rubricas para copiar. ${normalizedYear} permaneceu inalterado.`
+    );
+    return;
+  }
+
+  console.error("Resposta inesperada ao criar o novo ano:", confirmation.value);
+  await showYearBootstrapNotice(
+    "Nao foi possivel criar o ano",
+    "A resposta do servidor nao foi reconhecida. Os dados existentes nao foram alterados."
+  );
 }
 
 async function deleteDespesaForYear(rubricaId, despesaId) {

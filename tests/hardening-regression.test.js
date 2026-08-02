@@ -10,6 +10,7 @@ const cgd = read("assets/js/cgd.js");
 const main = read("assets/js/main.js");
 const home = read("assets/js/home.js");
 const admin = read("assets/js/admin.js");
+const bootstrapMigration = read("database/migrations/20260802_bootstrap_dashboard_year.sql");
 const styles = fs.readFileSync(path.join(root, "assets/css/styles.css"));
 const stylesText = styles.toString("utf8");
 
@@ -615,6 +616,426 @@ const testExpenseProjectionFallbacks = async () => {
   assert.equal(deniedHarness.projections.length, 1);
 };
 
+const bootstrapHelperStart = cgd.indexOf("function isCurrentYearLoad(");
+const bootstrapHelperEnd = cgd.indexOf("\nasync function deleteDespesaForYear", bootstrapHelperStart);
+assert.ok(bootstrapHelperStart >= 0 && bootstrapHelperEnd > bootstrapHelperStart);
+const bootstrapHelpers = cgd.slice(bootstrapHelperStart, bootstrapHelperEnd);
+
+const createDeferred = () => {
+  let resolve;
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+};
+
+const createBootstrapHarness = ({
+  prefix = "cgd",
+  enabled = true,
+  canEdit = true,
+  modalMode = "confirm",
+  rpcHandler = async () => ({ data: { code: "CREATED" }, error: null })
+} = {}) => {
+  const rpcCalls = [];
+  const modalCalls = [];
+  const reloads = [];
+  const session = { permissions: { editar: canEdit } };
+  const requestConfirmation = (options) => {
+    modalCalls.push(options);
+    if (options.hideCancel) {
+      return Promise.resolve(true);
+    }
+    if (modalMode === "cancel") {
+      return Promise.resolve(false);
+    }
+    if (modalMode === "pending") {
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        options.registerCancel?.(() => {
+          if (!settled) {
+            settled = true;
+            options.registerCancel?.(null);
+            resolve(false);
+          }
+        });
+        Promise.resolve(options.onConfirm())
+          .then((value) => {
+            if (!settled) {
+              settled = true;
+              options.registerCancel?.(null);
+              resolve({ confirmed: true, value });
+            }
+          })
+          .catch((error) => {
+            if (!settled) {
+              settled = true;
+              options.registerCancel?.(null);
+              reject(error);
+            }
+          });
+      });
+    }
+    return Promise.resolve(options.onConfirm())
+      .then((value) => ({ confirmed: true, value }));
+  };
+  const client = {
+    rpc(name, params) {
+      rpcCalls.push({ name, params });
+      return rpcHandler(name, params);
+    }
+  };
+  const context = vm.createContext({
+    __client: client,
+    __enabled: enabled,
+    __prefix: prefix,
+    __modal: requestConfirmation,
+    __reloads: reloads,
+    JSON,
+    Number,
+    Set,
+    String,
+    console: { error() {} },
+    window: {
+      DASHBOARD_ENABLE_YEAR_BOOTSTRAP: enabled,
+      localStorage: {
+        getItem: () => JSON.stringify(session)
+      }
+    },
+    api: null
+  });
+  vm.runInContext(`
+    const YEAR_BOOTSTRAP_PREFIXES = new Set(["cgd", "nb", "coverflex"]);
+    const YEAR_BOOTSTRAP_RPC = "bootstrap_dashboard_year";
+    const TABLE_PREFIX = __prefix;
+    const supabaseClient = __client;
+    const cgdState = {
+      selectedYear: 2027,
+      yearModels: { 2027: { stale: true } },
+      realComputationContexts: { 2027: { stale: true } },
+      personTotalizerSeriesCache: { 2027: { stale: true } }
+    };
+    let yearLoadGeneration = 1;
+    let activeYearBootstrapPromptCancel = null;
+    const requestConfirmation = (options) => __modal(options);
+    async function loadYearData(year, options = {}) {
+      yearLoadGeneration += 1;
+      if (activeYearBootstrapPromptCancel) {
+        activeYearBootstrapPromptCancel();
+        activeYearBootstrapPromptCancel = null;
+      }
+      cgdState.selectedYear = Number(year);
+      __reloads.push({ year: Number(year), options });
+    }
+    ${bootstrapHelpers}
+    api = {
+      maybeBootstrapEmptyYear,
+      navigate: (year) => loadYearData(year, { navigation: true }),
+      setLoad(year, generation) {
+        cgdState.selectedYear = Number(year);
+        yearLoadGeneration = Number(generation);
+      },
+      state: cgdState
+    };
+  `, context);
+
+  return { api: context.api, modalCalls, reloads, rpcCalls };
+};
+
+const emptyYearResults = {
+  rubricsResult: { status: "fulfilled", value: [] },
+  expensesResult: { status: "fulfilled", value: [] }
+};
+
+const testYearBootstrapController = async () => {
+  for (const prefix of ["cgd", "nb", "coverflex"]) {
+    const harness = createBootstrapHarness({ prefix });
+    await harness.api.maybeBootstrapEmptyYear({
+      year: 2027,
+      loadGeneration: 1,
+      ...emptyYearResults
+    });
+    assert.equal(harness.rpcCalls.length, 1, `${prefix} calls the RPC once`);
+    assert.equal(harness.rpcCalls[0].name, "bootstrap_dashboard_year");
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(harness.rpcCalls[0].params)),
+      { p_prefix: prefix, p_source_year: 2026, p_target_year: 2027 }
+    );
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(harness.reloads)),
+      [{ year: 2027, options: { suppressYearBootstrap: true } }]
+    );
+    assert.equal(harness.modalCalls.length, 2, "creation prompt is followed by a success notice");
+    assert.equal(harness.modalCalls[0].busyText, "A criar...");
+    assert.equal(harness.modalCalls[1].hideCancel, true);
+    assert.equal(harness.api.state.yearModels[2027], undefined);
+    assert.equal(harness.api.state.realComputationContexts[2027], undefined);
+    assert.equal(harness.api.state.personTotalizerSeriesCache[2027], undefined);
+  }
+
+  const cancelled = createBootstrapHarness({ modalMode: "cancel" });
+  await cancelled.api.maybeBootstrapEmptyYear({ year: 2027, loadGeneration: 1, ...emptyYearResults });
+  assert.equal(cancelled.rpcCalls.length, 0);
+  assert.equal(cancelled.reloads.length, 0);
+
+  const readOnly = createBootstrapHarness({ canEdit: false });
+  await readOnly.api.maybeBootstrapEmptyYear({ year: 2027, loadGeneration: 1, ...emptyYearResults });
+  assert.equal(readOnly.modalCalls.length, 0);
+
+  const disabled = createBootstrapHarness({ enabled: false });
+  await disabled.api.maybeBootstrapEmptyYear({ year: 2027, loadGeneration: 1, ...emptyYearResults });
+  assert.equal(disabled.modalCalls.length, 0);
+
+  const rejected = createBootstrapHarness();
+  await rejected.api.maybeBootstrapEmptyYear({
+    year: 2027,
+    loadGeneration: 1,
+    rubricsResult: { status: "rejected", reason: new Error("RLS") },
+    expensesResult: emptyYearResults.expensesResult
+  });
+  assert.equal(rejected.modalCalls.length, 0);
+
+  const partial = createBootstrapHarness();
+  await partial.api.maybeBootstrapEmptyYear({
+    year: 2027,
+    loadGeneration: 1,
+    rubricsResult: { status: "fulfilled", value: [{ rubrica_id: 1 }] },
+    expensesResult: emptyYearResults.expensesResult
+  });
+  assert.equal(partial.modalCalls.length, 0);
+
+  const sourceEmpty = createBootstrapHarness({
+    rpcHandler: async () => ({ data: { code: "SOURCE_EMPTY" }, error: null })
+  });
+  await sourceEmpty.api.maybeBootstrapEmptyYear({ year: 2027, loadGeneration: 1, ...emptyYearResults });
+  assert.equal(sourceEmpty.reloads.length, 0);
+  assert.match(sourceEmpty.modalCalls[1].title, /Ano anterior sem estrutura/);
+
+  const targetNotEmpty = createBootstrapHarness({
+    rpcHandler: async () => ({ data: { code: "TARGET_NOT_EMPTY" }, error: null })
+  });
+  await targetNotEmpty.api.maybeBootstrapEmptyYear({ year: 2027, loadGeneration: 1, ...emptyYearResults });
+  assert.equal(targetNotEmpty.reloads.length, 1);
+  assert.equal(targetNotEmpty.modalCalls.length, 1, "concurrent creation reloads without an error notice");
+
+  const rpcError = createBootstrapHarness({
+    rpcHandler: async () => ({ data: null, error: { code: "42501", message: "denied" } })
+  });
+  await rpcError.api.maybeBootstrapEmptyYear({ year: 2027, loadGeneration: 1, ...emptyYearResults });
+  assert.equal(rpcError.reloads.length, 0);
+  assert.match(rpcError.modalCalls[1].title, /Nao foi possivel/);
+
+  const stale = createBootstrapHarness();
+  stale.api.setLoad(2028, 2);
+  await stale.api.maybeBootstrapEmptyYear({ year: 2027, loadGeneration: 1, ...emptyYearResults });
+  assert.equal(stale.modalCalls.length, 0, "a stale rapid load cannot open a prompt");
+
+  const rpcDeferred = createDeferred();
+  const pending = createBootstrapHarness({
+    modalMode: "pending",
+    rpcHandler: () => rpcDeferred.promise
+  });
+  const pendingAttempt = pending.api.maybeBootstrapEmptyYear({
+    year: 2027,
+    loadGeneration: 1,
+    ...emptyYearResults
+  });
+  await Promise.resolve();
+  assert.equal(pending.rpcCalls.length, 1);
+  await pending.api.navigate(2028);
+  await pendingAttempt;
+  rpcDeferred.resolve({ data: { code: "CREATED" }, error: null });
+  await Promise.resolve();
+  assert.equal(
+    pending.reloads.filter((entry) => entry.year === 2027).length,
+    0,
+    "a completed stale RPC cannot force the UI back to its old target"
+  );
+  assert.equal(pending.modalCalls.length, 1);
+};
+
+const testConfirmationBusyState = async () => {
+  class FakeElement {
+    constructor() {
+      this.listeners = new Map();
+      this.attributes = new Map();
+      this.classList = { add() {}, remove() {} };
+      this.textContent = "";
+      this.disabled = false;
+      this.hidden = false;
+      this.focusCount = 0;
+      this.selectorMap = new Map();
+    }
+
+    addEventListener(type, listener) {
+      const listeners = this.listeners.get(type) || [];
+      listeners.push(listener);
+      this.listeners.set(type, listeners);
+    }
+
+    removeEventListener(type, listener) {
+      this.listeners.set(type, (this.listeners.get(type) || []).filter((entry) => entry !== listener));
+    }
+
+    dispatch(type, event = {}) {
+      for (const listener of this.listeners.get(type) || []) {
+        listener({ target: this, preventDefault() {}, ...event });
+      }
+    }
+
+    querySelector(selector) {
+      return this.selectorMap.get(selector) || null;
+    }
+
+    closest(selector) {
+      return selector === ".modal-card" ? modalCard : null;
+    }
+
+    setAttribute(name, value) {
+      this.attributes.set(name, String(value));
+    }
+
+    getAttribute(name) {
+      return this.attributes.get(name) ?? null;
+    }
+
+    removeAttribute(name) {
+      this.attributes.delete(name);
+    }
+
+    focus() {
+      this.focusCount += 1;
+    }
+  }
+
+  const modal = new FakeElement();
+  const modalCard = new FakeElement();
+  const title = new FakeElement();
+  const subtitle = new FakeElement();
+  const confirmBtn = new FakeElement();
+  const cancelBtn = new FakeElement();
+  confirmBtn.textContent = "Confirmacao personalizada";
+  cancelBtn.textContent = "Cancelamento personalizado";
+  modal.selectorMap.set("[data-confirm-title]", title);
+  modal.selectorMap.set("[data-confirm-subtitle]", subtitle);
+  modal.selectorMap.set("[data-confirm-yes]", confirmBtn);
+  modal.selectorMap.set("[data-confirm-no]", cancelBtn);
+  const documentListeners = new Map();
+  const fakeDocument = {
+    activeElement: cancelBtn,
+    getElementById: () => modal,
+    addEventListener(type, listener) {
+      documentListeners.set(type, listener);
+    },
+    removeEventListener(type, listener) {
+      if (documentListeners.get(type) === listener) documentListeners.delete(type);
+    }
+  };
+  const deferred = createDeferred();
+  let confirmationCalls = 0;
+  const requestConfirmationSource = cgd.slice(
+    cgd.indexOf("function requestConfirmation("),
+    cgd.indexOf("\nfunction isCurrentYearLoad(", cgd.indexOf("function requestConfirmation("))
+  );
+  const context = vm.createContext({
+    document: fakeDocument,
+    modalApi: null,
+    requestAnimationFrame: (callback) => callback(),
+    window: {
+      DashboardModalLifecycle: {
+        lock() {},
+        unlock() {},
+        isTopmost: () => true
+      }
+    }
+  });
+  vm.runInContext(`${requestConfirmationSource}\nmodalApi = requestConfirmation;`, context);
+  const resultPromise = context.modalApi({
+    title: "Criar ano",
+    subtitle: "Valores a zero",
+    confirmText: "Criar ano",
+    cancelText: "Agora nao",
+    busyText: "A criar...",
+    onConfirm: () => {
+      confirmationCalls += 1;
+      return deferred.promise;
+    }
+  });
+
+  confirmBtn.dispatch("click");
+  confirmBtn.dispatch("click");
+  assert.equal(confirmationCalls, 1, "busy confirmation ignores duplicate clicks");
+  assert.equal(confirmBtn.disabled, true);
+  assert.equal(cancelBtn.disabled, true);
+  assert.equal(confirmBtn.textContent, "A criar...");
+  deferred.resolve({ code: "CREATED" });
+  const result = await resultPromise;
+  assert.equal(result.confirmed, true);
+  assert.equal(result.value.code, "CREATED");
+  assert.equal(confirmBtn.textContent, "Confirmacao personalizada");
+  assert.equal(cancelBtn.textContent, "Cancelamento personalizado");
+  assert.equal(confirmBtn.disabled, false);
+  assert.equal(cancelBtn.disabled, false);
+};
+
+assert.match(bootstrapMigration, /v_prefix not in \('cgd', 'nb', 'coverflex'\)/);
+for (const prefix of ["cgd", "nb", "coverflex"]) {
+  assert.ok(
+    bootstrapMigration.indexOf(`public.${prefix}_rubrica'`)
+      < bootstrapMigration.indexOf(`public.${prefix}_rubricas'`),
+    `${prefix} resolves the singular rubric table first`
+  );
+  assert.ok(
+    bootstrapMigration.indexOf(`public.${prefix}_despesa'`)
+      < bootstrapMigration.indexOf(`public.${prefix}_despesas'`),
+    `${prefix} resolves the singular expense table first`
+  );
+  assert.ok(
+    bootstrapMigration.indexOf(`public.${prefix}_real'`)
+      < bootstrapMigration.indexOf(`public.${prefix}_reais'`),
+    `${prefix} resolves the singular real table first`
+  );
+}
+assert.match(bootstrapMigration, /attribute\.attname in \('valor_estimado', 'valor_Estimado'\)/);
+assert.match(bootstrapMigration, /v_rubric_table is null or v_expense_table is null or v_real_table is null/);
+assert.match(bootstrapMigration, /pg_catalog\.pg_advisory_xact_lock/);
+assert.ok(
+  bootstrapMigration.indexOf("pg_advisory_xact_lock")
+    < bootstrapMigration.indexOf("'select pg_catalog.count(*) from %s where ano = $1'"),
+  "the advisory lock precedes target checks"
+);
+assert.match(bootstrapMigration, /v_target_rubric_count > 0 or v_target_item_count > 0/);
+assert.match(bootstrapMigration, /'code', 'TARGET_NOT_EMPTY'/);
+assert.match(bootstrapMigration, /source\.ano = \$1\s+and source\.mes = 12/g);
+assert.match(bootstrapMigration, /'code', 'SOURCE_EMPTY'/);
+assert.equal((bootstrapMigration.match(/generate_series\(1, 12\)/g) || []).length, 3);
+assert.match(bootstrapMigration, /source\.totalizador,\s+0, 0, false/);
+const expenseBootstrapInsert = bootstrapMigration.match(
+  /insert into %1\$s \(\s+ano, mes, rubrica_id, despesa_id[\s\S]+?where source\.ano = \$1[\s\S]+?source\.mes = 12'/
+)?.[0] || "";
+assert.ok(expenseBootstrapInsert);
+assert.doesNotMatch(expenseBootstrapInsert, /\bnotas?\b|\bhistory\b/i);
+assert.match(bootstrapMigration, /on conflict \(ano, mes\) do nothing/);
+assert.match(bootstrapMigration, /security invoker/);
+assert.match(bootstrapMigration, /set search_path = pg_catalog, public/);
+assert.match(bootstrapMigration, /revoke execute[\s\S]+from public/);
+assert.match(bootstrapMigration, /grant execute[\s\S]+to anon, authenticated/);
+assert.match(bootstrapMigration, /current frontend still uses the anon role/i);
+assert.match(bootstrapMigration, /Manual rollback: DROP FUNCTION IF EXISTS public\.bootstrap_dashboard_year/);
+for (const field of [
+  "status",
+  "code",
+  "prefix",
+  "source_year",
+  "target_year",
+  "rubrics_created",
+  "items_created",
+  "real_months_created"
+]) {
+  assert.match(bootstrapMigration, new RegExp(`'${field}'`));
+}
+
 assert.equal((home.match(/\.from\("cgd_rubrica"\)/g) || []).length, 1);
 assert.equal((home.match(/\.from\("cgd_despesa"\)/g) || []).length, 1);
 assert.match(home, /requestCache\.set\(key, request\)/);
@@ -695,7 +1116,7 @@ for (const source of html.filter((value) => value.includes("assets/js/main.js"))
   assert.match(source, /assets\/js\/main\.js\?v=20260802-3/);
 }
 for (const source of html.filter((value) => value.includes("assets/js/cgd.js"))) {
-  assert.match(source, /assets\/js\/cgd\.js\?v=20260802-3/);
+  assert.match(source, /assets\/js\/cgd\.js\?v=20260802-4/);
 }
 assert.match(read("admin.html"), /assets\/js\/admin\.js\?v=20260802-1/);
 assert.match(read("index.html"), /assets\/js\/home\.js\?v=20260801-1/);
@@ -708,13 +1129,19 @@ for (const relativePath of [
   const source = read(relativePath);
   assert.match(source, /id="expense-modal" role="dialog" aria-modal="true"/);
   assert.match(source, /id="confirm-modal" role="alertdialog" aria-modal="true"/);
+  assert.match(source, /window\.DASHBOARD_ENABLE_YEAR_BOOTSTRAP = true/);
 }
+assert.match(read("caixa-geral-depositos.html"), /window\.DASHBOARD_TABLE_PREFIX = "cgd"/);
+assert.match(read("novobanco.html"), /window\.DASHBOARD_TABLE_PREFIX = "nb"/);
+assert.match(read("coverflex.html"), /window\.DASHBOARD_TABLE_PREFIX = "coverflex"/);
 
 testHiddenModalOpenerFallback();
 
 Promise.all([
   testCrudPostRenderFocus(),
-  testExpenseProjectionFallbacks()
+  testExpenseProjectionFallbacks(),
+  testYearBootstrapController(),
+  testConfirmationBusyState()
 ])
   .then(() => console.log("Hardening regression checks passed."))
   .catch((error) => {
