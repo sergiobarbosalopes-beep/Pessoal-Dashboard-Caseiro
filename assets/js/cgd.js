@@ -4745,6 +4745,7 @@ async function createRubricaForYear(kind, description) {
   if (error) {
     throw error;
   }
+  return nextRubricaId;
 }
 
 async function getNextDespesaId() {
@@ -4808,6 +4809,7 @@ async function createDespesaForRubrica(rubricaId, description) {
   if (error) {
     throw error;
   }
+  return nextDespesaId;
 }
 
 function requestEntityDescription(options) {
@@ -5075,7 +5077,204 @@ function resolveExpenseUpdatePayload(detail, options = {}) {
 window.cgdLoadYearData = loadYearData;
 window.cgdSyncRealTotalizerEditableMonth = syncRealTotalizerEditableMonth;
 
+function captureCrudFocusContext({
+  operation,
+  entityType,
+  kind,
+  rubricaId,
+  despesaId,
+  returnFocusFallback
+}) {
+  const toFiniteId = (value) => (
+    value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value))
+      ? Number(value)
+      : null
+  );
+  const entityRow = entityType === "expense"
+    ? returnFocusFallback?.closest(".data-row.expense[data-sortable]")
+    : returnFocusFallback?.closest("article.rubric[data-sortable]");
+  const siblingRows = Array.from(entityRow?.parentElement?.children || [])
+    .filter((row) => row.matches?.(entityType === "expense" ? ".data-row.expense[data-sortable]" : "article.rubric[data-sortable]"));
+  const entityIndex = siblingRows.indexOf(entityRow);
+  const idAttribute = entityType === "expense" ? "data-expense-id" : "data-rubrica-id";
+  const readSiblingId = (offset) => toFiniteId(
+    siblingRows[entityIndex + offset]?.getAttribute(idAttribute)
+  );
+  const panel = returnFocusFallback?.closest(".panel[data-panel-kind]");
+  const rubric = entityType === "expense"
+    ? returnFocusFallback?.closest("article.rubric[data-rubrica-id]")
+    : entityRow;
+
+  return {
+    operation,
+    entityType,
+    kind: kind || panel?.getAttribute("data-panel-kind") || rubric?.getAttribute("data-rubrica-tipo") || "outcome",
+    rubricaId: toFiniteId(rubricaId) ?? toFiniteId(rubric?.getAttribute("data-rubrica-id")),
+    despesaId: toFiniteId(despesaId),
+    nextEntityId: entityIndex >= 0 ? readSiblingId(1) : null,
+    previousEntityId: entityIndex >= 0 ? readSiblingId(-1) : null,
+    returnFocusFallback
+  };
+}
+
+function resolveCrudFocusTarget(context) {
+  const isFocusable = window.DashboardModalLifecycle?.isRestorableFocusTarget;
+  const find = (selector) => selector ? document.querySelector(selector) : null;
+  const isFiniteId = (value) => (
+    value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value))
+  );
+  const rubricSelector = (rubricaId) => isFiniteId(rubricaId)
+    ? `article.rubric[data-rubrica-id='${Number(rubricaId)}'] [data-rubric-menu-toggle]`
+    : null;
+  const expenseSelector = (despesaId) => (
+    isFiniteId(context.rubricaId) && isFiniteId(despesaId)
+      ? `.data-row.expense[data-rubrica-id='${Number(context.rubricaId)}'][data-expense-id='${Number(despesaId)}'] [data-expense-menu-toggle]`
+      : null
+  );
+  const entitySelector = context.entityType === "expense" ? expenseSelector : rubricSelector;
+  const candidates = [];
+
+  if (context.operation !== "delete") {
+    candidates.push(find(entitySelector(context.entityType === "expense" ? context.despesaId : context.rubricaId)));
+  } else {
+    candidates.push(find(entitySelector(context.nextEntityId)));
+    candidates.push(find(entitySelector(context.previousEntityId)));
+  }
+  if (context.entityType === "expense") {
+    candidates.push(find(rubricSelector(context.rubricaId)));
+  }
+  candidates.push(find(`[data-panel-kind='${context.kind}'] [data-panel-menu-toggle]`));
+  candidates.push(find("[data-year-prev]"));
+  candidates.push(find(".brand"));
+
+  return candidates.find((candidate) => (
+    typeof isFocusable === "function" ? isFocusable(candidate) : Boolean(candidate?.isConnected)
+  ));
+}
+
+function beginCrudFocusRestore(context) {
+  const transientModal = document.activeElement?.closest?.(".modal, .admin-modal") || null;
+  let userMovedFocus = false;
+  let resolveUserFocusTarget = null;
+  let active = true;
+  const transientModalIsClosed = () => Boolean(
+    transientModal
+    && (
+      transientModal.getAttribute("aria-hidden") === "true"
+      || transientModal.hasAttribute("inert")
+      || !transientModal.classList.contains("show")
+    )
+  );
+  const isExpectedTransientTarget = (target) => (
+    !target
+    || target === document.body
+    || target === context.returnFocusFallback
+    || !target.isConnected
+    || Boolean(transientModal?.contains(target) && transientModalIsClosed())
+  );
+  const captureUserFocusResolver = (target) => {
+    const expenseToggle = target?.closest?.("[data-expense-menu-toggle]");
+    if (expenseToggle) {
+      const row = expenseToggle.closest(".data-row.expense[data-rubrica-id][data-expense-id]");
+      const rubricaId = Number(row?.getAttribute("data-rubrica-id"));
+      const despesaId = Number(row?.getAttribute("data-expense-id"));
+      return () => resolveCrudFocusTarget({
+        operation: "rename",
+        entityType: "expense",
+        rubricaId,
+        despesaId,
+        kind: row?.closest(".panel[data-panel-kind]")?.getAttribute("data-panel-kind")
+      });
+    }
+    const rubricToggle = target?.closest?.("[data-rubric-menu-toggle]");
+    if (rubricToggle) {
+      const row = rubricToggle.closest("article.rubric[data-rubrica-id]");
+      const rubricaId = Number(row?.getAttribute("data-rubrica-id"));
+      return () => resolveCrudFocusTarget({
+        operation: "rename",
+        entityType: "rubric",
+        rubricaId,
+        kind: row?.getAttribute("data-rubrica-tipo")
+      });
+    }
+    const panelToggle = target?.closest?.("[data-panel-menu-toggle]");
+    if (panelToggle) {
+      const kind = panelToggle.closest(".panel[data-panel-kind]")?.getAttribute("data-panel-kind");
+      return () => document.querySelector(`[data-panel-kind='${kind}'] [data-panel-menu-toggle]`);
+    }
+    if (target?.matches?.("[data-year-prev]")) {
+      return () => document.querySelector("[data-year-prev]");
+    }
+    if (target?.matches?.("[data-year-next]")) {
+      return () => document.querySelector("[data-year-next]");
+    }
+    if (target?.matches?.(".brand")) {
+      return () => document.querySelector(".brand");
+    }
+    return null;
+  };
+  const onFocusIn = (event) => {
+    if (!isExpectedTransientTarget(event.target)) {
+      userMovedFocus = true;
+      resolveUserFocusTarget = captureUserFocusResolver(event.target);
+    }
+  };
+  const stop = () => {
+    if (!active) return;
+    active = false;
+    document.removeEventListener("focusin", onFocusIn, true);
+  };
+
+  document.addEventListener("focusin", onFocusIn, true);
+  return {
+    cancel: stop,
+    restore(overrides = {}) {
+      const resolvedContext = { ...context, ...overrides };
+      requestAnimationFrame(() => {
+        const currentFocus = document.activeElement;
+        const isFocusable = window.DashboardModalLifecycle?.isRestorableFocusTarget;
+        if (userMovedFocus) {
+          const currentFocusIsMeaningful = typeof isFocusable === "function"
+            ? isFocusable(currentFocus)
+            : Boolean(currentFocus?.isConnected && currentFocus !== document.body);
+          const userFocusTarget = currentFocusIsMeaningful ? null : resolveUserFocusTarget?.();
+          stop();
+          if (!currentFocusIsMeaningful && userFocusTarget) {
+            userFocusTarget.focus();
+          }
+          return;
+        }
+        const shouldRestore = isExpectedTransientTarget(currentFocus);
+        stop();
+        if (!shouldRestore) {
+          return;
+        }
+        resolveCrudFocusTarget(resolvedContext)?.focus();
+      });
+    }
+  };
+}
+
+async function runCrudMutationWithFocus(context, mutation) {
+  const focusRestore = beginCrudFocusRestore(context);
+  try {
+    const focusOverrides = await mutation();
+    await loadYearData(cgdState.selectedYear);
+    focusRestore.restore(focusOverrides);
+    return true;
+  } catch (error) {
+    focusRestore.cancel();
+    throw error;
+  }
+}
+
 window.cgdCreateRubric = async (kind, returnFocusFallback) => {
+  const focusContext = captureCrudFocusContext({
+    operation: "create",
+    entityType: "rubric",
+    kind,
+    returnFocusFallback
+  });
   const sectionLabel = kind === "income" ? "Receitas" : kind === "savings" ? "Poupancas" : "Despesas";
   const description = await requestEntityDescription({
     title: `Adicionar rubrica ${sectionLabel}`,
@@ -5089,9 +5288,10 @@ window.cgdCreateRubric = async (kind, returnFocusFallback) => {
   }
 
   try {
-    await createRubricaForYear(kind, description.trim());
-    await loadYearData(cgdState.selectedYear);
-    return true;
+    return await runCrudMutationWithFocus(focusContext, async () => {
+      const rubricaId = await createRubricaForYear(kind, description.trim());
+      return { rubricaId };
+    });
   } catch (error) {
     console.error("Erro ao criar rubrica:", error);
     const code = String(error?.code || "").trim();
@@ -5108,6 +5308,12 @@ window.cgdCreateRubric = async (kind, returnFocusFallback) => {
 
 window.cgdCreateExpense = async (rubricaId, returnFocusFallback) => {
   const rubricIdNumber = Number(rubricaId);
+  const focusContext = captureCrudFocusContext({
+    operation: "create",
+    entityType: "expense",
+    rubricaId: rubricIdNumber,
+    returnFocusFallback
+  });
   const entryLabel = cgdState.data.income.some((rubric) => Number(rubric.id) === rubricIdNumber)
     ? "receita"
     : cgdState.data.savings.some((rubric) => Number(rubric.id) === rubricIdNumber)
@@ -5126,9 +5332,10 @@ window.cgdCreateExpense = async (rubricaId, returnFocusFallback) => {
   }
 
   try {
-    await createDespesaForRubrica(Number(rubricaId), description.trim());
-    await loadYearData(cgdState.selectedYear);
-    return true;
+    return await runCrudMutationWithFocus(focusContext, async () => {
+      const despesaId = await createDespesaForRubrica(rubricIdNumber, description.trim());
+      return { despesaId };
+    });
   } catch (error) {
     console.error("Erro ao criar despesa:", error);
     const code = String(error?.code || "").trim();
@@ -5139,6 +5346,13 @@ window.cgdCreateExpense = async (rubricaId, returnFocusFallback) => {
 };
 
 window.cgdDeleteExpense = async (rubricaId, despesaId, returnFocusFallback) => {
+  const focusContext = captureCrudFocusContext({
+    operation: "delete",
+    entityType: "expense",
+    rubricaId,
+    despesaId,
+    returnFocusFallback
+  });
   const confirmed = await requestConfirmation({
     title: "Eliminar despesa",
     subtitle: "Tem a certeza que pretende eliminar a despesa selecionada para o ano atual?",
@@ -5150,9 +5364,9 @@ window.cgdDeleteExpense = async (rubricaId, despesaId, returnFocusFallback) => {
   }
 
   try {
-    await deleteDespesaForYear(Number(rubricaId), Number(despesaId));
-    await loadYearData(cgdState.selectedYear);
-    return true;
+    return await runCrudMutationWithFocus(focusContext, () => (
+      deleteDespesaForYear(Number(rubricaId), Number(despesaId))
+    ));
   } catch (error) {
     console.error("Erro ao eliminar despesa:", error);
     return false;
@@ -5160,6 +5374,12 @@ window.cgdDeleteExpense = async (rubricaId, despesaId, returnFocusFallback) => {
 };
 
 window.cgdDeleteRubric = async (rubricaId, returnFocusFallback) => {
+  const focusContext = captureCrudFocusContext({
+    operation: "delete",
+    entityType: "rubric",
+    rubricaId,
+    returnFocusFallback
+  });
   const confirmed = await requestConfirmation({
     title: "Eliminar rubrica",
     subtitle: "Tem a certeza que pretende eliminar esta rubrica? As despesas contidas na rubrica tambem serao eliminadas.",
@@ -5171,9 +5391,9 @@ window.cgdDeleteRubric = async (rubricaId, returnFocusFallback) => {
   }
 
   try {
-    await deleteRubricaForYear(Number(rubricaId));
-    await loadYearData(cgdState.selectedYear);
-    return true;
+    return await runCrudMutationWithFocus(focusContext, () => (
+      deleteRubricaForYear(Number(rubricaId))
+    ));
   } catch (error) {
     console.error("Erro ao eliminar rubrica:", error);
     return false;
@@ -5181,6 +5401,12 @@ window.cgdDeleteRubric = async (rubricaId, returnFocusFallback) => {
 };
 
 window.cgdRenameRubric = async (rubricaId, returnFocusFallback) => {
+  const focusContext = captureCrudFocusContext({
+    operation: "rename",
+    entityType: "rubric",
+    rubricaId,
+    returnFocusFallback
+  });
   const allRubrics = [...(cgdState.data.income || []), ...(cgdState.data.savings || []), ...(cgdState.data.outcome || [])];
   const rubric = allRubrics.find((item) => Number(item.id) === Number(rubricaId));
   if (!rubric) return false;
@@ -5199,13 +5425,13 @@ window.cgdRenameRubric = async (rubricaId, returnFocusFallback) => {
   if (!newName || newName === rubric.name) return false;
 
   try {
-    const { error } = await supabaseClient
-      .from(RUBRIC_TABLE)
-      .update({ rubrica_desc: newName.trim() })
-      .eq("rubrica_id", Number(rubricaId));
-    if (error) throw error;
-    await loadYearData(cgdState.selectedYear);
-    return true;
+    return await runCrudMutationWithFocus(focusContext, async () => {
+      const { error } = await supabaseClient
+        .from(RUBRIC_TABLE)
+        .update({ rubrica_desc: newName.trim() })
+        .eq("rubrica_id", Number(rubricaId));
+      if (error) throw error;
+    });
   } catch (error) {
     console.error("Erro ao renomear rubrica:", error);
     return false;
@@ -5213,6 +5439,13 @@ window.cgdRenameRubric = async (rubricaId, returnFocusFallback) => {
 };
 
 window.cgdRenameExpense = async (rubricaId, despesaId, returnFocusFallback) => {
+  const focusContext = captureCrudFocusContext({
+    operation: "rename",
+    entityType: "expense",
+    rubricaId,
+    despesaId,
+    returnFocusFallback
+  });
   const found = findExpenseRecord(rubricaId, despesaId);
   if (!found) return false;
 
@@ -5236,13 +5469,13 @@ window.cgdRenameExpense = async (rubricaId, despesaId, returnFocusFallback) => {
   if (!newName || newName === found.expense.name) return false;
 
   try {
-    const { error } = await supabaseClient
-      .from(EXPENSE_TABLE)
-      .update({ despesa_desc: newName.trim() })
-      .eq("despesa_id", Number(despesaId));
-    if (error) throw error;
-    await loadYearData(cgdState.selectedYear);
-    return true;
+    return await runCrudMutationWithFocus(focusContext, async () => {
+      const { error } = await supabaseClient
+        .from(EXPENSE_TABLE)
+        .update({ despesa_desc: newName.trim() })
+        .eq("despesa_id", Number(despesaId));
+      if (error) throw error;
+    });
   } catch (error) {
     console.error(`Erro ao renomear ${entryLabel}:`, error);
     return false;

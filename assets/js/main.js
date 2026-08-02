@@ -11,7 +11,7 @@ function createDashboardModalLifecycle() {
       !(element instanceof HTMLElement)
       || !element.isConnected
       || !element.matches(focusableSelector)
-      || element.closest("[inert], [hidden], [aria-hidden='true']")
+      || element.closest("[inert], [hidden], [aria-hidden='true'], .is-collapsed")
     ) {
       return false;
     }
@@ -111,7 +111,7 @@ function createDashboardModalLifecycle() {
 
   const isTopmost = (owner) => getTopmost() === owner;
 
-  return { lock, unlock, isTopmost };
+  return { lock, unlock, isTopmost, isRestorableFocusTarget };
 }
 
 window.DashboardModalLifecycle = window.DashboardModalLifecycle || createDashboardModalLifecycle();
