@@ -13,6 +13,119 @@ const admin = read("assets/js/admin.js");
 const styles = fs.readFileSync(path.join(root, "assets/css/styles.css"));
 const stylesText = styles.toString("utf8");
 
+const extractCssBlock = (source, marker) => {
+  const markerIndex = source.indexOf(marker);
+  assert.ok(markerIndex >= 0, `Missing CSS block: ${marker}`);
+  const openBraceIndex = source.indexOf("{", markerIndex);
+  let depth = 1;
+  for (let index = openBraceIndex + 1; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    if (source[index] === "}") depth -= 1;
+    if (depth === 0) return source.slice(openBraceIndex + 1, index);
+  }
+  assert.fail(`Unclosed CSS block: ${marker}`);
+};
+
+const testHiddenModalOpenerFallback = () => {
+  class FakeClassList {
+    add() {}
+    remove() {}
+  }
+
+  class FakeHTMLElement {
+    constructor({ visible = true, focusable = true } = {}) {
+      this.attributes = new Set();
+      this.classList = new FakeClassList();
+      this.computedStyle = {
+        display: visible ? "block" : "none",
+        visibility: "visible"
+      };
+      this.focusable = focusable;
+      this.focusCount = 0;
+      this.isConnected = true;
+      this.style = {};
+    }
+
+    matches() {
+      return this.focusable;
+    }
+
+    closest() {
+      return null;
+    }
+
+    getClientRects() {
+      return this.computedStyle.display === "none" ? [] : [{}];
+    }
+
+    focus() {
+      this.focusCount += 1;
+    }
+
+    querySelectorAll() {
+      return [];
+    }
+
+    getAttribute() {
+      return null;
+    }
+
+    setAttribute(name) {
+      this.attributes.add(name);
+    }
+
+    removeAttribute(name) {
+      this.attributes.delete(name);
+    }
+
+    hasAttribute(name) {
+      return this.attributes.has(name);
+    }
+  }
+
+  const body = new FakeHTMLElement({ focusable: false });
+  body.removeAttribute = () => {};
+  const hiddenMenuItem = new FakeHTMLElement({ visible: false });
+  const visibleToggle = new FakeHTMLElement();
+  const owner = new FakeHTMLElement({ focusable: false });
+  const document = {
+    activeElement: hiddenMenuItem,
+    body,
+    documentElement: { clientWidth: 1000 },
+    addEventListener() {},
+    querySelector() {
+      return null;
+    }
+  };
+  const context = {
+    Array,
+    Set,
+    WeakMap,
+    HTMLElement: FakeHTMLElement,
+    document,
+    window: {
+      innerWidth: 1000,
+      scrollY: 0,
+      getComputedStyle: (element) => element.computedStyle,
+      scrollTo() {}
+    },
+    requestAnimationFrame: (callback) => callback(),
+    lifecycle: null
+  };
+  const lifecycleStart = main.indexOf("function createDashboardModalLifecycle()");
+  const lifecycleEnd = main.indexOf("window.DashboardModalLifecycle", lifecycleStart);
+  assert.ok(lifecycleStart >= 0 && lifecycleEnd > lifecycleStart);
+  vm.runInNewContext(
+    `${main.slice(lifecycleStart, lifecycleEnd)}\nlifecycle = createDashboardModalLifecycle();`,
+    context
+  );
+
+  context.lifecycle.lock(owner, hiddenMenuItem);
+  context.lifecycle.unlock(owner, visibleToggle);
+  assert.equal(hiddenMenuItem.focusCount, 0);
+  assert.equal(visibleToggle.focusCount, 1);
+};
+
 assert.doesNotMatch(main, /historyTableBody\.innerHTML/);
 assert.match(main, /noteText\.textContent = note/);
 
@@ -189,18 +302,39 @@ assert.match(main, /createDashboardModalLifecycle/);
 assert.match(main, /activeOwners = new Set\(\)/);
 assert.match(main, /savedBodyStyle = document\.body\.getAttribute\("style"\)/);
 assert.match(main, /const isTopmost = \(owner\)/);
-assert.match(main, /returnFocus\?\.isConnected \? returnFocus : fallbackFocus/);
+assert.match(main, /const isRestorableFocusTarget = \(element\)/);
+assert.match(main, /element\.getClientRects\(\)\.length > 0/);
+assert.match(main, /\[returnFocus, fallbackFocus, document\.querySelector\("\.brand"\)\]/);
 assert.match(main, /window\.DashboardModalLifecycle\?\.(lock|unlock)/);
 assert.match(main, /event\.key !== "Tab"/);
 assert.match(main, /owner\.removeAttribute\("inert"\)/);
 assert.match(main, /owner\.setAttribute\("inert", ""\)/);
+for (const invocation of [
+  "cgdCreateRubric\\(kind, focusFallback\\)",
+  "cgdCreateExpense\\(rubricId, focusFallback\\)",
+  "cgdDeleteRubric\\(rubricId, focusFallback\\)",
+  "cgdRenameRubric\\(rubricId, focusFallback\\)",
+  "cgdDeleteExpense\\(rubricId, despesaId, focusFallback\\)",
+  "cgdRenameExpense\\(rubricId, despesaId, focusFallback\\)"
+]) {
+  assert.match(main, new RegExp(invocation));
+}
+assert.equal((cgd.match(/unlock\(modal, options\?\.returnFocusFallback\)/g) || []).length, 2);
 
 assert.match(stylesText, /\/\* ── Responsive hardening:/);
 assert.match(stylesText, /max-height: calc\(100dvh - 24px\)/);
 assert.match(stylesText, /\.modal,\s*\.admin-modal \{[\s\S]*?z-index: 30000/);
 assert.match(stylesText, /\.modal:not\(\.show\) \{\s*visibility: hidden/);
 assert.match(stylesText, /\.expense-modal-top-layout \{[\s\S]*?grid-template-columns: minmax\(220px, 0\.85fr\) minmax\(280px, 1\.15fr\)/);
-assert.match(stylesText, /@media \(max-width: 768px\) \{[\s\S]*?\.expense-modal-top-layout \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+const phoneResponsiveCss = extractCssBlock(stylesText, "@media (max-width: 768px)");
+assert.match(phoneResponsiveCss, /\.expense-modal-top-layout \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+assert.match(phoneResponsiveCss, /\.expense-history-section \{[\s\S]*?height: auto;[\s\S]*?min-height: auto/);
+assert.match(phoneResponsiveCss, /\.expense-history-section \.expense-history-table-wrap \{[\s\S]*?flex: none;[\s\S]*?overflow-y: hidden/);
+const shortResponsiveCss = extractCssBlock(stylesText, "@media (max-width: 1024px) and (max-height: 500px)");
+assert.match(shortResponsiveCss, /\.expense-modal-top-layout \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+assert.match(shortResponsiveCss, /\.expense-history-section \.expense-history-table-wrap \{[\s\S]*?flex: none;[\s\S]*?overflow-y: hidden/);
+assert.match(stylesText, /\.topbar\.nav-enhanced,[\s\S]*?display: grid/);
+assert.doesNotMatch(stylesText, /\.topbar,\s*\.nb-theme \.topbar,\s*\.coverflex-theme \.topbar \{[^}]*display: grid/);
 assert.match(stylesText, /\.panel-menu,\s*\.rubric-menu,\s*\.expense-menu \{[\s\S]*?position: fixed/);
 assert.match(stylesText, /\.panel-sort-actions,\s*\.rubric-sort-actions,\s*\.expense-sort-actions \{[\s\S]*?transform: none/);
 assert.match(stylesText, /\.panel-sort-actions\.open,[\s\S]*?z-index: 22000/);
@@ -222,13 +356,13 @@ const htmlFiles = [
 const html = htmlFiles.map(read);
 for (const source of html) {
   assert.match(source, /viewport-fit=cover/);
-  assert.match(source, /assets\/css\/styles\.css\?v=20260802-1/);
+  assert.match(source, /assets\/css\/styles\.css\?v=20260802-2/);
 }
 for (const source of html.filter((value) => value.includes("assets/js/main.js"))) {
-  assert.match(source, /assets\/js\/main\.js\?v=20260802-1/);
+  assert.match(source, /assets\/js\/main\.js\?v=20260802-2/);
 }
 for (const source of html.filter((value) => value.includes("assets/js/cgd.js"))) {
-  assert.match(source, /assets\/js\/cgd\.js\?v=20260802-1/);
+  assert.match(source, /assets\/js\/cgd\.js\?v=20260802-2/);
 }
 assert.match(read("admin.html"), /assets\/js\/admin\.js\?v=20260802-1/);
 assert.match(read("index.html"), /assets\/js\/home\.js\?v=20260801-1/);
@@ -242,6 +376,8 @@ for (const relativePath of [
   assert.match(source, /id="expense-modal" role="dialog" aria-modal="true"/);
   assert.match(source, /id="confirm-modal" role="alertdialog" aria-modal="true"/);
 }
+
+testHiddenModalOpenerFallback();
 
 testExpenseProjectionFallbacks()
   .then(() => console.log("Hardening regression checks passed."))

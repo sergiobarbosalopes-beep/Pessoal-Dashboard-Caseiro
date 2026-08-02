@@ -4846,7 +4846,7 @@ function requestEntityDescription(options) {
     const close = (result) => {
       modal.classList.remove("show");
       modal.setAttribute("aria-hidden", "true");
-      window.DashboardModalLifecycle?.unlock(modal);
+      window.DashboardModalLifecycle?.unlock(modal, options?.returnFocusFallback);
       confirmBtn.removeEventListener("click", onConfirm);
       cancelBtn.removeEventListener("click", onCancel);
       modal.removeEventListener("click", onBackdrop);
@@ -4920,7 +4920,7 @@ function requestConfirmation(options) {
     const close = (result) => {
       modal.classList.remove("show");
       modal.setAttribute("aria-hidden", "true");
-      window.DashboardModalLifecycle?.unlock(modal);
+      window.DashboardModalLifecycle?.unlock(modal, options?.returnFocusFallback);
       confirmBtn.removeEventListener("click", onConfirm);
       cancelBtn.removeEventListener("click", onCancel);
       modal.removeEventListener("click", onBackdrop);
@@ -5075,13 +5075,14 @@ function resolveExpenseUpdatePayload(detail, options = {}) {
 window.cgdLoadYearData = loadYearData;
 window.cgdSyncRealTotalizerEditableMonth = syncRealTotalizerEditableMonth;
 
-window.cgdCreateRubric = async (kind) => {
+window.cgdCreateRubric = async (kind, returnFocusFallback) => {
   const sectionLabel = kind === "income" ? "Receitas" : kind === "savings" ? "Poupancas" : "Despesas";
   const description = await requestEntityDescription({
     title: `Adicionar rubrica ${sectionLabel}`,
     subtitle: "Indica o descritivo da nova rubrica para o ano selecionado.",
     label: "Descricao da rubrica",
-    promptText: "Descricao da nova rubrica"
+    promptText: "Descricao da nova rubrica",
+    returnFocusFallback
   });
   if (!description) {
     return false;
@@ -5105,7 +5106,7 @@ window.cgdCreateRubric = async (kind) => {
   }
 };
 
-window.cgdCreateExpense = async (rubricaId) => {
+window.cgdCreateExpense = async (rubricaId, returnFocusFallback) => {
   const rubricIdNumber = Number(rubricaId);
   const entryLabel = cgdState.data.income.some((rubric) => Number(rubric.id) === rubricIdNumber)
     ? "receita"
@@ -5117,7 +5118,8 @@ window.cgdCreateExpense = async (rubricaId) => {
     title: `Adicionar ${entryLabel}`,
     subtitle: `Indica o descritivo da nova ${entryLabel} para a rubrica selecionada.`,
     label: `Descricao da ${entryLabel}`,
-    promptText: `Descricao da nova ${entryLabel}`
+    promptText: `Descricao da nova ${entryLabel}`,
+    returnFocusFallback
   });
   if (!description) {
     return false;
@@ -5136,10 +5138,11 @@ window.cgdCreateExpense = async (rubricaId) => {
   }
 };
 
-window.cgdDeleteExpense = async (rubricaId, despesaId) => {
+window.cgdDeleteExpense = async (rubricaId, despesaId, returnFocusFallback) => {
   const confirmed = await requestConfirmation({
     title: "Eliminar despesa",
-    subtitle: "Tem a certeza que pretende eliminar a despesa selecionada para o ano atual?"
+    subtitle: "Tem a certeza que pretende eliminar a despesa selecionada para o ano atual?",
+    returnFocusFallback
   });
 
   if (!confirmed) {
@@ -5156,10 +5159,11 @@ window.cgdDeleteExpense = async (rubricaId, despesaId) => {
   }
 };
 
-window.cgdDeleteRubric = async (rubricaId) => {
+window.cgdDeleteRubric = async (rubricaId, returnFocusFallback) => {
   const confirmed = await requestConfirmation({
     title: "Eliminar rubrica",
-    subtitle: "Tem a certeza que pretende eliminar esta rubrica? As despesas contidas na rubrica tambem serao eliminadas."
+    subtitle: "Tem a certeza que pretende eliminar esta rubrica? As despesas contidas na rubrica tambem serao eliminadas.",
+    returnFocusFallback
   });
 
   if (!confirmed) {
@@ -5176,7 +5180,7 @@ window.cgdDeleteRubric = async (rubricaId) => {
   }
 };
 
-window.cgdRenameRubric = async (rubricaId) => {
+window.cgdRenameRubric = async (rubricaId, returnFocusFallback) => {
   const allRubrics = [...(cgdState.data.income || []), ...(cgdState.data.savings || []), ...(cgdState.data.outcome || [])];
   const rubric = allRubrics.find((item) => Number(item.id) === Number(rubricaId));
   if (!rubric) return false;
@@ -5188,7 +5192,8 @@ window.cgdRenameRubric = async (rubricaId) => {
     promptText: "Novo nome da rubrica",
     defaultValue: rubric.name || "",
     confirmText: "Gravar",
-    confirmFirst: true
+    confirmFirst: true,
+    returnFocusFallback
   });
 
   if (!newName || newName === rubric.name) return false;
@@ -5207,7 +5212,7 @@ window.cgdRenameRubric = async (rubricaId) => {
   }
 };
 
-window.cgdRenameExpense = async (rubricaId, despesaId) => {
+window.cgdRenameExpense = async (rubricaId, despesaId, returnFocusFallback) => {
   const found = findExpenseRecord(rubricaId, despesaId);
   if (!found) return false;
 
@@ -5224,7 +5229,8 @@ window.cgdRenameExpense = async (rubricaId, despesaId) => {
     promptText: `Novo nome da ${entryLabel}`,
     defaultValue: found.expense.name || "",
     confirmText: "Gravar",
-    confirmFirst: true
+    confirmFirst: true,
+    returnFocusFallback
   });
 
   if (!newName || newName === found.expense.name) return false;

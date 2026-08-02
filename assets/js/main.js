@@ -4,6 +4,26 @@ function createDashboardModalLifecycle() {
   let savedBodyStyle = null;
   let savedScrollY = 0;
   const getTopmost = () => Array.from(activeOwners).at(-1);
+  const focusableSelector =
+    "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
+  const isRestorableFocusTarget = (element) => {
+    if (
+      !(element instanceof HTMLElement)
+      || !element.isConnected
+      || !element.matches(focusableSelector)
+      || element.closest("[inert], [hidden], [aria-hidden='true']")
+    ) {
+      return false;
+    }
+
+    const style = window.getComputedStyle(element);
+    return (
+      style.display !== "none"
+      && style.visibility !== "hidden"
+      && style.visibility !== "collapse"
+      && element.getClientRects().length > 0
+    );
+  };
 
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Tab") {
@@ -15,9 +35,8 @@ function createDashboardModalLifecycle() {
       return;
     }
 
-    const focusable = Array.from(owner.querySelectorAll(
-      "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])"
-    )).filter((element) => !element.hasAttribute("inert"));
+    const focusable = Array.from(owner.querySelectorAll(focusableSelector))
+      .filter(isRestorableFocusTarget);
     if (!focusable.length) {
       event.preventDefault();
       return;
@@ -83,8 +102,9 @@ function createDashboardModalLifecycle() {
       window.scrollTo(0, savedScrollY);
     }
 
-    const focusTarget = returnFocus?.isConnected ? returnFocus : fallbackFocus;
-    if (focusTarget?.isConnected) {
+    const focusTarget = [returnFocus, fallbackFocus, document.querySelector(".brand")]
+      .find(isRestorableFocusTarget);
+    if (focusTarget) {
       requestAnimationFrame(() => focusTarget.focus({ preventScroll: true }));
     }
   };
@@ -940,8 +960,9 @@ function initDelegatedActions() {
     if (panelMenuAction) {
       const panel = panelMenuAction.closest(".panel[data-panel-kind]");
       const kind = panel?.getAttribute("data-panel-kind");
+      const focusFallback = panel?.querySelector("[data-panel-menu-toggle]");
       if (kind && window.cgdCreateRubric) {
-        window.cgdCreateRubric(kind).catch((error) => {
+        window.cgdCreateRubric(kind, focusFallback).catch((error) => {
           console.error("Erro ao adicionar rubrica:", error);
         });
       }
@@ -1038,11 +1059,12 @@ function initDelegatedActions() {
     const menuAction = event.target.closest("[data-rubric-menu-action]");
     if (menuAction) {
       const row = menuAction.closest("[data-sortable]");
+      const focusFallback = row?.querySelector("[data-rubric-menu-toggle]");
       const action = menuAction.getAttribute("data-rubric-menu-action");
       if (action === "create-expense") {
         const rubricId = Number(row?.getAttribute("data-rubrica-id"));
         if (Number.isFinite(rubricId) && window.cgdCreateExpense) {
-          window.cgdCreateExpense(rubricId).catch((error) => {
+          window.cgdCreateExpense(rubricId, focusFallback).catch((error) => {
             console.error("Erro a criar despesa:", error);
           });
         }
@@ -1053,7 +1075,7 @@ function initDelegatedActions() {
       if (action === "delete-rubric") {
         const rubricId = Number(row?.getAttribute("data-rubrica-id"));
         if (Number.isFinite(rubricId) && window.cgdDeleteRubric) {
-          window.cgdDeleteRubric(rubricId).catch((error) => {
+          window.cgdDeleteRubric(rubricId, focusFallback).catch((error) => {
             console.error("Erro a eliminar rubrica:", error);
           });
         }
@@ -1064,7 +1086,7 @@ function initDelegatedActions() {
       if (action === "rename-rubric") {
         const rubricId = Number(row?.getAttribute("data-rubrica-id"));
         if (Number.isFinite(rubricId) && window.cgdRenameRubric) {
-          window.cgdRenameRubric(rubricId).catch((error) => {
+          window.cgdRenameRubric(rubricId, focusFallback).catch((error) => {
             console.error("Erro a renomear rubrica:", error);
           });
         }
@@ -1092,12 +1114,13 @@ function initDelegatedActions() {
     const expenseMenuAction = event.target.closest("[data-expense-menu-action]");
     if (expenseMenuAction) {
       const row = expenseMenuAction.closest("[data-sortable]");
+      const focusFallback = row?.querySelector("[data-expense-menu-toggle]");
       const action = expenseMenuAction.getAttribute("data-expense-menu-action");
       if (action === "delete-expense") {
         const rubricId = Number(row?.getAttribute("data-rubrica-id"));
         const despesaId = Number(row?.getAttribute("data-expense-id"));
         if (Number.isFinite(rubricId) && Number.isFinite(despesaId) && window.cgdDeleteExpense) {
-          window.cgdDeleteExpense(rubricId, despesaId).catch((error) => {
+          window.cgdDeleteExpense(rubricId, despesaId, focusFallback).catch((error) => {
             console.error("Erro a eliminar despesa:", error);
           });
         }
@@ -1109,7 +1132,7 @@ function initDelegatedActions() {
         const rubricId = Number(row?.getAttribute("data-rubrica-id"));
         const despesaId = Number(row?.getAttribute("data-expense-id"));
         if (Number.isFinite(rubricId) && Number.isFinite(despesaId) && window.cgdRenameExpense) {
-          window.cgdRenameExpense(rubricId, despesaId).catch((error) => {
+          window.cgdRenameExpense(rubricId, despesaId, focusFallback).catch((error) => {
             console.error("Erro a renomear despesa:", error);
           });
         }

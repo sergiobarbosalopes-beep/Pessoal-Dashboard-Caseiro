@@ -4714,11 +4714,16 @@ body {
     width: 100%;
     transform: none;
     z-index: 20010;
+    border-radius: 18px;
+  }
+
+  .topbar.nav-enhanced,
+  .nb-theme .topbar.nav-enhanced,
+  .coverflex-theme .topbar.nav-enhanced {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 8px 12px;
-    border-radius: 18px;
   }
 
   .nb-theme .topbar.fade-up,
@@ -4861,6 +4866,19 @@ body {
     overflow-x: auto;
   }
 
+  .expense-history-section {
+    height: auto;
+    min-height: auto;
+    align-self: auto;
+  }
+
+  .expense-history-section .expense-history-table-wrap {
+    flex: none;
+    min-height: auto;
+    max-height: none;
+    overflow-y: hidden;
+  }
+
   .panel {
     max-width: 100%;
     overflow-x: auto;
@@ -4934,6 +4952,26 @@ body {
   #home-audi-disp-content > .nb-pie-card,
   #home-irs-disp-content > .resumo-pies--2up > .nb-pie-card {
     min-width: min(260px, 100%);
+  }
+}
+
+@media (max-width: 1024px) and (max-height: 500px) {
+  .expense-modal-top-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .expense-history-section {
+    height: auto;
+    min-height: auto;
+    align-self: auto;
+  }
+
+  .expense-history-section .expense-history-table-wrap {
+    flex: none;
+    min-height: auto;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 }
 
