@@ -61,6 +61,39 @@ begin
 end;
 $preflight$;
 
+-- Give every dashboard the same sparse Real fixture: null, explicit zero, nonzero,
+-- and nine missing months. The outer transaction restores the original rows.
+do $real_fixtures$
+declare
+  v_prefix text;
+  v_real_table regclass;
+begin
+  foreach v_prefix in array array['cgd', 'nb', 'coverflex'] loop
+    case v_prefix
+      when 'cgd' then
+        v_real_table := coalesce(to_regclass('public.cgd_real'), to_regclass('public.cgd_reais'));
+      when 'nb' then
+        v_real_table := coalesce(to_regclass('public.nb_real'), to_regclass('public.nb_reais'));
+      when 'coverflex' then
+        v_real_table := coalesce(to_regclass('public.coverflex_real'), to_regclass('public.coverflex_reais'));
+    end case;
+
+    if v_real_table is null then
+      raise exception using
+        errcode = 'P0001',
+        message = 'BOOTSTRAP_INTEGRATION_REAL_TABLE_MISSING:' || v_prefix;
+    end if;
+
+    execute format('delete from %s where ano = 2027', v_real_table);
+    execute format(
+      'insert into %s (ano, mes, real)
+       values (2027, 1, null), (2027, 2, 0), (2027, 3, 321.09)',
+      v_real_table
+    );
+  end loop;
+end;
+$real_fixtures$;
+
 set local role anon;
 
 do $integration$
@@ -82,10 +115,7 @@ declare
   v_note_count_after bigint;
   v_note_table_count bigint;
   v_real_before jsonb;
-  v_real_before_count integer;
-  v_real_preserved_count bigint;
-  v_real_target_count bigint;
-  v_real_invalid_new_count bigint;
+  v_real_after jsonb;
   v_partial_before jsonb;
   v_partial_after jsonb;
 begin
@@ -129,15 +159,23 @@ begin
 
     execute format(
       'select coalesce(
-         jsonb_agg(jsonb_build_object(''mes'', mes, ''real'', real) order by mes),
+         jsonb_agg(to_jsonb(target) order by target.mes),
          ''[]''::jsonb
        )
-       from %s
-       where ano = 2027',
+       from %s as target
+       where target.ano = 2027',
       v_real_table
     )
     into v_real_before;
-    v_real_before_count := jsonb_array_length(v_real_before);
+    if jsonb_array_length(v_real_before) <> 3
+      or (v_real_before -> 0 ->> 'real') is not null
+      or (v_real_before -> 1 ->> 'real')::numeric is distinct from 0
+      or (v_real_before -> 2 ->> 'real')::numeric is distinct from 321.09
+    then
+      raise exception using
+        errcode = 'P0001',
+        message = 'BOOTSTRAP_INTEGRATION_REAL_FIXTURE:' || v_prefix;
+    end if;
 
     v_note_count_before := 0;
     foreach v_note_name in array array[
@@ -157,7 +195,7 @@ begin
     if v_result ->> 'code' <> 'CREATED'
       or (v_result ->> 'rubrics_created')::bigint <> v_source_rubrics * 12
       or (v_result ->> 'items_created')::bigint <> v_source_items * 12
-      or (v_result ->> 'real_months_created')::integer <> 12 - v_real_before_count
+      or (v_result ->> 'real_months_created')::integer <> 0
     then
       raise exception using
         errcode = 'P0001',
@@ -270,40 +308,20 @@ begin
     end if;
 
     execute format(
-      'select count(*)
-         from jsonb_to_recordset($1) as snapshot(mes integer, real numeric)
-         join %1$s as current_row
-           on current_row.ano = 2027 and current_row.mes = snapshot.mes
-        where current_row.real is not distinct from snapshot.real',
+      'select coalesce(
+         jsonb_agg(to_jsonb(target) order by target.mes),
+         ''[]''::jsonb
+       )
+       from %s as target
+       where target.ano = 2027',
       v_real_table
     )
-    into v_real_preserved_count
-    using v_real_before;
+    into v_real_after;
 
-    execute format('select count(*) from %s where ano = 2027', v_real_table)
-      into v_real_target_count;
-
-    execute format(
-      'select count(*)
-         from generate_series(1, 12) as target_month(mes)
-         join %1$s as current_row
-           on current_row.ano = 2027 and current_row.mes = target_month.mes
-         left join jsonb_to_recordset($1) as snapshot(mes integer, real numeric)
-           on snapshot.mes = target_month.mes
-        where snapshot.mes is null
-          and current_row.real is distinct from 0',
-      v_real_table
-    )
-    into v_real_invalid_new_count
-    using v_real_before;
-
-    if v_real_preserved_count <> v_real_before_count
-      or v_real_target_count <> 12
-      or v_real_invalid_new_count <> 0
-    then
+    if v_real_after is distinct from v_real_before then
       raise exception using
         errcode = 'P0001',
-        message = 'BOOTSTRAP_INTEGRATION_REAL_ROWS:' || v_prefix;
+        message = 'BOOTSTRAP_INTEGRATION_REAL_ROWS_MUTATED:' || v_prefix;
     end if;
 
     v_note_count_after := 0;
@@ -331,12 +349,29 @@ begin
     execute format('select count(*) from %s where ano = 2027', v_expense_table)
       into v_target_items;
     if v_result ->> 'code' <> 'TARGET_NOT_EMPTY'
+      or (v_result ->> 'real_months_created')::integer <> 0
       or v_target_rubrics <> v_source_rubrics * 12
       or v_target_items <> v_source_items * 12
     then
       raise exception using
         errcode = 'P0001',
         message = 'BOOTSTRAP_INTEGRATION_REPEAT_CALL:' || v_prefix;
+    end if;
+
+    execute format(
+      'select coalesce(
+         jsonb_agg(to_jsonb(target) order by target.mes),
+         ''[]''::jsonb
+       )
+       from %s as target
+       where target.ano = 2027',
+      v_real_table
+    )
+    into v_real_after;
+    if v_real_after is distinct from v_real_before then
+      raise exception using
+        errcode = 'P0001',
+        message = 'BOOTSTRAP_INTEGRATION_REAL_ROWS_MUTATED_ON_REPEAT:' || v_prefix;
     end if;
 
     begin
@@ -366,6 +401,16 @@ begin
       execute format('select count(*) from %s where ano = 2027', v_expense_table)
         into v_target_items;
       execute format(
+        'select coalesce(
+           jsonb_agg(to_jsonb(target) order by target.mes),
+           ''[]''::jsonb
+         )
+         from %s as target
+         where target.ano = 2027',
+        v_real_table
+      )
+      into v_real_after;
+      execute format(
         'select coalesce(jsonb_agg(to_jsonb(target) order by target.mes, target.rubrica_id), ''[]''::jsonb)
            from %s as target
           where target.ano = 2027',
@@ -373,9 +418,11 @@ begin
       )
       into v_partial_after;
       if v_result ->> 'code' <> 'TARGET_NOT_EMPTY'
+        or (v_result ->> 'real_months_created')::integer <> 0
         or v_target_rubrics <> 1
         or v_target_items <> 0
         or v_partial_after is distinct from v_partial_before
+        or v_real_after is distinct from v_real_before
       then
         raise exception using
           errcode = 'P0001',
@@ -391,7 +438,9 @@ begin
       execute format('delete from %s where ano in (9998, 9999)', v_expense_table);
       execute format('delete from %s where ano in (9998, 9999)', v_rubric_table);
       v_result := public.bootstrap_dashboard_year(v_prefix, 9998, 9999);
-      if v_result ->> 'code' <> 'SOURCE_EMPTY' then
+      if v_result ->> 'code' <> 'SOURCE_EMPTY'
+        or (v_result ->> 'real_months_created')::integer <> 0
+      then
         raise exception using
           errcode = 'P0001',
           message = 'BOOTSTRAP_INTEGRATION_SOURCE_EMPTY:' || v_prefix;

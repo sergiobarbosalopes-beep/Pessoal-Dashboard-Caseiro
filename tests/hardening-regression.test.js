@@ -10,7 +10,7 @@ const cgd = read("assets/js/cgd.js");
 const main = read("assets/js/main.js");
 const home = read("assets/js/home.js");
 const admin = read("assets/js/admin.js");
-const bootstrapMigration = read("database/migrations/20260802_bootstrap_dashboard_year.sql");
+const bootstrapMigration = read("database/migrations/20260803_fix_bootstrap_real_estimation.sql");
 const bootstrapIntegrationSql = read("tests/bootstrap-year-integration.sql");
 const bootstrapIntegrationScript = read("tests/supabase-bootstrap-integration.js");
 const styles = fs.readFileSync(path.join(root, "assets/css/styles.css"));
@@ -993,22 +993,19 @@ for (const prefix of ["cgd", "nb", "coverflex"]) {
       < bootstrapMigration.indexOf(`public.${prefix}_despesas'`),
     `${prefix} resolves the singular expense table first`
   );
-  assert.ok(
-    bootstrapMigration.indexOf(`public.${prefix}_real'`)
-      < bootstrapMigration.indexOf(`public.${prefix}_reais'`),
-    `${prefix} resolves the singular real table first`
-  );
 }
 assert.match(bootstrapMigration, /attribute\.attname in \('valor_estimado', 'valor_Estimado'\)/);
-assert.match(bootstrapMigration, /v_rubric_table is null or v_expense_table is null or v_real_table is null/);
+assert.match(bootstrapMigration, /v_rubric_table is null or v_expense_table is null/);
+assert.doesNotMatch(bootstrapMigration, /v_real_(?:table|qualified|months_created)/);
+assert.doesNotMatch(bootstrapMigration, /public\.(?:cgd|nb|coverflex)_(?:real|reais)'/);
 assert.match(bootstrapMigration, /pg_catalog\.pg_advisory_xact_lock/);
 assert.match(bootstrapMigration, /pg_catalog\.format\('%I\.%I', namespace\.nspname, relation\.relname\)/);
 assert.match(
   bootstrapMigration,
-  /lock table %s, %s, %s in share row exclusive mode'[\s\S]+v_rubric_qualified,[\s\S]+v_expense_qualified,[\s\S]+v_real_qualified/
+  /lock table %s, %s in share row exclusive mode'[\s\S]+v_rubric_qualified,[\s\S]+v_expense_qualified/
 );
 const advisoryLockIndex = bootstrapMigration.indexOf("pg_advisory_xact_lock");
-const tableLockIndex = bootstrapMigration.indexOf("'lock table %s, %s, %s in share row exclusive mode'");
+const tableLockIndex = bootstrapMigration.indexOf("'lock table %s, %s in share row exclusive mode'");
 const firstTargetReadIndex = bootstrapMigration.indexOf("'select pg_catalog.count(*) from %s where ano = $1'");
 assert.ok(
   advisoryLockIndex < tableLockIndex && tableLockIndex < firstTargetReadIndex,
@@ -1020,20 +1017,25 @@ assert.match(bootstrapMigration, /v_target_rubric_count > 0 or v_target_item_cou
 assert.match(bootstrapMigration, /'code', 'TARGET_NOT_EMPTY'/);
 assert.match(bootstrapMigration, /source\.ano = \$1\s+and source\.mes = 12/g);
 assert.match(bootstrapMigration, /'code', 'SOURCE_EMPTY'/);
-assert.equal((bootstrapMigration.match(/generate_series\(1, 12\)/g) || []).length, 3);
+assert.equal((bootstrapMigration.match(/generate_series\(1, 12\)/g) || []).length, 2);
 assert.match(bootstrapMigration, /source\.totalizador,\s+0, 0, false/);
 const expenseBootstrapInsert = bootstrapMigration.match(
   /insert into %1\$s \(\s+ano, mes, rubrica_id, despesa_id[\s\S]+?where source\.ano = \$1[\s\S]+?source\.mes = 12'/
 )?.[0] || "";
 assert.ok(expenseBootstrapInsert);
 assert.doesNotMatch(expenseBootstrapInsert, /\bnotas?\b|\bhistory\b/i);
-assert.match(bootstrapMigration, /on conflict \(ano, mes\) do nothing/);
+const executableBootstrapMigration = bootstrapMigration
+  .replace(/--.*$/gm, "")
+  .replace(/\/\*[\s\S]*?\*\//g, "");
+assert.equal((executableBootstrapMigration.match(/\binsert\s+into\b/gi) || []).length, 2);
+assert.doesNotMatch(executableBootstrapMigration, /\bupdate\b|\bdelete\s+from\b/i);
 assert.match(bootstrapMigration, /security invoker/);
 assert.match(bootstrapMigration, /set search_path = pg_catalog, public/);
 assert.match(bootstrapMigration, /revoke execute[\s\S]+from public/);
 assert.match(bootstrapMigration, /grant execute[\s\S]+to anon, authenticated/);
 assert.match(bootstrapMigration, /current frontend still uses the anon role/i);
-assert.match(bootstrapMigration, /Manual rollback: DROP FUNCTION IF EXISTS public\.bootstrap_dashboard_year/);
+assert.match(bootstrapMigration, /Real rows remain absent or unchanged so the frontend estimates Real from the prior December/);
+assert.match(bootstrapMigration, /Manual rollback: reapply database\/migrations\/20260802_bootstrap_dashboard_year\.sql/);
 for (const field of [
   "status",
   "code",
@@ -1046,6 +1048,7 @@ for (const field of [
 ]) {
   assert.match(bootstrapMigration, new RegExp(`'${field}'`));
 }
+assert.equal((bootstrapMigration.match(/'real_months_created', 0/g) || []).length, 3);
 
 assert.match(bootstrapIntegrationSql, /^begin;/);
 assert.match(bootstrapIntegrationSql, /\/\*__BOOTSTRAP_MIGRATION__\*\//);
@@ -1060,6 +1063,11 @@ assert.match(bootstrapIntegrationSql, /RUBRIC_STRUCTURE/);
 assert.match(bootstrapIntegrationSql, /ITEM_STRUCTURE/);
 assert.match(bootstrapIntegrationSql, /valor is distinct from 0/);
 assert.match(bootstrapIntegrationSql, /zerado is distinct from false/);
+assert.match(bootstrapIntegrationSql, /REAL_FIXTURE/);
+assert.match(bootstrapIntegrationSql, /values \(2027, 1, null\), \(2027, 2, 0\), \(2027, 3, 321\.09\)/);
+assert.match(bootstrapIntegrationSql, /REAL_ROWS_MUTATED/);
+assert.match(bootstrapIntegrationSql, /v_real_after is distinct from v_real_before/g);
+assert.match(bootstrapIntegrationSql, /'real_months_created'\)::integer <> 0/g);
 assert.match(bootstrapIntegrationSql, /NOTES_MUTATED/);
 assert.match(bootstrapIntegrationSql, /TARGET_NOT_EMPTY/);
 assert.match(bootstrapIntegrationSql, /PARTIAL_TARGET/);
@@ -1071,6 +1079,12 @@ assert.match(bootstrapIntegrationSql, /ATOMIC_ROLLBACK/);
 assert.match(bootstrapIntegrationSql, /reset role;\s+rollback;\s+select 'BOOTSTRAP_INTEGRATION_PASS'/);
 assert.match(bootstrapIntegrationScript, /process\.env\.SUPABASE_ACCESS_TOKEN/);
 assert.match(bootstrapIntegrationScript, /process\.env\.SUPABASE_PROJECT_REF/);
+assert.match(bootstrapIntegrationScript, /20260802_bootstrap_dashboard_year\.sql/);
+assert.match(bootstrapIntegrationScript, /20260803_fix_bootstrap_real_estimation\.sql/);
+assert.ok(
+  bootstrapIntegrationScript.indexOf("20260802_bootstrap_dashboard_year.sql")
+    < bootstrapIntegrationScript.indexOf("20260803_fix_bootstrap_real_estimation.sql")
+);
 assert.match(bootstrapIntegrationScript, /\/v1\/projects\/\$\{encodeURIComponent\(projectRef\)\}\/database\/query/);
 assert.match(bootstrapIntegrationScript, /body: JSON\.stringify\(\{ query \}\)/);
 assert.doesNotMatch(bootstrapIntegrationScript, /console\.(?:log|error)\([^)]*accessToken/);
@@ -1156,7 +1170,7 @@ for (const source of html.filter((value) => value.includes("assets/js/main.js"))
   assert.match(source, /assets\/js\/main\.js\?v=20260802-3/);
 }
 for (const source of html.filter((value) => value.includes("assets/js/cgd.js"))) {
-  assert.match(source, /assets\/js\/cgd\.js\?v=20260802-4/);
+  assert.match(source, /assets\/js\/cgd\.js\?v=20260803-1/);
 }
 assert.match(read("admin.html"), /assets\/js\/admin\.js\?v=20260802-1/);
 assert.match(read("index.html"), /assets\/js\/home\.js\?v=20260801-1/);

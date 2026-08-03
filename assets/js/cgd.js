@@ -792,6 +792,9 @@ function computeEstimatedIrsMonthlyTotals(outcomeRubrics, rate = 0.45) {
 }
 
 function parseRealDatabaseValue(value) {
+  if (value == null || (typeof value === "string" && value.trim() === "")) {
+    return null;
+  }
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
 }

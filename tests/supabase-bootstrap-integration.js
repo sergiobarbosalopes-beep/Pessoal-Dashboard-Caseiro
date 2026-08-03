@@ -15,10 +15,13 @@ if (!/^[a-z0-9-]+$/i.test(projectRef)) {
   process.exit(1);
 }
 
-const migration = fs.readFileSync(
-  path.join(root, "database", "migrations", "20260802_bootstrap_dashboard_year.sql"),
-  "utf8"
-);
+const migrationPaths = [
+  "20260802_bootstrap_dashboard_year.sql",
+  "20260803_fix_bootstrap_real_estimation.sql"
+];
+const migrations = migrationPaths
+  .map((filename) => fs.readFileSync(path.join(root, "database", "migrations", filename), "utf8"))
+  .join("\n\n");
 const integrationTemplate = fs.readFileSync(
   path.join(__dirname, "bootstrap-year-integration.sql"),
   "utf8"
@@ -30,7 +33,7 @@ if (!integrationTemplate.includes(placeholder)) {
   process.exit(1);
 }
 
-const query = integrationTemplate.replace(placeholder, migration);
+const query = integrationTemplate.replace(placeholder, migrations);
 const endpoint = `https://api.supabase.com/v1/projects/${encodeURIComponent(projectRef)}/database/query`;
 
 async function run() {
