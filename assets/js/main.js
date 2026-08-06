@@ -117,6 +117,43 @@ function createDashboardModalLifecycle() {
 window.DashboardModalLifecycle = window.DashboardModalLifecycle || createDashboardModalLifecycle();
 document.querySelectorAll(".modal, .admin-modal").forEach((modal) => modal.setAttribute("inert", ""));
 
+function initStickyTemporalNavigation() {
+  const topbar = document.querySelector(".topbar");
+  const temporalNav = document.querySelector(".temporal-nav-card");
+  const siteShell = temporalNav?.closest(".site-shell");
+  if (!topbar || !temporalNav || !siteShell) {
+    return;
+  }
+
+  let offsetFrame = 0;
+  const updateOffset = () => {
+    offsetFrame = 0;
+    const topbarStyle = window.getComputedStyle(topbar);
+    const parsedTop = Number.parseFloat(topbarStyle.top);
+    const topbarTop = Number.isFinite(parsedTop) ? Math.max(0, parsedTop) : 0;
+    const topbarHeight = topbar.getBoundingClientRect().height;
+    const isResponsive = window.matchMedia("(max-width: 1024px)").matches;
+    const minimumOffset = isResponsive ? 0 : 92;
+    const gap = isResponsive ? 8 : 16;
+    const offset = Math.max(minimumOffset, Math.ceil(topbarTop + topbarHeight + gap));
+    siteShell.style.setProperty("--temporal-nav-sticky-top", `${offset}px`);
+  };
+  const scheduleOffsetUpdate = () => {
+    if (!offsetFrame) {
+      offsetFrame = requestAnimationFrame(updateOffset);
+    }
+  };
+
+  updateOffset();
+  if ("ResizeObserver" in window) {
+    const topbarObserver = new ResizeObserver(scheduleOffsetUpdate);
+    topbarObserver.observe(topbar);
+  }
+  window.addEventListener("resize", scheduleOffsetUpdate, { passive: true });
+  window.addEventListener("orientationchange", scheduleOffsetUpdate, { passive: true });
+  document.fonts?.ready.then(scheduleOffsetUpdate);
+}
+
 function initMobileNavigation() {
   const topbar = document.querySelector(".topbar");
   const menu = topbar?.querySelector("nav.menu");
@@ -1235,6 +1272,7 @@ function initYearNavigation() {
 
 document.addEventListener("DOMContentLoaded", () => {
   initMobileNavigation();
+  initStickyTemporalNavigation();
   setActiveMenu();
   initDelegatedActions();
   initNumberMask();

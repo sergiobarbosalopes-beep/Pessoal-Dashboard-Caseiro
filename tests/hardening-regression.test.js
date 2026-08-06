@@ -1100,6 +1100,11 @@ assert.ok(stylesText.startsWith(":root"));
 assert.match(stylesText, /@media \(prefers-reduced-motion: reduce\)/);
 
 assert.match(main, /function initMobileNavigation\(\)/);
+assert.match(main, /function initStickyTemporalNavigation\(\)/);
+assert.match(main, /topbar\.getBoundingClientRect\(\)\.height/);
+assert.match(main, /siteShell\.style\.setProperty\("--temporal-nav-sticky-top"/);
+assert.match(main, /new ResizeObserver\(scheduleOffsetUpdate\)/);
+assert.match(main, /initMobileNavigation\(\);\s*initStickyTemporalNavigation\(\);/);
 assert.match(main, /toggle\.setAttribute\("aria-controls", menu\.id\)/);
 assert.match(main, /toggle\.setAttribute\("aria-expanded", String\(open\)\)/);
 assert.match(main, /event\.key === "Escape" && topbar\.classList\.contains\("menu-open"\)/);
@@ -1130,18 +1135,32 @@ for (const invocation of [
 assert.equal((cgd.match(/unlock\(modal, options\?\.returnFocusFallback\)/g) || []).length, 2);
 
 assert.match(stylesText, /\/\* ── Responsive hardening:/);
+const temporalNavigationCss = extractCssBlock(stylesText, ".temporal-nav-card {");
+assert.match(temporalNavigationCss, /position: sticky/);
+assert.match(temporalNavigationCss, /top: var\(--temporal-nav-sticky-top\)/);
+assert.match(temporalNavigationCss, /z-index: 20000/);
+assert.match(stylesText, /html,\s*body \{\s*overflow-x: clip/);
+assert.doesNotMatch(stylesText, /body \{\s*overflow-x: hidden/);
+assert.match(stylesText, /@keyframes fade-up \{[\s\S]*?transform: none/);
+assert.match(stylesText, /\.page-grid\.fade-up \{\s*transform: none;\s*animation-name: fade-in/);
+assert.match(stylesText, /\.topbar \{[\s\S]*?z-index: 20010/);
 assert.match(stylesText, /max-height: calc\(100dvh - 24px\)/);
 assert.match(stylesText, /\.modal,\s*\.admin-modal \{[\s\S]*?z-index: 30000/);
 assert.match(stylesText, /\.modal:not\(\.show\) \{\s*visibility: hidden/);
 assert.match(stylesText, /\.expense-modal-top-layout \{[\s\S]*?grid-template-columns: minmax\(220px, 0\.85fr\) minmax\(280px, 1\.15fr\)/);
 const phoneResponsiveCss = extractCssBlock(stylesText, "@media (max-width: 768px)");
+assert.match(phoneResponsiveCss, /\.timeline-grid \{\s*min-width: 760px/);
 assert.match(phoneResponsiveCss, /\.expense-modal-top-layout \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
 assert.match(phoneResponsiveCss, /\.expense-history-section \{[\s\S]*?height: auto;[\s\S]*?min-height: auto/);
 assert.match(phoneResponsiveCss, /\.expense-history-section \.expense-history-table-wrap \{[\s\S]*?flex: none;[\s\S]*?overflow-y: hidden/);
 const shortResponsiveCss = extractCssBlock(stylesText, "@media (max-width: 1024px) and (max-height: 500px)");
+assert.match(shortResponsiveCss, /\.nav-enhanced \.menu \{[\s\S]*?calc\(100dvh - 180px - env\(safe-area-inset-top\) - env\(safe-area-inset-bottom\)\)/);
 assert.match(shortResponsiveCss, /\.expense-modal-top-layout \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
 assert.match(shortResponsiveCss, /\.expense-history-section \.expense-history-table-wrap \{[\s\S]*?flex: none;[\s\S]*?overflow-y: hidden/);
 assert.match(stylesText, /\.topbar\.nav-enhanced,[\s\S]*?display: grid/);
+const tabletResponsiveCss = extractCssBlock(stylesText, "@media (max-width: 1024px)");
+assert.match(tabletResponsiveCss, /--temporal-nav-sticky-top: calc\(max\(8px, env\(safe-area-inset-top\)\) \+ 140px\)/);
+assert.doesNotMatch(tabletResponsiveCss, /temporal-nav-card[\s\S]*?position: static/);
 assert.doesNotMatch(stylesText, /\.topbar,\s*\.nb-theme \.topbar,\s*\.coverflex-theme \.topbar \{[^}]*display: grid/);
 assert.match(stylesText, /\.panel-menu,\s*\.rubric-menu,\s*\.expense-menu \{[\s\S]*?position: fixed/);
 assert.match(stylesText, /\.panel-sort-actions,\s*\.rubric-sort-actions,\s*\.expense-sort-actions \{[\s\S]*?transform: none/);
@@ -1162,10 +1181,10 @@ const htmlFiles = [...authenticatedHtmlFiles, "login.html"];
 const html = htmlFiles.map(read);
 for (const source of html) {
   assert.match(source, /viewport-fit=cover/);
-  assert.match(source, /assets\/css\/styles\.css\?v=20260802-2/);
+  assert.match(source, /assets\/css\/styles\.css\?v=20260806-1/);
 }
 for (const source of html.filter((value) => value.includes("assets/js/main.js"))) {
-  assert.match(source, /assets\/js\/main\.js\?v=20260802-3/);
+  assert.match(source, /assets\/js\/main\.js\?v=20260806-1/);
 }
 for (const source of html.filter((value) => value.includes("assets/js/cgd.js"))) {
   assert.match(source, /assets\/js\/cgd\.js\?v=20260803-1/);
@@ -1199,6 +1218,7 @@ for (const relativePath of [
   "coverflex.html"
 ]) {
   const source = read(relativePath);
+  assert.match(source, /class="card temporal-nav-card"/);
   assert.match(source, /id="expense-modal" role="dialog" aria-modal="true"/);
   assert.match(source, /id="confirm-modal" role="alertdialog" aria-modal="true"/);
   assert.match(source, /window\.DASHBOARD_ENABLE_YEAR_BOOTSTRAP = true/);
