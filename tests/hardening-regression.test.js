@@ -1151,16 +1151,14 @@ assert.match(stylesText, /env\(safe-area-inset-top\)/);
 assert.match(stylesText, /-webkit-overflow-scrolling: touch/);
 assert.match(stylesText, /@media \(pointer: coarse\)/);
 
-const htmlFiles = [
+const authenticatedHtmlFiles = [
   "index.html",
   "admin.html",
   "caixa-geral-depositos.html",
   "novobanco.html",
-  "coverflex.html",
-  "credito-habitacao.html",
-  "paineis-solares.html",
-  "login.html"
+  "coverflex.html"
 ];
+const htmlFiles = [...authenticatedHtmlFiles, "login.html"];
 const html = htmlFiles.map(read);
 for (const source of html) {
   assert.match(source, /viewport-fit=cover/);
@@ -1172,6 +1170,26 @@ for (const source of html.filter((value) => value.includes("assets/js/main.js"))
 for (const source of html.filter((value) => value.includes("assets/js/cgd.js"))) {
   assert.match(source, /assets\/js\/cgd\.js\?v=20260803-1/);
 }
+const expectedMenuHrefs = [
+  "index.html",
+  "caixa-geral-depositos.html",
+  "novobanco.html",
+  "coverflex.html",
+  "admin.html"
+];
+for (const relativePath of authenticatedHtmlFiles) {
+  const source = read(relativePath);
+  const menu = source.match(/<nav class="menu" aria-label="Navegacao principal">([\s\S]*?)<\/nav>/);
+  assert.ok(menu, `Missing no-JS primary navigation in ${relativePath}`);
+  const hrefs = [...menu[1].matchAll(/<a class="menu-link" href="([^"]+)">/g)]
+    .map((match) => match[1]);
+  assert.deepEqual(hrefs, expectedMenuHrefs, `Unexpected primary navigation in ${relativePath}`);
+}
+for (const href of expectedMenuHrefs) {
+  assert.ok(fs.existsSync(path.join(root, href)), `Primary navigation target does not exist: ${href}`);
+}
+assert.match(main, /const menu = topbar\?\.querySelector\("nav\.menu"\)/);
+assert.match(main, /topbar\.classList\.add\("nav-enhanced"\)/);
 assert.match(read("admin.html"), /assets\/js\/admin\.js\?v=20260802-1/);
 assert.match(read("index.html"), /assets\/js\/home\.js\?v=20260801-1/);
 
