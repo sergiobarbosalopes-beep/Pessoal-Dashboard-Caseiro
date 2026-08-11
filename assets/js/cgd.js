@@ -3585,9 +3585,9 @@ function renderOutcomeEvolutionChart() {
 
   const rubricPlotSeries = visibleSeries.map((entry) => ({ ...entry, seriesKind: "rubric" }));
   const expensePlotSeries = visibleExpenseSeries.map((entry) => ({ ...entry, seriesKind: "expense" }));
-  const plottedSeries = isLegacySingleRubricMode
+  const plottedSeries = isLegacySingleRubricMode || isExplicitExpenseDetailExpanded
     ? expensePlotSeries
-    : [...rubricPlotSeries, ...(isExplicitExpenseDetailExpanded ? expensePlotSeries : [])];
+    : rubricPlotSeries;
   if (isLegacySingleRubricMode && !expenseSeries.length) {
     host.innerHTML = `
       <div class='outcome-drilldown-toolbar'>
@@ -3718,7 +3718,7 @@ function renderOutcomeEvolutionChart() {
   const chartAriaLabel = isLegacySingleRubricMode
     ? "Grafico de linhas com evolucao das despesas da rubrica selecionada"
     : isExplicitExpenseDetailExpanded
-      ? "Grafico de linhas com evolucao da rubrica selecionada e das respetivas despesas"
+      ? "Grafico de linhas com evolucao das despesas da rubrica selecionada"
       : "Grafico de linhas com evolucao das rubricas de despesas";
 
   host.innerHTML = `

@@ -272,8 +272,9 @@ assert.equal(countSeries(explicit.outcomeHost.html, "expense"), 0);
 assertCollapsedToggle(explicit.outcomeHost.html);
 
 explicit.outcomeHost.click("data-outcome-expense-detail-toggle");
-assert.equal(countSeries(explicit.outcomeHost.html, "rubric"), 1);
+assert.equal(countSeries(explicit.outcomeHost.html, "rubric"), 0);
 assert.equal(countSeries(explicit.outcomeHost.html, "expense"), 2);
+assert.doesNotMatch(explicit.outcomeHost.html, /data-series-kind='rubric'/);
 assert.match(explicit.outcomeHost.html, /aria-expanded='true'/);
 assert.match(explicit.outcomeHost.html, />Ocultar despesas<\/button>/);
 assert.match(explicit.outcomeHost.html, /Livros/);
@@ -299,6 +300,8 @@ assertCollapsedToggle(explicit.outcomeHost.html);
 assert.match(explicit.outcomeHost.html, /Casa/);
 
 explicit.outcomeHost.click("data-outcome-expense-detail-toggle");
+assert.equal(countSeries(explicit.outcomeHost.html, "rubric"), 0);
+assert.equal(countSeries(explicit.outcomeHost.html, "expense"), 1);
 assert.match(explicit.outcomeHost.html, /Condominio/);
 assert.doesNotMatch(explicit.outcomeHost.html, /Livros/);
 explicit.outcomeHost.click("data-outcome-chart-deselect-all");
@@ -355,6 +358,8 @@ malicious.api.renderOutcomeEvolutionChart();
 assert.match(malicious.outcomeHost.html, /Casa &lt;img/);
 assert.doesNotMatch(malicious.outcomeHost.html, /<img/);
 malicious.outcomeHost.click("data-outcome-expense-detail-toggle");
+assert.equal(countSeries(malicious.outcomeHost.html, "rubric"), 0);
+assert.equal(countSeries(malicious.outcomeHost.html, "expense"), 1);
 assert.match(malicious.outcomeHost.html, /Item &#39;&gt;&lt;svg/);
 assert.doesNotMatch(malicious.outcomeHost.html, /<svg onload/);
 
@@ -376,7 +381,7 @@ assert.match(sharedLegacy.incomeHost.html, /data-series-name='Salario'/);
 assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-series-name='Receitas'/);
 
 assert.match(novoBancoHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL = true/);
-assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260811-1/);
+assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260811-2/);
 assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260811-1/);
 assert.doesNotMatch(cgdHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
 assert.doesNotMatch(coverflexHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
