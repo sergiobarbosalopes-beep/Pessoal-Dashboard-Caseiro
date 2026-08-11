@@ -3344,6 +3344,33 @@ function resetOutcomeExpenseDetail() {
   cgdState.outcomeDrilldownHiddenExpenses.clear();
 }
 
+function resetOutcomeRubricSelectionToFirst() {
+  if (!EXPLICIT_OUTCOME_EXPENSE_DETAIL) {
+    return;
+  }
+
+  const rubricSeries = buildOutcomeRubricSeries();
+  cgdState.outcomeChartSelectedRubricKey = null;
+  cgdState.outcomeChartHiddenRubrics.clear();
+  rubricSeries.slice(1).forEach((entry) => {
+    cgdState.outcomeChartHiddenRubrics.add(entry.key);
+  });
+  resetOutcomeExpenseDetail();
+}
+
+function resetOutcomeExpenseSelectionToFirst(rubricKey) {
+  if (!EXPLICIT_OUTCOME_EXPENSE_DETAIL) {
+    return;
+  }
+
+  const activeRubric = buildOutcomeRubricSeries().find((entry) => entry.key === rubricKey);
+  const expenseSeries = buildOutcomeExpenseSeriesForRubric(activeRubric);
+  cgdState.outcomeDrilldownHiddenExpenses.clear();
+  expenseSeries.slice(1).forEach((entry) => {
+    cgdState.outcomeDrilldownHiddenExpenses.add(`${rubricKey}::${entry.key}`);
+  });
+}
+
 function focusOutcomeExpenseDetailToggle(host) {
   requestAnimationFrame(() => {
     host.querySelector("[data-outcome-expense-detail-toggle]")?.focus();
@@ -3376,6 +3403,7 @@ function bindOutcomeChartInteractions(host) {
       cgdState.outcomeChartSelectedRubricKey = null;
       cgdState.outcomeChartHiddenRubrics.clear();
       resetOutcomeExpenseDetail();
+      resetOutcomeRubricSelectionToFirst();
       renderOutcomeEvolutionChart();
       return;
     }
@@ -3389,10 +3417,12 @@ function bindOutcomeChartInteractions(host) {
 
       const isExpanded = cgdState.outcomeChartExpenseDetailVisible
         && cgdState.outcomeChartExpenseDetailRubricKey === activeRubricKey;
-      cgdState.outcomeChartExpenseDetailVisible = !isExpanded;
-      cgdState.outcomeChartExpenseDetailRubricKey = isExpanded ? null : activeRubricKey;
       if (isExpanded) {
-        cgdState.outcomeDrilldownHiddenExpenses.clear();
+        resetOutcomeExpenseDetail();
+      } else {
+        cgdState.outcomeChartExpenseDetailVisible = true;
+        cgdState.outcomeChartExpenseDetailRubricKey = activeRubricKey;
+        resetOutcomeExpenseSelectionToFirst(activeRubricKey);
       }
       renderOutcomeEvolutionChart();
       focusOutcomeExpenseDetailToggle(host);
@@ -4520,11 +4550,13 @@ window.cgdToggleSavingsComparisonChart = () => {
 };
 
 window.cgdToggleOutcomeChart = () => {
-  resetOutcomeExpenseDetail();
   cgdState.outcomeChartVisible = !cgdState.outcomeChartVisible;
-  if (!cgdState.outcomeChartVisible) {
+  if (cgdState.outcomeChartVisible) {
+    resetOutcomeRubricSelectionToFirst();
+  } else {
     cgdState.outcomeChartSelectedRubricKey = null;
     cgdState.outcomeChartHiddenRubrics.clear();
+    resetOutcomeExpenseDetail();
   }
   renderPanels();
   document.dispatchEvent(new Event("cgd:rendered"));
@@ -4591,6 +4623,7 @@ async function loadYearData(year, options = {}) {
     renderCgdTemporalSummaryChart();
     renderNbPieCharts();
     renderSoberTotalizer();
+    resetOutcomeRubricSelectionToFirst();
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
     return;
@@ -4733,6 +4766,7 @@ async function loadYearData(year, options = {}) {
         totalizerHost.innerHTML = "";
       }
     }
+    resetOutcomeRubricSelectionToFirst();
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
   } catch (error) {
@@ -4781,6 +4815,7 @@ async function loadYearData(year, options = {}) {
         totalizerHost.innerHTML = "";
       }
     }
+    resetOutcomeRubricSelectionToFirst();
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
   }

@@ -160,12 +160,12 @@ const makeData = () => ({
   ]
 });
 
-const makeContext = ({ explicitDetail, data = makeData() }) => {
+const makeContext = ({ explicitDetail, data = makeData(), outcomeChartVisible = true }) => {
   const outcomeHost = new FakeHost();
   const incomeHost = new FakeHost();
   const state = {
     data,
-    outcomeChartVisible: true,
+    outcomeChartVisible,
     outcomeChartHiddenRubrics: new Set(),
     outcomeChartSelectedRubricKey: null,
     outcomeChartExpenseDetailVisible: false,
@@ -245,7 +245,8 @@ const makeContext = ({ explicitDetail, data = makeData() }) => {
     ${outcomeToggleSource}
     chartApi = {
       renderIncomeEvolutionChart,
-      renderOutcomeEvolutionChart
+      renderOutcomeEvolutionChart,
+      resetOutcomeRubricSelectionToFirst
     };
   `, context);
   api = context.chartApi;
@@ -254,33 +255,46 @@ const makeContext = ({ explicitDetail, data = makeData() }) => {
 };
 
 const countSeries = (html, kind) => (html.match(new RegExp(`data-series-kind='${kind}'`, "g")) || []).length;
+const countPressed = (html, attribute, pressed) => (
+  html.match(new RegExp(`${attribute}='[^']+' aria-pressed='${pressed}'`, "g")) || []
+).length;
 const assertCollapsedToggle = (html) => {
   assert.match(html, /data-outcome-expense-detail-toggle/);
   assert.match(html, /aria-expanded='false'/);
   assert.match(html, />Mostrar despesas<\/button>/);
 };
 
-const explicit = makeContext({ explicitDetail: true });
-explicit.api.renderOutcomeEvolutionChart();
-assert.equal(countSeries(explicit.outcomeHost.html, "rubric"), 2);
-assert.equal(countSeries(explicit.outcomeHost.html, "expense"), 0);
-assert.doesNotMatch(explicit.outcomeHost.html, /data-outcome-expense-detail-toggle/);
-
-explicit.outcomeHost.click("data-outcome-chart-toggle", "id-22");
+const explicit = makeContext({ explicitDetail: true, outcomeChartVisible: false });
+explicit.context.window.cgdToggleOutcomeChart();
 assert.equal(countSeries(explicit.outcomeHost.html, "rubric"), 1);
 assert.equal(countSeries(explicit.outcomeHost.html, "expense"), 0);
+assert.match(explicit.outcomeHost.html, /data-series-key='id-11'/);
+assert.doesNotMatch(explicit.outcomeHost.html, /data-series-key='id-22'/);
+assert.equal(countPressed(explicit.outcomeHost.html, "data-outcome-chart-toggle", "true"), 1);
+assert.equal(countPressed(explicit.outcomeHost.html, "data-outcome-chart-toggle", "false"), 1);
 assertCollapsedToggle(explicit.outcomeHost.html);
 
 explicit.outcomeHost.click("data-outcome-expense-detail-toggle");
 assert.equal(countSeries(explicit.outcomeHost.html, "rubric"), 0);
-assert.equal(countSeries(explicit.outcomeHost.html, "expense"), 2);
+assert.equal(countSeries(explicit.outcomeHost.html, "expense"), 1);
 assert.doesNotMatch(explicit.outcomeHost.html, /data-series-kind='rubric'/);
+assert.match(explicit.outcomeHost.html, /data-series-key='expense-0-0-101'/);
+assert.doesNotMatch(explicit.outcomeHost.html, /data-series-key='expense-0-1-102'/);
+assert.equal(countPressed(explicit.outcomeHost.html, "data-outcome-drilldown-toggle", "true"), 1);
+assert.equal(countPressed(explicit.outcomeHost.html, "data-outcome-drilldown-toggle", "false"), 1);
 assert.match(explicit.outcomeHost.html, /aria-expanded='true'/);
 assert.match(explicit.outcomeHost.html, />Ocultar despesas<\/button>/);
 assert.match(explicit.outcomeHost.html, /Livros/);
 assert.match(explicit.outcomeHost.html, /Formacao/);
 assert.doesNotMatch(explicit.outcomeHost.html, /Condominio/);
 assert.equal(explicit.outcomeHost.focusCount, 1);
+
+explicit.outcomeHost.click("data-outcome-drilldown-toggle", "expense-0-1-102");
+assert.equal(countSeries(explicit.outcomeHost.html, "expense"), 2);
+assert.equal(countPressed(explicit.outcomeHost.html, "data-outcome-drilldown-toggle", "true"), 2);
+explicit.outcomeHost.click("data-outcome-drilldown-toggle", "expense-0-0-101");
+assert.equal(countSeries(explicit.outcomeHost.html, "expense"), 1);
+assert.match(explicit.outcomeHost.html, /data-series-key='expense-0-1-102'/);
 
 explicit.outcomeHost.click("data-outcome-expense-detail-toggle");
 assert.equal(countSeries(explicit.outcomeHost.html, "rubric"), 1);
@@ -289,38 +303,68 @@ assertCollapsedToggle(explicit.outcomeHost.html);
 assert.equal(explicit.outcomeHost.focusCount, 2);
 
 explicit.outcomeHost.click("data-outcome-expense-detail-toggle");
+assert.equal(countSeries(explicit.outcomeHost.html, "rubric"), 0);
+assert.equal(countSeries(explicit.outcomeHost.html, "expense"), 1);
+assert.match(explicit.outcomeHost.html, /data-series-key='expense-0-0-101'/);
+assert.doesNotMatch(explicit.outcomeHost.html, /data-series-key='expense-0-1-102'/);
+
+explicit.outcomeHost.click("data-outcome-expense-detail-toggle");
 explicit.outcomeHost.click("data-outcome-chart-toggle", "id-22");
 assert.equal(countSeries(explicit.outcomeHost.html, "rubric"), 2);
-assert.equal(countSeries(explicit.outcomeHost.html, "expense"), 0);
+assert.equal(countPressed(explicit.outcomeHost.html, "data-outcome-chart-toggle", "true"), 2);
 assert.equal(explicit.state.outcomeChartExpenseDetailVisible, false);
-
 explicit.outcomeHost.click("data-outcome-chart-toggle", "id-11");
 assert.equal(countSeries(explicit.outcomeHost.html, "rubric"), 1);
+assert.match(explicit.outcomeHost.html, /data-series-key='id-22'/);
+assert.equal(countPressed(explicit.outcomeHost.html, "data-outcome-chart-toggle", "true"), 1);
 assertCollapsedToggle(explicit.outcomeHost.html);
-assert.match(explicit.outcomeHost.html, /Casa/);
 
 explicit.outcomeHost.click("data-outcome-expense-detail-toggle");
 assert.equal(countSeries(explicit.outcomeHost.html, "rubric"), 0);
 assert.equal(countSeries(explicit.outcomeHost.html, "expense"), 1);
 assert.match(explicit.outcomeHost.html, /Condominio/);
 assert.doesNotMatch(explicit.outcomeHost.html, /Livros/);
-explicit.outcomeHost.click("data-outcome-chart-deselect-all");
-assert.match(explicit.outcomeHost.html, /Nenhuma rubrica selecionada/);
-assert.equal(explicit.state.outcomeChartExpenseDetailVisible, false);
-
-explicit.outcomeHost.click("data-outcome-chart-toggle", "id-22");
-explicit.outcomeHost.click("data-outcome-expense-detail-toggle");
 explicit.outcomeHost.click("data-outcome-chart-close-main");
 assert.equal(explicit.state.outcomeChartVisible, false);
 assert.equal(explicit.state.outcomeChartExpenseDetailVisible, false);
 assert.equal(explicit.outcomeHost.html, "");
 explicit.context.window.cgdToggleOutcomeChart();
 assert.equal(explicit.state.outcomeChartVisible, true);
-assert.equal(countSeries(explicit.outcomeHost.html, "rubric"), 2);
+assert.equal(countSeries(explicit.outcomeHost.html, "rubric"), 1);
 assert.equal(countSeries(explicit.outcomeHost.html, "expense"), 0);
+assert.match(explicit.outcomeHost.html, /data-series-key='id-11'/);
+assert.equal(countPressed(explicit.outcomeHost.html, "data-outcome-chart-toggle", "true"), 1);
+
+const reorderedData = makeData();
+reorderedData.outcome.reverse();
+explicit.state.data = reorderedData;
+explicit.api.resetOutcomeRubricSelectionToFirst();
+explicit.api.renderOutcomeEvolutionChart();
+assert.equal(countSeries(explicit.outcomeHost.html, "rubric"), 1);
+assert.match(explicit.outcomeHost.html, /data-series-key='id-22'/);
+assert.doesNotMatch(explicit.outcomeHost.html, /data-series-key='id-11'/);
+assert.equal(explicit.state.outcomeChartExpenseDetailVisible, false);
+
+const dataWithInvalidFirstRubric = makeData();
+dataWithInvalidFirstRubric.outcome.unshift({
+  id: 5,
+  name: "Sem valores",
+  values: zeroValues(),
+  expenses: []
+});
+const firstValidRubric = makeContext({
+  explicitDetail: true,
+  outcomeChartVisible: false,
+  data: dataWithInvalidFirstRubric
+});
+firstValidRubric.context.window.cgdToggleOutcomeChart();
+assert.equal(countSeries(firstValidRubric.outcomeHost.html, "rubric"), 1);
+assert.match(firstValidRubric.outcomeHost.html, /data-series-key='id-11'/);
+assert.doesNotMatch(firstValidRubric.outcomeHost.html, /data-series-key='id-5'/);
 
 const emptyItems = makeContext({
   explicitDetail: true,
+  outcomeChartVisible: false,
   data: {
     income: [],
     savings: [],
@@ -332,13 +376,14 @@ const emptyItems = makeContext({
     }]
   }
 });
-emptyItems.api.renderOutcomeEvolutionChart();
+emptyItems.context.window.cgdToggleOutcomeChart();
 assert.equal(countSeries(emptyItems.outcomeHost.html, "rubric"), 1);
 assert.equal(countSeries(emptyItems.outcomeHost.html, "expense"), 0);
 assert.doesNotMatch(emptyItems.outcomeHost.html, /data-outcome-expense-detail-toggle/);
 
 const malicious = makeContext({
   explicitDetail: true,
+  outcomeChartVisible: false,
   data: {
     income: [],
     savings: [],
@@ -354,7 +399,7 @@ const malicious = makeContext({
     }]
   }
 });
-malicious.api.renderOutcomeEvolutionChart();
+malicious.context.window.cgdToggleOutcomeChart();
 assert.match(malicious.outcomeHost.html, /Casa &lt;img/);
 assert.doesNotMatch(malicious.outcomeHost.html, /<img/);
 malicious.outcomeHost.click("data-outcome-expense-detail-toggle");
@@ -362,6 +407,33 @@ assert.equal(countSeries(malicious.outcomeHost.html, "rubric"), 0);
 assert.equal(countSeries(malicious.outcomeHost.html, "expense"), 1);
 assert.match(malicious.outcomeHost.html, /Item &#39;&gt;&lt;svg/);
 assert.doesNotMatch(malicious.outcomeHost.html, /<svg onload/);
+
+const emptySeries = makeContext({
+  explicitDetail: true,
+  outcomeChartVisible: false,
+  data: {
+    income: [],
+    savings: [],
+    outcome: [{
+      id: 55,
+      name: "Sem valores",
+      values: zeroValues(),
+      expenses: []
+    }]
+  }
+});
+emptySeries.context.window.cgdToggleOutcomeChart();
+assert.equal(countSeries(emptySeries.outcomeHost.html, "rubric"), 0);
+assert.equal(countSeries(emptySeries.outcomeHost.html, "expense"), 0);
+assert.match(emptySeries.outcomeHost.html, /Ainda nao existem valores totalizadores/);
+
+const sharedOpening = makeContext({
+  explicitDetail: false,
+  outcomeChartVisible: false
+});
+sharedOpening.context.window.cgdToggleOutcomeChart();
+assert.equal(countSeries(sharedOpening.outcomeHost.html, "rubric"), 2);
+assert.equal(countSeries(sharedOpening.outcomeHost.html, "expense"), 0);
 
 const sharedLegacy = makeContext({
   explicitDetail: false,
@@ -381,11 +453,15 @@ assert.match(sharedLegacy.incomeHost.html, /data-series-name='Salario'/);
 assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-series-name='Receitas'/);
 
 assert.match(novoBancoHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL = true/);
-assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260811-2/);
+assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260811-3/);
 assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260811-1/);
 assert.doesNotMatch(cgdHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
 assert.doesNotMatch(coverflexHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
 assert.match(styles, /\.nb-theme \.outcome-expense-detail-toggle,[\s\S]*min-height: 44px;/);
 assert.match(styles, /\.nb-theme \.outcome-expense-detail-toggle:focus-visible/);
+assert.ok(
+  (cgd.match(/resetOutcomeRubricSelectionToFirst\(\);\s*renderPanels\(\);/g) || []).length >= 3,
+  "Every year-load render path must reset to the first valid rubric"
+);
 
 console.log("Outcome expense detail regression checks passed.");
