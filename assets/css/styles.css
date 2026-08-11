@@ -2412,7 +2412,33 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
 .outcome-drilldown-toolbar {
   margin-bottom: 8px;
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 8px;
+}
+
+.nb-theme .outcome-drilldown-toolbar.has-expense-detail {
+  justify-content: space-between;
+}
+
+.nb-theme .outcome-expense-detail-toggle,
+.nb-theme .outcome-drilldown-toolbar.has-expense-detail .outcome-drilldown-close-btn {
+  min-height: 44px;
+}
+
+.nb-theme .outcome-expense-detail-toggle {
+  padding-inline: 14px;
+}
+
+.outcome-expense-detail {
+  min-width: 0;
+}
+
+.nb-theme .outcome-expense-detail-toggle:focus-visible,
+.nb-theme .outcome-drilldown-toolbar.has-expense-detail .outcome-drilldown-close-btn:focus-visible {
+  outline: 2px solid rgba(154, 217, 255, 0.9);
+  outline-offset: 2px;
 }
 
 .outcome-drilldown-close-btn {
@@ -4969,6 +4995,10 @@ body {
 }
 
 @media (max-width: 430px) {
+  .nb-theme .outcome-drilldown-toolbar.has-expense-detail > button {
+    flex: 1 1 calc(50% - 4px);
+  }
+
   .site-shell {
     width: calc(100% - 12px);
   }

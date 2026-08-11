@@ -1179,15 +1179,18 @@ const authenticatedHtmlFiles = [
 ];
 const htmlFiles = [...authenticatedHtmlFiles, "login.html"];
 const html = htmlFiles.map(read);
-for (const source of html) {
+for (const relativePath of htmlFiles) {
+  const source = read(relativePath);
+  const stylesVersion = relativePath === "novobanco.html" ? "20260811-1" : "20260806-1";
   assert.match(source, /viewport-fit=cover/);
-  assert.match(source, /assets\/css\/styles\.css\?v=20260806-1/);
+  assert.match(source, new RegExp(`assets/css/styles\\.css\\?v=${stylesVersion}`));
 }
 for (const source of html.filter((value) => value.includes("assets/js/main.js"))) {
   assert.match(source, /assets\/js\/main\.js\?v=20260806-1/);
 }
-for (const source of html.filter((value) => value.includes("assets/js/cgd.js"))) {
-  assert.match(source, /assets\/js\/cgd\.js\?v=20260803-1/);
+for (const relativePath of ["caixa-geral-depositos.html", "novobanco.html", "coverflex.html"]) {
+  const cgdVersion = relativePath === "novobanco.html" ? "20260811-1" : "20260803-1";
+  assert.match(read(relativePath), new RegExp(`assets/js/cgd\\.js\\?v=${cgdVersion}`));
 }
 const expectedMenuHrefs = [
   "index.html",

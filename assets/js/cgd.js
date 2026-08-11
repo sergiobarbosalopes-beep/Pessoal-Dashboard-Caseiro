@@ -36,6 +36,8 @@ const cgdState = {
   outcomeComparisonHiddenExpenses: new Set(),
   outcomeChartHiddenRubrics: new Set(),
   outcomeChartSelectedRubricKey: null,
+  outcomeChartExpenseDetailVisible: false,
+  outcomeChartExpenseDetailRubricKey: null,
   outcomeDrilldownHiddenExpenses: new Set()
 };
 
@@ -49,6 +51,7 @@ const tableName = (suffix) => `${TABLE_PREFIX}_${suffix}`;
 const HIDE_SAVINGS = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_SAVINGS);
 const HIDE_BALANCE = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_BALANCE);
 const HIDE_AVAILABLE_ROW = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_AVAILABLE_ROW);
+const EXPLICIT_OUTCOME_EXPENSE_DETAIL = Boolean(window.DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL);
 const TOTALIZER_PEOPLE = Array.isArray(window.DASHBOARD_TOTALIZER_PEOPLE) && window.DASHBOARD_TOTALIZER_PEOPLE.length
   ? window.DASHBOARD_TOTALIZER_PEOPLE.map((entry) => String(entry || "").trim()).filter(Boolean)
   : ["Sergio", "Carina"];
@@ -3331,6 +3334,22 @@ function renderSavingsEvolutionChart() {
   bindOutcomeChartHover(host);
 }
 
+function resetOutcomeExpenseDetail() {
+  if (!EXPLICIT_OUTCOME_EXPENSE_DETAIL) {
+    return;
+  }
+
+  cgdState.outcomeChartExpenseDetailVisible = false;
+  cgdState.outcomeChartExpenseDetailRubricKey = null;
+  cgdState.outcomeDrilldownHiddenExpenses.clear();
+}
+
+function focusOutcomeExpenseDetailToggle(host) {
+  requestAnimationFrame(() => {
+    host.querySelector("[data-outcome-expense-detail-toggle]")?.focus();
+  });
+}
+
 function bindOutcomeChartInteractions(host) {
   if (!host || host.dataset.chartBound === "1") {
     return;
@@ -3343,6 +3362,7 @@ function bindOutcomeChartInteractions(host) {
       cgdState.outcomeChartVisible = false;
       cgdState.outcomeChartSelectedRubricKey = null;
       cgdState.outcomeChartHiddenRubrics.clear();
+      resetOutcomeExpenseDetail();
       renderPanels();
       document.dispatchEvent(new Event("cgd:rendered"));
       requestAnimationFrame(() => {
@@ -3355,7 +3375,27 @@ function bindOutcomeChartInteractions(host) {
     if (closeDrilldownBtn) {
       cgdState.outcomeChartSelectedRubricKey = null;
       cgdState.outcomeChartHiddenRubrics.clear();
+      resetOutcomeExpenseDetail();
       renderOutcomeEvolutionChart();
+      return;
+    }
+
+    const expenseDetailToggle = event.target.closest("[data-outcome-expense-detail-toggle]");
+    if (expenseDetailToggle) {
+      const activeRubricKey = String(host.dataset.singleRubricKey || "").trim();
+      if (!activeRubricKey) {
+        return;
+      }
+
+      const isExpanded = cgdState.outcomeChartExpenseDetailVisible
+        && cgdState.outcomeChartExpenseDetailRubricKey === activeRubricKey;
+      cgdState.outcomeChartExpenseDetailVisible = !isExpanded;
+      cgdState.outcomeChartExpenseDetailRubricKey = isExpanded ? null : activeRubricKey;
+      if (isExpanded) {
+        cgdState.outcomeDrilldownHiddenExpenses.clear();
+      }
+      renderOutcomeEvolutionChart();
+      focusOutcomeExpenseDetailToggle(host);
       return;
     }
 
@@ -3379,6 +3419,7 @@ function bindOutcomeChartInteractions(host) {
     if (drilldownTarget) {
       const key = String(drilldownTarget.getAttribute("data-outcome-chart-drilldown") || "").trim();
       const isSameSelectedRubric = cgdState.outcomeChartSelectedRubricKey === key;
+      resetOutcomeExpenseDetail();
 
       if (isSameSelectedRubric) {
         cgdState.outcomeChartSelectedRubricKey = null;
@@ -3411,6 +3452,7 @@ function bindOutcomeChartInteractions(host) {
     if (toggleBtn) {
       const key = String(toggleBtn.getAttribute("data-outcome-chart-toggle") || "").trim();
       if (key) {
+        resetOutcomeExpenseDetail();
         if (cgdState.outcomeChartHiddenRubrics.has(key)) {
           cgdState.outcomeChartHiddenRubrics.delete(key);
         } else {
@@ -3426,6 +3468,7 @@ function bindOutcomeChartInteractions(host) {
 
     const selectAllBtn = event.target.closest("[data-outcome-chart-select-all]");
     if (selectAllBtn) {
+      resetOutcomeExpenseDetail();
       cgdState.outcomeChartHiddenRubrics.clear();
       renderOutcomeEvolutionChart();
       return;
@@ -3433,6 +3476,7 @@ function bindOutcomeChartInteractions(host) {
 
     const deselectAllBtn = event.target.closest("[data-outcome-chart-deselect-all]");
     if (deselectAllBtn) {
+      resetOutcomeExpenseDetail();
       host.querySelectorAll("[data-outcome-chart-toggle]").forEach((item) => {
         const key = String(item.getAttribute("data-outcome-chart-toggle") || "").trim();
         if (key) {
@@ -3470,6 +3514,18 @@ function renderOutcomeEvolutionChart() {
   const visibleSeries = series.filter((entry) => !cgdState.outcomeChartHiddenRubrics.has(entry.key));
   const singleVisibleRubric = visibleSeries.length === 1 ? visibleSeries[0] : null;
   host.dataset.singleRubricKey = singleVisibleRubric ? singleVisibleRubric.key : "";
+  if (
+    EXPLICIT_OUTCOME_EXPENSE_DETAIL
+    && (
+      !singleVisibleRubric
+      || (
+        cgdState.outcomeChartExpenseDetailVisible
+        && cgdState.outcomeChartExpenseDetailRubricKey !== singleVisibleRubric.key
+      )
+    )
+  ) {
+    resetOutcomeExpenseDetail();
+  }
 
   const legend = series
     .map((entry) => {
@@ -3495,10 +3551,27 @@ function renderOutcomeEvolutionChart() {
     return;
   }
 
-  const isSingleRubricMode = Boolean(singleVisibleRubric);
-  const expenseSeries = isSingleRubricMode ? buildOutcomeExpenseSeriesForRubric(singleVisibleRubric) : [];
-  const expenseStateKey = (expenseKey) => `${singleVisibleRubric.key}::${expenseKey}`;
-  const visibleExpenseSeries = isSingleRubricMode
+  const isLegacySingleRubricMode = Boolean(singleVisibleRubric) && !EXPLICIT_OUTCOME_EXPENSE_DETAIL;
+  const expenseSeries = singleVisibleRubric ? buildOutcomeExpenseSeriesForRubric(singleVisibleRubric) : [];
+  const expenseStateKey = (expenseKey) => `${singleVisibleRubric?.key || ""}::${expenseKey}`;
+  const isExplicitExpenseDetailAvailable = Boolean(
+    EXPLICIT_OUTCOME_EXPENSE_DETAIL
+    && singleVisibleRubric
+    && expenseSeries.length
+  );
+  if (
+    EXPLICIT_OUTCOME_EXPENSE_DETAIL
+    && !isExplicitExpenseDetailAvailable
+    && cgdState.outcomeChartExpenseDetailVisible
+  ) {
+    resetOutcomeExpenseDetail();
+  }
+  const isExplicitExpenseDetailExpanded = Boolean(
+    isExplicitExpenseDetailAvailable
+    && cgdState.outcomeChartExpenseDetailVisible
+    && cgdState.outcomeChartExpenseDetailRubricKey === singleVisibleRubric.key
+  );
+  const visibleExpenseSeries = isLegacySingleRubricMode || isExplicitExpenseDetailExpanded
     ? expenseSeries.filter((entry) => !cgdState.outcomeDrilldownHiddenExpenses.has(expenseStateKey(entry.key)))
     : [];
 
@@ -3510,8 +3583,12 @@ function renderOutcomeEvolutionChart() {
   const monthStep = plotWidth / (months.length - 1);
   const plotBottom = padding.top + plotHeight;
 
-  const plottedSeries = isSingleRubricMode ? visibleExpenseSeries : visibleSeries;
-  if (isSingleRubricMode && !expenseSeries.length) {
+  const rubricPlotSeries = visibleSeries.map((entry) => ({ ...entry, seriesKind: "rubric" }));
+  const expensePlotSeries = visibleExpenseSeries.map((entry) => ({ ...entry, seriesKind: "expense" }));
+  const plottedSeries = isLegacySingleRubricMode
+    ? expensePlotSeries
+    : [...rubricPlotSeries, ...(isExplicitExpenseDetailExpanded ? expensePlotSeries : [])];
+  if (isLegacySingleRubricMode && !expenseSeries.length) {
     host.innerHTML = `
       <div class='outcome-drilldown-toolbar'>
         <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-main>Fechar</button>
@@ -3522,7 +3599,7 @@ function renderOutcomeEvolutionChart() {
     return;
   }
 
-  if (isSingleRubricMode && !visibleExpenseSeries.length) {
+  if (isLegacySingleRubricMode && !visibleExpenseSeries.length) {
     host.innerHTML = `
       <div class='outcome-drilldown-toolbar'>
         <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-main>Fechar</button>
@@ -3572,8 +3649,9 @@ function renderOutcomeEvolutionChart() {
 
   const lines = plottedSeries
     .map((entry) => {
-      const isSelected = !isSingleRubricMode && entry.key === cgdState.outcomeChartSelectedRubricKey;
-      const strokeWidth = isSingleRubricMode ? "0.6" : "1.3";
+      const isRubricSeries = entry.seriesKind === "rubric";
+      const isSelected = isRubricSeries && entry.key === cgdState.outcomeChartSelectedRubricKey;
+      const strokeWidth = isRubricSeries ? "1.3" : "0.6";
       const selectionClass = isSelected ? "is-selected" : "";
       const points = entry.values.map((value, monthIndex) => ({ x: xFor(monthIndex), y: yFor(value), value, monthIndex }));
       const pathData = buildSmoothPathData(points);
@@ -3586,7 +3664,12 @@ function renderOutcomeEvolutionChart() {
         })
         .join("");
       return `
-        <g class='outcome-evolution-series ${selectionClass}' ${isSingleRubricMode ? "" : `data-outcome-chart-drilldown='${escapeHtml(entry.key)}'`}>
+        <g
+          class='outcome-evolution-series ${selectionClass}'
+          data-series-kind='${entry.seriesKind}'
+          data-series-key='${escapeHtml(entry.key)}'
+          ${isRubricSeries && !singleVisibleRubric ? `data-outcome-chart-drilldown='${escapeHtml(entry.key)}'` : ""}
+        >
           <path d='${areaPath}' class='outcome-evolution-area' fill='${entry.color}' fill-opacity='0.10' />
           <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='${strokeWidth}' stroke-linecap='round' stroke-linejoin='round' />
           ${pointsMarkup}
@@ -3595,7 +3678,7 @@ function renderOutcomeEvolutionChart() {
     })
     .join("");
 
-  const expenseLegend = isSingleRubricMode
+  const expenseLegend = isLegacySingleRubricMode || isExplicitExpenseDetailExpanded
     ? expenseSeries
         .map((entry) => {
           const isVisible = !cgdState.outcomeDrilldownHiddenExpenses.has(expenseStateKey(entry.key));
@@ -3605,18 +3688,49 @@ function renderOutcomeEvolutionChart() {
         .join("")
     : "";
 
-  const singleRubricLegendMarkup = isSingleRubricMode && expenseSeries.length
+  const singleRubricLegendMarkup = isLegacySingleRubricMode && expenseSeries.length
     ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>`
     : "";
+  const expenseDetailToggleMarkup = isExplicitExpenseDetailAvailable
+    ? `
+      <button
+        type='button'
+        class='outcome-evolution-control-btn outcome-expense-detail-toggle'
+        data-outcome-expense-detail-toggle
+        aria-expanded='${isExplicitExpenseDetailExpanded ? "true" : "false"}'
+        aria-controls='outcome-expense-detail-series'
+      >${isExplicitExpenseDetailExpanded ? "Ocultar despesas" : "Mostrar despesas"}</button>
+    `
+    : "";
+  const expenseDetailMarkup = isExplicitExpenseDetailAvailable
+    ? `
+      <div
+        id='outcome-expense-detail-series'
+        class='outcome-expense-detail'
+        role='group'
+        aria-label='Despesas da rubrica selecionada'
+        ${isExplicitExpenseDetailExpanded ? "" : "hidden"}
+      >
+        ${isExplicitExpenseDetailExpanded ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>` : ""}
+      </div>
+    `
+    : "";
+  const chartAriaLabel = isLegacySingleRubricMode
+    ? "Grafico de linhas com evolucao das despesas da rubrica selecionada"
+    : isExplicitExpenseDetailExpanded
+      ? "Grafico de linhas com evolucao da rubrica selecionada e das respetivas despesas"
+      : "Grafico de linhas com evolucao das rubricas de despesas";
 
   host.innerHTML = `
-    <div class='outcome-drilldown-toolbar'>
+    <div class='outcome-drilldown-toolbar ${isExplicitExpenseDetailAvailable ? "has-expense-detail" : ""}'>
+      ${expenseDetailToggleMarkup}
       <button type='button' class='outcome-drilldown-close-btn' data-outcome-chart-close-main>Fechar</button>
     </div>
     <div class='outcome-evolution-top-series'>${legend}</div>
     ${singleRubricLegendMarkup}
+    ${expenseDetailMarkup}
     <div class='outcome-evolution-svg-wrap'>
-      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${isSingleRubricMode ? "Grafico de linhas com evolucao das despesas da rubrica selecionada" : "Grafico de linhas com evolucao das rubricas de despesas"}'>
+      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${chartAriaLabel}'>
         ${gridLines}
         ${monthGridLines}
         ${lines}
@@ -4406,6 +4520,7 @@ window.cgdToggleSavingsComparisonChart = () => {
 };
 
 window.cgdToggleOutcomeChart = () => {
+  resetOutcomeExpenseDetail();
   cgdState.outcomeChartVisible = !cgdState.outcomeChartVisible;
   if (!cgdState.outcomeChartVisible) {
     cgdState.outcomeChartSelectedRubricKey = null;
@@ -4453,6 +4568,7 @@ async function loadYearData(year, options = {}) {
     activeYearBootstrapPromptCancel = null;
   }
   cgdState.selectedYear = normalizedYear;
+  resetOutcomeExpenseDetail();
   delete cgdState.personTotalizerSeriesCache[normalizedYear];
   const yearLabel = document.querySelector("[data-year-label]");
   if (yearLabel) {
