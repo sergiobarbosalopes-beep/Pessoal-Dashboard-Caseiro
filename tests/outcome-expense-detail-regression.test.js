@@ -268,6 +268,7 @@ const makeContext = ({ explicitDetail, data = makeData(), outcomeChartVisible = 
       resetOutcomeRubricSelectionToFirst,
       buildDataModel,
       computeOutcomeSeriesAverage,
+      formatOutcomeAverageValue,
       parseExpenseValue
     };
   `, context);
@@ -292,6 +293,7 @@ const extractAverageValue = (html) => {
   return match ? Number(match[1]) : null;
 };
 const assertAverageLine = (html, { kind, key, color, value }) => {
+  const formattedValue = Number(value).toFixed(2);
   assert.equal(countAverageLines(html), 1);
   assert.match(html, new RegExp(`data-average-source-kind='${kind}'`));
   assert.match(html, new RegExp(`data-average-source-key='${key}'`));
@@ -300,6 +302,9 @@ const assertAverageLine = (html, { kind, key, color, value }) => {
   assert.match(html, /vector-effect='non-scaling-stroke'/);
   assert.match(html, /data-outcome-average-label/);
   assert.match(html, /aria-label='Média - /);
+  assert.match(html, new RegExp(`: ${formattedValue.replace(".", "\\.")}\\. Usa valores estimados`));
+  assert.match(html, new RegExp(`>Média: ${formattedValue.replace(".", "\\.")}</span>`));
+  assert.doesNotMatch(html, new RegExp(`Média[^<']*[0-9],[0-9]{3}\\.${formattedValue.slice(-2)}`));
   assert.match(html, /Usa valores estimados nos meses sem valor real/);
   assert.ok(Math.abs(extractAverageValue(html) - value) < 1e-12);
   const coordinates = html.match(/data-outcome-average-line[\s\S]*?y1='([^']+)'[\s\S]*?y2='([^']+)'/);
@@ -579,6 +584,60 @@ assertAverageLine(zeroMean.outcomeHost.html, {
   value: 0
 });
 
+const largeAverage = makeContext({
+  explicitDetail: true,
+  outcomeChartVisible: false,
+  data: {
+    income: [],
+    savings: [],
+    outcome: [{
+      id: 67,
+      name: "Media grande",
+      values: months.map(() => 1234.5),
+      expenses: []
+    }]
+  }
+});
+largeAverage.context.window.cgdToggleOutcomeChart();
+assertAverageLine(largeAverage.outcomeHost.html, {
+  kind: "rubric",
+  key: "id-67",
+  color: "#111111",
+  value: 1234.5
+});
+assert.match(largeAverage.outcomeHost.html, /data-value='1234.50'/);
+assert.doesNotMatch(largeAverage.outcomeHost.html, /1,234\.50/);
+
+const negativeAverage = makeContext({
+  explicitDetail: true,
+  outcomeChartVisible: false,
+  data: {
+    income: [],
+    savings: [],
+    outcome: [{
+      id: 68,
+      name: "Media negativa",
+      values: months.map(() => -1234.5),
+      expenses: []
+    }]
+  }
+});
+negativeAverage.context.window.cgdToggleOutcomeChart();
+assertAverageLine(negativeAverage.outcomeHost.html, {
+  kind: "rubric",
+  key: "id-68",
+  color: "#111111",
+  value: -1234.5
+});
+
+assert.equal(explicit.api.formatOutcomeAverageValue(96.25), "96.25");
+assert.equal(explicit.api.formatOutcomeAverageValue(1234.5), "1234.50");
+assert.equal(explicit.api.formatOutcomeAverageValue(12345678.9), "12345678.90");
+assert.equal(explicit.api.formatOutcomeAverageValue(0), "0.00");
+assert.equal(explicit.api.formatOutcomeAverageValue(-1234.5), "-1234.50");
+assert.equal(explicit.api.formatOutcomeAverageValue(Number.NaN), "0.00");
+assert.equal(explicit.api.formatOutcomeAverageValue(Number.POSITIVE_INFINITY), "0.00");
+
 const normalizedRows = [
   { valor: 100, valor_estimado: 999 },
   { valor: 0, valor_estimado: 50 },
@@ -701,12 +760,19 @@ assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-series-name='Receitas'/)
 assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-outcome-average/);
 
 assert.match(novoBancoHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL = true/);
-assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260812-1/);
+assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260812-2/);
 assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260811-1/);
 assert.doesNotMatch(cgdHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
 assert.doesNotMatch(coverflexHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
 assert.doesNotMatch(cgdHtml, /20260812-1/);
 assert.doesNotMatch(coverflexHtml, /20260812-1/);
+assert.doesNotMatch(cgdHtml, /20260812-2/);
+assert.doesNotMatch(coverflexHtml, /20260812-2/);
+assert.match(styles, /\.outcome-evolution-tooltip-series\s*\{\s*font-size:\s*0\.73rem;/);
+const averageTextTag = cgd.match(/<span\s+[^>]*data-outcome-average-label[^>]*>/)?.[0] || "";
+assert.match(averageTextTag, /class='outcome-evolution-tooltip-series'/);
+assert.doesNotMatch(averageTextTag, /font-size=|font-weight=|font-style=|paint-order=|stroke=/);
+assert.match(cgd, /data-outcome-average-label-row aria-hidden='true'/);
 assert.match(styles, /\.nb-theme \.outcome-expense-detail-toggle,[\s\S]*min-height: 44px;/);
 assert.match(styles, /\.nb-theme \.outcome-expense-detail-toggle:focus-visible/);
 assert.ok(

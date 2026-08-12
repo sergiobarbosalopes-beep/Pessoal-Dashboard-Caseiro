@@ -3380,6 +3380,11 @@ function computeOutcomeSeriesAverage(series) {
   return normalizedValues.reduce((sum, value) => sum + value, 0) / months.length;
 }
 
+function formatOutcomeAverageValue(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric.toFixed(2) : "0.00";
+}
+
 function focusOutcomeExpenseDetailToggle(host) {
   requestAnimationFrame(() => {
     host.querySelector("[data-outcome-expense-detail-toggle]")?.focus();
@@ -3620,7 +3625,6 @@ function renderOutcomeEvolutionChart() {
   const plotWidth = chartWidth - padding.left - padding.right;
   const plotHeight = chartHeight - padding.top - padding.bottom;
   const monthStep = plotWidth / (months.length - 1);
-  const plotBottom = padding.top + plotHeight;
 
   const rubricPlotSeries = visibleSeries.map((entry) => ({ ...entry, seriesKind: "rubric" }));
   const expensePlotSeries = visibleExpenseSeries.map((entry) => ({ ...entry, seriesKind: "expense" }));
@@ -3724,9 +3728,8 @@ function renderOutcomeEvolutionChart() {
   const averageLine = averageSource && Number.isFinite(averageValue)
     ? (() => {
         const averageY = yFor(averageValue);
-        const formattedAverage = money(averageValue);
+        const formattedAverage = formatOutcomeAverageValue(averageValue);
         const averageAccessibleLabel = `Média - ${averageSource.name}: ${formattedAverage}. Usa valores estimados nos meses sem valor real.`;
-        const visibleLabelY = Math.min(Math.max(averageY - 6, padding.top + 11), plotBottom - 5);
         return `
           <g
             class='outcome-evolution-average'
@@ -3752,22 +3755,20 @@ function renderOutcomeEvolutionChart() {
               stroke-linecap='butt'
               vector-effect='non-scaling-stroke'
             />
-            <text
-              data-outcome-average-label
-              x='${chartWidth - padding.right - 6}'
-              y='${visibleLabelY.toFixed(2)}'
-              text-anchor='end'
-              fill='${averageSource.color}'
-              font-size='10'
-              font-weight='700'
-              paint-order='stroke'
-              stroke='rgba(8, 20, 28, 0.88)'
-              stroke-width='3'
-              stroke-linejoin='round'
-            >${escapeHtml(`Média: ${formattedAverage}`)}</text>
           </g>
         `;
       })()
+    : "";
+  const averageLabelMarkup = averageSource && Number.isFinite(averageValue)
+    ? `
+      <div class='outcome-evolution-top-series' data-outcome-average-label-row aria-hidden='true'>
+        <span
+          class='outcome-evolution-tooltip-series'
+          data-outcome-average-label
+          style='color:${averageSource.color};'
+        >${escapeHtml(`Média: ${formatOutcomeAverageValue(averageValue)}`)}</span>
+      </div>
+    `
     : "";
 
   const expenseLegend = isLegacySingleRubricMode || isExplicitExpenseDetailExpanded
@@ -3813,7 +3814,7 @@ function renderOutcomeEvolutionChart() {
       ? "Grafico de linhas com evolucao das despesas da rubrica selecionada"
       : "Grafico de linhas com evolucao das rubricas de despesas";
   const chartAriaLabel = averageSource && Number.isFinite(averageValue)
-    ? `${chartAriaLabelBase}. Média de ${averageSource.name}: ${money(averageValue)}, usando valores estimados nos meses sem valor real`
+    ? `${chartAriaLabelBase}. Média de ${averageSource.name}: ${formatOutcomeAverageValue(averageValue)}, usando valores estimados nos meses sem valor real`
     : chartAriaLabelBase;
 
   host.innerHTML = `
@@ -3824,6 +3825,7 @@ function renderOutcomeEvolutionChart() {
     <div class='outcome-evolution-top-series'>${legend}</div>
     ${singleRubricLegendMarkup}
     ${expenseDetailMarkup}
+    ${averageLabelMarkup}
     <div class='outcome-evolution-svg-wrap'>
       <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${escapeHtml(chartAriaLabel)}'>
         ${gridLines}

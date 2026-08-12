@@ -1189,7 +1189,7 @@ for (const source of html.filter((value) => value.includes("assets/js/main.js"))
   assert.match(source, /assets\/js\/main\.js\?v=20260806-1/);
 }
 for (const relativePath of ["caixa-geral-depositos.html", "novobanco.html", "coverflex.html"]) {
-  const cgdVersion = relativePath === "novobanco.html" ? "20260812-1" : "20260803-1";
+  const cgdVersion = relativePath === "novobanco.html" ? "20260812-2" : "20260803-1";
   assert.match(read(relativePath), new RegExp(`assets/js/cgd\\.js\\?v=${cgdVersion}`));
 }
 const expectedMenuHrefs = [
