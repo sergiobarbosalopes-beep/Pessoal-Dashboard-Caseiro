@@ -3399,6 +3399,31 @@ function formatOutcomeAverageValue(value) {
   return Number.isFinite(numeric) ? numeric.toFixed(2) : "0.00";
 }
 
+function composeCssColorWithOpacity(color, opacity) {
+  const normalizedColor = String(color || "").trim();
+  const numericOpacity = Number(opacity);
+  const safeOpacity = Number.isFinite(numericOpacity)
+    ? Math.min(Math.max(numericOpacity, 0), 1)
+    : 1;
+  if (safeOpacity === 1) {
+    return normalizedColor;
+  }
+
+  const longHex = normalizedColor.match(/^#([0-9a-f]{6})$/i)?.[1];
+  const shortHex = normalizedColor.match(/^#([0-9a-f]{3})$/i)?.[1];
+  const expandedHex = longHex || (shortHex
+    ? shortHex.split("").map((character) => character.repeat(2)).join("")
+    : "");
+  if (expandedHex) {
+    const red = Number.parseInt(expandedHex.slice(0, 2), 16);
+    const green = Number.parseInt(expandedHex.slice(2, 4), 16);
+    const blue = Number.parseInt(expandedHex.slice(4, 6), 16);
+    return `rgba(${red}, ${green}, ${blue}, ${safeOpacity})`;
+  }
+
+  return `color-mix(in srgb, ${normalizedColor} ${safeOpacity * 100}%, transparent)`;
+}
+
 function focusOutcomeExpenseDetailToggle(host) {
   requestAnimationFrame(() => {
     host.querySelector("[data-outcome-expense-detail-toggle]")?.focus();
@@ -4461,8 +4486,19 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
     ? expenseSeries.filter((entry) => !hiddenExpensesSet.has(expenseStateKey(entry.key)))
     : [];
 
-  const rubricPlotSeries = visibleRubrics.map((entry) => ({ ...entry, seriesKind: "rubric" }));
-  const expensePlotSeries = visibleExpenseSeries.map((entry) => ({ ...entry, seriesKind: "expense" }));
+  const estimatedBarFillOpacity = 0.42;
+  const withComparisonBarColors = (entry, seriesKind) => ({
+    ...entry,
+    seriesKind,
+    barColors: {
+      realFill: entry.color,
+      estimatedFill: entry.color,
+      estimatedFillOpacity: estimatedBarFillOpacity,
+      estimatedStroke: entry.color
+    }
+  });
+  const rubricPlotSeries = visibleRubrics.map((entry) => withComparisonBarColors(entry, "rubric"));
+  const expensePlotSeries = visibleExpenseSeries.map((entry) => withComparisonBarColors(entry, "expense"));
   const plottedSeries = showsExpenseSeries ? expensePlotSeries : rubricPlotSeries;
   const comparisonAverageSource = isExplicitOutcomeDetail && plottedSeries.length === 1
     ? plottedSeries[0]
@@ -4473,13 +4509,18 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
           kind: "real",
           label: "Média Real",
           values: comparisonAverageSource.values,
+          color: comparisonAverageSource.barColors.realFill,
           dashArray: "8 6"
         },
         {
           kind: "estimated",
           label: "Média Estimada",
           values: comparisonAverageSource.estimatedValues,
-          dashArray: "3 5"
+          color: composeCssColorWithOpacity(
+            comparisonAverageSource.barColors.estimatedFill,
+            comparisonAverageSource.barColors.estimatedFillOpacity
+          ),
+          dashArray: "8 6"
         }
       ].map((average) => ({
         ...average,
@@ -4599,8 +4640,8 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
           const valueHeight = Math.max(Math.abs(valueY - zeroY), 1);
           const estimatedHeight = Math.max(Math.abs(estimatedY - zeroY), 1);
           return `
-            <rect class='outcome-comparison-bar' x='${baseX.toFixed(2)}' y='${valueTop.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${valueHeight.toFixed(2)}' fill='${entry.color}' data-series-kind='${entry.seriesKind}' data-series-key='${escapeHtml(entry.key)}' data-bar-value-kind='value' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} ┬À Valor`)}' data-month-name='${escapeHtml(monthName)}' data-value='${value.toFixed(2)}' data-series-color='${entry.color}'></rect>
-            <rect class='outcome-comparison-bar outcome-comparison-bar-estimated' x='${(baseX + barWidth).toFixed(2)}' y='${estimatedTop.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${estimatedHeight.toFixed(2)}' fill='${entry.color}' fill-opacity='0.42' stroke='${entry.color}' stroke-width='0.8' data-series-kind='${entry.seriesKind}' data-series-key='${escapeHtml(entry.key)}' data-bar-value-kind='estimated' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} ┬À Estimado`)}' data-month-name='${escapeHtml(monthName)}' data-value='${estimated.toFixed(2)}' data-series-color='${entry.color}'></rect>
+            <rect class='outcome-comparison-bar' x='${baseX.toFixed(2)}' y='${valueTop.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${valueHeight.toFixed(2)}' fill='${entry.barColors.realFill}' data-series-kind='${entry.seriesKind}' data-series-key='${escapeHtml(entry.key)}' data-bar-value-kind='value' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} ┬À Valor`)}' data-month-name='${escapeHtml(monthName)}' data-value='${value.toFixed(2)}' data-series-color='${entry.color}'></rect>
+            <rect class='outcome-comparison-bar outcome-comparison-bar-estimated' x='${(baseX + barWidth).toFixed(2)}' y='${estimatedTop.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${estimatedHeight.toFixed(2)}' fill='${entry.barColors.estimatedFill}' fill-opacity='${entry.barColors.estimatedFillOpacity}' stroke='${entry.barColors.estimatedStroke}' stroke-width='0.8' data-series-kind='${entry.seriesKind}' data-series-key='${escapeHtml(entry.key)}' data-bar-value-kind='estimated' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} ┬À Estimado`)}' data-month-name='${escapeHtml(monthName)}' data-value='${estimated.toFixed(2)}' data-series-color='${entry.color}'></rect>
           `;
         })
         .join("");
@@ -4630,7 +4671,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
             x2='${chartWidth - padding.right}'
             y2='${averageY.toFixed(2)}'
             fill='none'
-            stroke='${comparisonAverageSource.color}'
+            stroke='${average.color}'
             stroke-width='1.8'
             stroke-dasharray='${average.dashArray}'
             stroke-linecap='butt'
@@ -4652,7 +4693,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
             <span
               class='outcome-evolution-tooltip-series'
               data-outcome-comparison-average-label='${average.kind}'
-              style='color:${comparisonAverageSource.color};'
+              style='color:${average.color};'
             >${escapeHtml(`${average.label}: ${formatOutcomeAverageValue(average.value)}`)}</span>
           `)
           .join("")}

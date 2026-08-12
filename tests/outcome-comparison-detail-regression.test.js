@@ -303,14 +303,38 @@ const getComparisonAverage = (html, kind) => {
     title: group.match(/<title>([^<]*)<\/title>/)?.[1] || "",
     label: labelMatch[1],
     labelTag: labelMatch[0],
+    labelColor: labelMatch[0].match(/style='[^']*color:([^;']+)/)?.[1] || null,
     y1: Number(getAttribute(lineTag, "y1")),
     y2: Number(getAttribute(lineTag, "y2")),
     stroke: getAttribute(lineTag, "stroke"),
     strokeWidth: getAttribute(lineTag, "stroke-width"),
     dashArray: getAttribute(lineTag, "stroke-dasharray"),
+    strokeLinecap: getAttribute(lineTag, "stroke-linecap"),
+    strokeOpacity: getAttribute(lineTag, "stroke-opacity"),
+    opacity: getAttribute(lineTag, "opacity"),
     fill: getAttribute(lineTag, "fill"),
     vectorEffect: getAttribute(lineTag, "vector-effect")
   };
+};
+const getComparisonBar = (html, key, valueKind) => {
+  const tag = html.match(
+    new RegExp(`<rect(?=[^>]*data-series-key='${key}')(?=[^>]*data-bar-value-kind='${valueKind}')[^>]*>`)
+  )?.[0] || "";
+  assert.ok(tag, `Missing ${valueKind} bar for ${key}`);
+  return {
+    fill: getAttribute(tag, "fill"),
+    fillOpacity: Number(getAttribute(tag, "fill-opacity") ?? 1),
+    stroke: getAttribute(tag, "stroke"),
+    strokeOpacity: Number(getAttribute(tag, "stroke-opacity") ?? 1)
+  };
+};
+const composeRenderedFillColor = (fill, fillOpacity) => {
+  if (fillOpacity === 1) {
+    return fill;
+  }
+  const hex = String(fill).match(/^#([0-9a-f]{6})$/i)?.[1];
+  assert.ok(hex, `Expected a six-digit rendered fill color, received ${fill}`);
+  return `rgba(${Number.parseInt(hex.slice(0, 2), 16)}, ${Number.parseInt(hex.slice(2, 4), 16)}, ${Number.parseInt(hex.slice(4, 6), 16)}, ${fillOpacity})`;
 };
 const assertNoComparisonAverages = (html) => {
   assert.doesNotMatch(html, /data-outcome-comparison-average=/);
@@ -331,7 +355,7 @@ const assertDualAverages = (html, expected) => {
       average: estimated,
       label: "Média Estimada",
       value: expected.estimated,
-      dashArray: "3 5"
+      dashArray: "8 6"
     }
   ];
 
@@ -346,13 +370,43 @@ const assertDualAverages = (html, expected) => {
     assert.match(average.labelTag, /class='outcome-evolution-tooltip-series'/);
     assert.doesNotMatch(formattedValue, /,|\s/);
     assert.match(formattedValue, /^-?\d+\.\d{2}$/);
-    assert.equal(average.stroke, expected.color);
     assert.equal(average.strokeWidth, "1.8");
     assert.equal(average.dashArray, dashArray);
+    assert.equal(average.strokeLinecap, "butt");
+    assert.equal(average.strokeOpacity, null);
+    assert.equal(average.opacity, null);
     assert.equal(average.fill, "none");
     assert.equal(average.vectorEffect, "non-scaling-stroke");
     assert.equal(average.y1, average.y2);
     assert.doesNotMatch(average.group, /<rect|<circle|<button|aria-pressed=/);
+  });
+
+  const realBar = getComparisonBar(html, expected.sourceKey, "value");
+  const estimatedBar = getComparisonBar(html, expected.sourceKey, "estimated");
+  const realFillColor = composeRenderedFillColor(realBar.fill, realBar.fillOpacity);
+  const estimatedFillColor = composeRenderedFillColor(
+    estimatedBar.fill,
+    estimatedBar.fillOpacity
+  );
+  assert.equal(realBar.fill, expected.color);
+  assert.equal(estimatedBar.fill, expected.color);
+  assert.equal(estimatedBar.stroke, expected.color);
+  assert.equal(real.stroke, realFillColor);
+  assert.equal(real.labelColor, realFillColor);
+  assert.equal(estimated.stroke, estimatedFillColor);
+  assert.equal(estimated.labelColor, estimatedFillColor);
+  assert.notEqual(estimated.stroke, estimatedBar.stroke);
+  assert.notEqual(estimated.labelColor, estimatedBar.stroke);
+  [
+    "strokeWidth",
+    "dashArray",
+    "strokeLinecap",
+    "strokeOpacity",
+    "opacity",
+    "fill",
+    "vectorEffect"
+  ].forEach((property) => {
+    assert.equal(estimated[property], real[property], `${property} must match both averages`);
   });
 
   assert.ok(
@@ -854,13 +908,13 @@ assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-outcome-comparison-expen
 assertNoComparisonAverages(sharedLegacy.incomeHost.html);
 
 assert.match(novoBancoHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL = true/);
-assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260812-4/);
+assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260812-5/);
 assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260812-1/);
 assert.match(styles, /\.nb-theme \.panel-stack\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
 assert.doesNotMatch(cgdHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
 assert.doesNotMatch(coverflexHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
-assert.doesNotMatch(cgdHtml, /20260812-4/);
-assert.doesNotMatch(coverflexHtml, /20260812-4/);
+assert.doesNotMatch(cgdHtml, /20260812-5/);
+assert.doesNotMatch(coverflexHtml, /20260812-5/);
 assert.match(cgd, /function computeOutcomeSeriesAverage\(series\)[\s\S]*return computeTwelveMonthAverage\(series\?\.values\);/);
 assert.ok(
   (cgd.match(/resetOutcomeComparisonRubricSelectionToFirst\(\);\s*renderPanels\(\);/g) || []).length >= 3,

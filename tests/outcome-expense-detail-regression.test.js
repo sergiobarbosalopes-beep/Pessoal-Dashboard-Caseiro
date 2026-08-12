@@ -760,7 +760,7 @@ assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-series-name='Receitas'/)
 assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-outcome-average/);
 
 assert.match(novoBancoHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL = true/);
-assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260812-4/);
+assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260812-5/);
 assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260812-1/);
 assert.doesNotMatch(cgdHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
 assert.doesNotMatch(coverflexHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
@@ -768,8 +768,8 @@ assert.doesNotMatch(cgdHtml, /20260812-1/);
 assert.doesNotMatch(coverflexHtml, /20260812-1/);
 assert.doesNotMatch(cgdHtml, /20260812-2/);
 assert.doesNotMatch(coverflexHtml, /20260812-2/);
-assert.doesNotMatch(cgdHtml, /20260812-4/);
-assert.doesNotMatch(coverflexHtml, /20260812-4/);
+assert.doesNotMatch(cgdHtml, /20260812-5/);
+assert.doesNotMatch(coverflexHtml, /20260812-5/);
 assert.match(styles, /\.outcome-evolution-tooltip-series\s*\{\s*font-size:\s*0\.73rem;/);
 const averageTextTag = cgd.match(/<span\s+[^>]*data-outcome-average-label[^>]*>/)?.[0] || "";
 assert.match(averageTextTag, /class='outcome-evolution-tooltip-series'/);
