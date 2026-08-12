@@ -1181,21 +1181,28 @@ const htmlFiles = [...authenticatedHtmlFiles, "login.html"];
 const html = htmlFiles.map(read);
 for (const relativePath of htmlFiles) {
   const source = read(relativePath);
-  const stylesVersion = ["caixa-geral-depositos.html", "novobanco.html", "coverflex.html"].includes(relativePath)
-    ? "20260812-4"
-    : "20260806-1";
+  const stylesVersion = relativePath === "caixa-geral-depositos.html"
+    ? "20260812-5"
+    : ["novobanco.html", "coverflex.html"].includes(relativePath)
+      ? "20260812-4"
+      : "20260806-1";
   assert.match(source, /viewport-fit=cover/);
   assert.match(source, new RegExp(`assets/css/styles\\.css\\?v=${stylesVersion}`));
 }
 for (const source of html.filter((value) => value.includes("assets/js/main.js"))) {
   assert.match(source, /assets\/js\/main\.js\?v=20260806-1/);
 }
-for (const relativePath of ["caixa-geral-depositos.html", "novobanco.html", "coverflex.html"]) {
+assert.match(read("caixa-geral-depositos.html"), /assets\/js\/cgd\.js\?v=20260812-9/);
+for (const relativePath of ["novobanco.html", "coverflex.html"]) {
   assert.match(read(relativePath), /assets\/js\/cgd\.js\?v=20260812-8/);
 }
 assert.match(read("novobanco.html"), /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "outcome"\]/);
 assert.match(read("caixa-geral-depositos.html"), /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "savings", "outcome"\]/);
 assert.match(read("coverflex.html"), /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "outcome"\]/);
+assert.match(read("caixa-geral-depositos.html"), /DASHBOARD_ENABLE_MONTHLY_FLOW_CHART = true/);
+assert.match(read("caixa-geral-depositos.html"), /id="cgd-monthly-flow-chart"/);
+assert.doesNotMatch(read("novobanco.html"), /DASHBOARD_ENABLE_MONTHLY_FLOW_CHART|cgd-monthly-flow-chart/);
+assert.doesNotMatch(read("coverflex.html"), /DASHBOARD_ENABLE_MONTHLY_FLOW_CHART|cgd-monthly-flow-chart/);
 assert.doesNotMatch(read("index.html"), /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS/);
 assert.doesNotMatch(read("admin.html"), /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS/);
 const chartCapabilitySource = cgd.slice(

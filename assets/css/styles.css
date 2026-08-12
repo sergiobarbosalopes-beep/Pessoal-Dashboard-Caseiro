@@ -1620,6 +1620,209 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   gap: 10px;
 }
 
+.cgd-monthly-flow-chart-card {
+  margin-top: 0;
+}
+
+.cgd-monthly-flow-head {
+  margin-bottom: 0;
+}
+
+.cgd-monthly-flow-head > div {
+  display: grid;
+  gap: 3px;
+}
+
+.cgd-monthly-flow-head p {
+  color: rgba(178, 207, 221, 0.88);
+}
+
+.cgd-monthly-flow-legend {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.cgd-monthly-flow-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 4px 8px;
+  border: 1px solid rgba(176, 210, 226, 0.2);
+  border-radius: 999px;
+  background: rgba(12, 31, 41, 0.6);
+  color: #d8e8f2;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.cgd-monthly-flow-legend-swatch {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 3px;
+  background: #b8ced9;
+}
+
+.cgd-monthly-flow-legend-swatch.is-income,
+.cgd-monthly-flow-tooltip .outcome-evolution-tooltip-dot.is-income {
+  background: #55c98a;
+}
+
+.cgd-monthly-flow-legend-swatch.is-savings,
+.cgd-monthly-flow-tooltip .outcome-evolution-tooltip-dot.is-savings {
+  background: #4aa8df;
+}
+
+.cgd-monthly-flow-legend-swatch.is-outcome,
+.cgd-monthly-flow-tooltip .outcome-evolution-tooltip-dot.is-outcome {
+  background: #f08b5f;
+}
+
+.cgd-monthly-flow-legend-swatch.is-balance {
+  position: relative;
+  width: 18px;
+  height: 10px;
+  flex-basis: 18px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.cgd-monthly-flow-legend-swatch.is-balance::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: #b8ced9;
+}
+
+.cgd-monthly-flow-legend-swatch.is-balance::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6fe29c;
+  box-shadow: 0 0 0 1px rgba(7, 23, 31, 0.9);
+}
+
+.cgd-monthly-flow-grid-line {
+  stroke: rgba(176, 210, 226, 0.16);
+  stroke-width: 0.7;
+  vector-effect: non-scaling-stroke;
+}
+
+.cgd-monthly-flow-month-grid {
+  stroke: rgba(176, 210, 226, 0.1);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.cgd-monthly-flow-axis-label {
+  fill: rgba(197, 220, 231, 0.82);
+  font-size: 9px;
+}
+
+.cgd-monthly-flow-axis-label.is-zero {
+  fill: rgba(225, 239, 246, 0.94);
+  font-weight: 800;
+}
+
+.cgd-monthly-flow-month-label {
+  fill: rgba(197, 220, 231, 0.9);
+  font-size: 10px;
+}
+
+.cgd-temporal-month-highlight {
+  fill: rgba(79, 174, 222, 0.12);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+
+.cgd-temporal-month-highlight.is-active {
+  opacity: 1;
+}
+
+.cgd-monthly-flow-zero-line {
+  stroke: rgba(226, 239, 246, 0.82);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.cgd-monthly-flow-bar {
+  opacity: 0.78;
+  pointer-events: none;
+  shape-rendering: geometricPrecision;
+}
+
+.cgd-monthly-flow-bar-savings {
+  opacity: 0.72;
+}
+
+.cgd-monthly-flow-balance-line,
+.cgd-monthly-flow-balance-point {
+  pointer-events: none;
+}
+
+.cgd-monthly-flow-balance-segment {
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 1px 2px rgba(4, 18, 25, 0.72));
+}
+
+.cgd-monthly-flow-balance-point {
+  stroke: rgba(7, 24, 32, 0.94);
+  stroke-width: 1.1;
+  vector-effect: non-scaling-stroke;
+}
+
+.cgd-monthly-flow-month-target {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 0;
+  pointer-events: all;
+  outline: none;
+}
+
+.cgd-monthly-flow-month-target:focus {
+  stroke: rgba(143, 216, 250, 0.88);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.cgd-monthly-flow-empty {
+  fill: rgba(190, 214, 226, 0.88);
+  font-size: 11px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.cgd-monthly-flow-tooltip .outcome-evolution-tooltip-row.is-balance {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(176, 210, 226, 0.2);
+}
+
+.cgd-monthly-flow-tooltip .outcome-evolution-tooltip-dot.is-balance {
+  background: linear-gradient(135deg, #6fe29c 0 48%, #ff8f75 52% 100%);
+}
+
+.cgd-monthly-flow-tooltip-note {
+  margin-top: 5px;
+  color: #9fc1d2;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
 .cgd-summary-outcome-evolution .outcome-evolution-area {
   animation: cgdSummaryAreaBreathe 3.2s ease-in-out infinite;
 }
