@@ -3381,13 +3381,17 @@ function resetOutcomeExpenseSelectionToFirst(rubricKey) {
   resetHiddenExpenseSelectionToFirst(rubricKey, expenseSeries, cgdState.outcomeDrilldownHiddenExpenses);
 }
 
-function computeOutcomeSeriesAverage(series) {
-  // Series values already contain the model's real-to-estimated monthly fallback.
+function computeTwelveMonthAverage(values) {
   const normalizedValues = months.map((_, monthIndex) => {
-    const numeric = Number(series?.values?.[monthIndex]);
+    const numeric = Number(values?.[monthIndex]);
     return Number.isFinite(numeric) ? numeric : 0;
   });
   return normalizedValues.reduce((sum, value) => sum + value, 0) / months.length;
+}
+
+function computeOutcomeSeriesAverage(series) {
+  // Series values already contain the model's real-to-estimated monthly fallback.
+  return computeTwelveMonthAverage(series?.values);
 }
 
 function formatOutcomeAverageValue(value) {
@@ -4460,6 +4464,28 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
   const rubricPlotSeries = visibleRubrics.map((entry) => ({ ...entry, seriesKind: "rubric" }));
   const expensePlotSeries = visibleExpenseSeries.map((entry) => ({ ...entry, seriesKind: "expense" }));
   const plottedSeries = showsExpenseSeries ? expensePlotSeries : rubricPlotSeries;
+  const comparisonAverageSource = isExplicitOutcomeDetail && plottedSeries.length === 1
+    ? plottedSeries[0]
+    : null;
+  const comparisonAverages = comparisonAverageSource
+    ? [
+        {
+          kind: "real",
+          label: "Média Real",
+          values: comparisonAverageSource.values,
+          dashArray: "8 6"
+        },
+        {
+          kind: "estimated",
+          label: "Média Estimada",
+          values: comparisonAverageSource.estimatedValues,
+          dashArray: "3 5"
+        }
+      ].map((average) => ({
+        ...average,
+        value: computeTwelveMonthAverage(average.values)
+      }))
+    : [];
 
   const legend = rubricSeries
     .map((entry) => {
@@ -4580,8 +4606,61 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
         .join("");
     })
     .join("");
+  const comparisonAverageLines = comparisonAverages
+    .map((average) => {
+      const averageY = yFor(average.value);
+      const formattedAverage = formatOutcomeAverageValue(average.value);
+      const accessibleLabel = `${average.label} - ${comparisonAverageSource.name}: ${formattedAverage}.`;
+      return `
+        <g
+          class='outcome-comparison-average'
+          data-outcome-comparison-average='${average.kind}'
+          data-average-source-kind='${comparisonAverageSource.seriesKind}'
+          data-average-source-key='${escapeHtml(comparisonAverageSource.key)}'
+          data-average-value='${average.value}'
+          role='img'
+          aria-label='${escapeHtml(accessibleLabel)}'
+          pointer-events='none'
+        >
+          <title>${escapeHtml(accessibleLabel)}</title>
+          <line
+            data-outcome-comparison-average-line='${average.kind}'
+            x1='${padding.left}'
+            y1='${averageY.toFixed(2)}'
+            x2='${chartWidth - padding.right}'
+            y2='${averageY.toFixed(2)}'
+            fill='none'
+            stroke='${comparisonAverageSource.color}'
+            stroke-width='1.8'
+            stroke-dasharray='${average.dashArray}'
+            stroke-linecap='butt'
+            vector-effect='non-scaling-stroke'
+          />
+        </g>
+      `;
+    })
+    .join("");
+  const comparisonAverageLabelMarkup = comparisonAverages.length
+    ? `
+      <div
+        class='outcome-evolution-top-series'
+        data-outcome-comparison-average-label-row
+        aria-hidden='true'
+      >
+        ${comparisonAverages
+          .map((average) => `
+            <span
+              class='outcome-evolution-tooltip-series'
+              data-outcome-comparison-average-label='${average.kind}'
+              style='color:${comparisonAverageSource.color};'
+            >${escapeHtml(`${average.label}: ${formatOutcomeAverageValue(average.value)}`)}</span>
+          `)
+          .join("")}
+      </div>
+    `
+    : "";
 
-  const chartLabel = kind === "income"
+  const chartLabelBase = kind === "income"
     ? (showsExpenseSeries
       ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de receitas selecionada"
       : "Grafico comparativo mensal de valor e valor estimado das receitas")
@@ -4592,6 +4671,11 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
       : (showsExpenseSeries
         ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de despesas selecionada"
         : "Grafico comparativo mensal de valor e valor estimado das despesas");
+  const chartLabel = comparisonAverages.length
+    ? `${chartLabelBase}. ${comparisonAverages
+        .map((average) => `${average.label} de ${comparisonAverageSource.name}: ${formatOutcomeAverageValue(average.value)}`)
+        .join(". ")}`
+    : chartLabelBase;
 
   const singleRubricLegendMarkup = isLegacySingleRubricMode && expenseSeries.length
     ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>`
@@ -4629,11 +4713,13 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
     <div class='outcome-evolution-top-series'>${legend}</div>
     ${singleRubricLegendMarkup}
     ${expenseDetailMarkup}
+    ${comparisonAverageLabelMarkup}
     <div class='outcome-evolution-svg-wrap'>
-      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${chartLabel}'>
+      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${escapeHtml(chartLabel)}'>
         ${gridLines}
         ${monthGridLines}
         ${bars}
+        ${comparisonAverageLines}
         ${monthLabels}
       </svg>
       <div class='outcome-evolution-tooltip' aria-hidden='true'></div>
