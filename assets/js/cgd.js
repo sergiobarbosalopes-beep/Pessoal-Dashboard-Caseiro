@@ -4122,6 +4122,7 @@ function buildComparisonSeriesForKind(kind) {
       const key = Number.isFinite(Number(rawId)) ? `id-${Number(rawId)}` : `idx-${index}`;
       const valueTotals = emptyValues();
       const estimatedTotals = emptyValues();
+      const realAverageTotals = emptyValues();
 
       const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
       const comparisonExpenses = expenses
@@ -4131,6 +4132,7 @@ function buildComparisonSeriesForKind(kind) {
             : `idx-${expenseIndex}`;
           const expenseValues = emptyValues();
           const expenseEstimatedValues = emptyValues();
+          const expenseRealAverageValues = emptyValues();
 
           months.forEach((_, monthIndex) => {
             const monthData = expense?.monthData?.[monthIndex] || {};
@@ -4138,18 +4140,25 @@ function buildComparisonSeriesForKind(kind) {
             const rawEstimado = Number(monthData.valorEstimado);
             const normalizedValor = Number.isFinite(rawValor) ? rawValor : 0;
             const normalizedEstimado = Number.isFinite(rawEstimado) ? rawEstimado : 0;
+            const resolvedRealAverage = parseExpenseValue({
+              valor: normalizedValor,
+              valor_estimado: normalizedEstimado
+            });
 
             expenseValues[monthIndex] = normalizedValor;
             expenseEstimatedValues[monthIndex] = normalizedEstimado;
+            expenseRealAverageValues[monthIndex] = resolvedRealAverage;
             valueTotals[monthIndex] += normalizedValor;
             estimatedTotals[monthIndex] += normalizedEstimado;
+            realAverageTotals[monthIndex] += resolvedRealAverage;
           });
 
           return {
             key: expenseKey,
             name: expense?.name || `Despesa ${expenseIndex + 1}`,
             values: expenseValues,
-            estimatedValues: expenseEstimatedValues
+            estimatedValues: expenseEstimatedValues,
+            realAverageValues: expenseRealAverageValues
           };
         })
         .filter((entry) => entry.values.some((value) => value !== 0) || entry.estimatedValues.some((value) => value !== 0));
@@ -4160,6 +4169,7 @@ function buildComparisonSeriesForKind(kind) {
         color: palette[index % palette.length],
         values: valueTotals,
         estimatedValues: estimatedTotals,
+        realAverageValues: realAverageTotals,
         expenses: comparisonExpenses
       };
     })
@@ -4183,6 +4193,7 @@ function buildComparisonExpenseSeriesForRubric(rubric, kind) {
     name: expense.name,
     values: expense.values,
     estimatedValues: expense.estimatedValues,
+    realAverageValues: expense.realAverageValues,
     color: palette[index % palette.length]
   }));
 }
@@ -4430,6 +4441,9 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
       : cgdState.outcomeComparisonHiddenExpenses;
   const rubricSeries = buildComparisonSeriesForKind(kind);
   const isExplicitOutcomeDetail = kind === "outcome" && EXPLICIT_OUTCOME_EXPENSE_DETAIL;
+  const comparisonToolbarClass = isExplicitOutcomeDetail
+    ? "outcome-drilldown-toolbar outcome-comparison-toolbar"
+    : "outcome-drilldown-toolbar";
 
   if (!rubricSeries.length) {
     host.dataset.singleComparisonRubricKey = "";
@@ -4437,7 +4451,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
       resetOutcomeComparisonExpenseDetail();
     }
     host.innerHTML = `
-      <div class='outcome-drilldown-toolbar'>
+      <div class='${comparisonToolbarClass}'>
         <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
       </div>
       <p class='outcome-evolution-empty'>Ainda nao existem valores para comparar valor e valor estimado.</p>
@@ -4508,7 +4522,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
         {
           kind: "real",
           label: "Média Real",
-          values: comparisonAverageSource.values,
+          values: comparisonAverageSource.realAverageValues,
           color: comparisonAverageSource.barColors.realFill,
           dashArray: "8 6"
         },
@@ -4548,7 +4562,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
 
   if (!visibleRubrics.length) {
     host.innerHTML = `
-      <div class='outcome-drilldown-toolbar'>
+      <div class='${comparisonToolbarClass}'>
         <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
       </div>
       <p class='outcome-evolution-empty'>Nenhuma rubrica selecionada. Clica na legenda para voltar a mostrar.</p>
@@ -4559,7 +4573,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
 
   if (isLegacySingleRubricMode && !expenseSeries.length) {
     host.innerHTML = `
-      <div class='outcome-drilldown-toolbar'>
+      <div class='${comparisonToolbarClass}'>
         <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
       </div>
       <div class='outcome-evolution-top-series'>${legend}</div>
@@ -4570,7 +4584,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
 
   if (isLegacySingleRubricMode && !visibleExpenseSeries.length) {
     host.innerHTML = `
-      <div class='outcome-drilldown-toolbar'>
+      <div class='${comparisonToolbarClass}'>
         <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
       </div>
       <div class='outcome-evolution-top-series'>${legend}</div>
@@ -4747,7 +4761,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
     : "";
 
   host.innerHTML = `
-    <div class='outcome-drilldown-toolbar ${isExplicitOutcomeDetailAvailable ? "has-expense-detail" : ""}'>
+    <div class='${comparisonToolbarClass}${isExplicitOutcomeDetailAvailable ? " has-expense-detail" : ""}'>
       ${expenseDetailToggleMarkup}
       <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
     </div>

@@ -328,6 +328,51 @@ const getComparisonBar = (html, key, valueKind) => {
     strokeOpacity: Number(getAttribute(tag, "stroke-opacity") ?? 1)
   };
 };
+const getComparisonBars = (html, key, valueKind) => (
+  (html.match(/<rect(?=[^>]*data-comparison-point)[^>]*>/g) || [])
+    .filter((tag) => (
+      getAttribute(tag, "data-series-key") === key
+      && getAttribute(tag, "data-bar-value-kind") === valueKind
+    ))
+    .map((tag) => ({
+      month: getAttribute(tag, "data-month-name"),
+      value: Number(getAttribute(tag, "data-value")),
+      y: Number(getAttribute(tag, "y")),
+      height: Number(getAttribute(tag, "height"))
+    }))
+);
+const assertComparisonBarsPreserved = (
+  html,
+  key,
+  expectedRealValues,
+  expectedEstimatedValues,
+  computeVerticalScale
+) => {
+  const realBars = getComparisonBars(html, key, "value");
+  const estimatedBars = getComparisonBars(html, key, "estimated");
+  assert.equal(realBars.length, 12);
+  assert.equal(estimatedBars.length, 12);
+  assert.deepEqual(realBars.map((bar) => bar.month), months);
+  assert.deepEqual(estimatedBars.map((bar) => bar.month), months);
+  assert.deepEqual(realBars.map((bar) => bar.value), expectedRealValues);
+  assert.deepEqual(estimatedBars.map((bar) => bar.value), expectedEstimatedValues);
+
+  const verticalScale = computeVerticalScale(
+    [...expectedRealValues, ...expectedEstimatedValues],
+    { top: 20, height: 262 }
+  );
+  const zeroY = verticalScale.yFor(0);
+  [
+    [realBars, expectedRealValues],
+    [estimatedBars, expectedEstimatedValues]
+  ].forEach(([bars, values]) => {
+    bars.forEach((bar, monthIndex) => {
+      const valueY = verticalScale.yFor(values[monthIndex]);
+      assert.equal(bar.y, Number(Math.min(valueY, zeroY).toFixed(2)));
+      assert.equal(bar.height, Number(Math.max(Math.abs(zeroY - valueY), 1).toFixed(2)));
+    });
+  });
+};
 const composeRenderedFillColor = (fill, fillOpacity) => {
   if (fillOpacity === 1) {
     return fill;
@@ -449,6 +494,10 @@ const lineStateBefore = {
 
 explicit.context.window.cgdToggleOutcomeComparisonChart();
 assert.equal(explicit.state.outcomeComparisonChartVisible, true);
+assert.match(
+  explicit.outcomeHost.html,
+  /class='outcome-drilldown-toolbar outcome-comparison-toolbar has-expense-detail'/
+);
 assert.equal(countBars(explicit.outcomeHost.html, "rubric"), 24);
 assert.equal(countBars(explicit.outcomeHost.html, "expense"), 0);
 assert.equal(countBarsForKey(explicit.outcomeHost.html, "id-11"), 24);
@@ -701,18 +750,162 @@ rawNormalization.state.data = rawNormalization.api.buildDataModel(
   })),
   new Set()
 );
+const rawActualValues = [0, -12.3, 1234.5, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+const rawEstimatedValues = [1200, -12.3, 0, 0, 0, 0, 5, 0, 0, -20, 0, 0];
+const rawRealAverageValues = [1200, -12.3, 1234.5, 0, 0, 0, 5, 0, 0, -20, 0, 0];
+const rawRubricSeries = rawNormalization.api.buildComparisonSeriesForKind("outcome")[0];
+assert.deepEqual(Array.from(rawRubricSeries.values), rawActualValues);
+assert.deepEqual(Array.from(rawRubricSeries.estimatedValues), rawEstimatedValues);
+assert.deepEqual(Array.from(rawRubricSeries.realAverageValues), rawRealAverageValues);
 rawNormalization.context.window.cgdToggleOutcomeComparisonChart();
 assert.equal(countBars(rawNormalization.outcomeHost.html, "rubric"), 24);
 assert.match(rawNormalization.outcomeHost.html, /data-value='1200\.00'/);
 assert.match(rawNormalization.outcomeHost.html, /data-value='-12\.30'/);
+assertComparisonBarsPreserved(
+  rawNormalization.outcomeHost.html,
+  "id-77",
+  rawActualValues,
+  rawEstimatedValues,
+  rawNormalization.api.computeChartVerticalScale
+);
 assertDualAverages(rawNormalization.outcomeHost.html, {
   sourceKind: "rubric",
   sourceKey: "id-77",
   name: "Normalizacao",
   color: "#111111",
-  real: 1222.2 / 12,
+  real: 2407.2 / 12,
   estimated: 1172.7 / 12
 });
+rawNormalization.outcomeHost.click("data-outcome-comparison-expense-detail-toggle");
+assertComparisonBarsPreserved(
+  rawNormalization.outcomeHost.html,
+  "id-701",
+  rawActualValues,
+  rawEstimatedValues,
+  rawNormalization.api.computeChartVerticalScale
+);
+assertDualAverages(rawNormalization.outcomeHost.html, {
+  sourceKind: "expense",
+  sourceKey: "id-701",
+  name: "Legacy",
+  color: "#333333",
+  real: 2407.2 / 12,
+  estimated: 1172.7 / 12
+});
+
+const itemByItemFallback = makeContext({ explicitDetail: true });
+const mixedItemA = [
+  { valor: 100, valor_Estimado: 999 },
+  { valor: 0, valor_Estimado: 10 },
+  { valor: null, valor_Estimado: 20 },
+  { valor: "", valor_Estimado: 30 },
+  { valor: Number.NaN, valor_Estimado: 40 },
+  { valor: 0, valor_Estimado: -2 },
+  { valor: -5, valor_Estimado: 500 },
+  { valor: 0, valor_Estimado: 0 },
+  { valor: 0, valor_Estimado: null },
+  { valor: 0, valor_Estimado: Number.POSITIVE_INFINITY },
+  { valor: 0, valor_Estimado: 0 },
+  { valor: 0, valor_Estimado: 5 }
+];
+const mixedItemB = [
+  { valor: 0, valor_estimado: 40 },
+  { valor: 20, valor_estimado: 200 },
+  { valor: 30, valor_estimado: 300 },
+  { valor: 0, valor_estimado: 50 },
+  { valor: 0, valor_estimado: 60 },
+  { valor: 0, valor_estimado: 0 },
+  { valor: 0, valor_estimado: -7 },
+  { valor: 0, valor_estimado: 0 },
+  { valor: 0, valor_estimado: 9 },
+  { valor: 0, valor_estimado: 10 },
+  { valor: 0, valor_estimado: -11 },
+  { valor: 0, valor_estimado: 0 }
+];
+itemByItemFallback.state.data = itemByItemFallback.api.buildDataModel(
+  [{
+    rubrica_id: 81,
+    rubrica_desc: "Fallback item a item",
+    rubrica_tipo: "Despesa",
+    rubrica_seq: 1,
+    mes: 1
+  }],
+  [
+    ...mixedItemA.map((values, index) => ({
+      ...values,
+      rubrica_id: 81,
+      despesa_id: 811,
+      despesa_desc: "Misto legacy",
+      despesa_seq: 1,
+      mes: index + 1,
+      totalizador: true
+    })),
+    ...mixedItemB.map((values, index) => ({
+      ...values,
+      rubrica_id: 81,
+      despesa_id: 812,
+      despesa_desc: "Misto atual",
+      despesa_seq: 2,
+      mes: index + 1,
+      totalizador: true
+    }))
+  ],
+  new Set()
+);
+const mixedRubricActual = [100, 20, 30, 0, 0, 0, -5, 0, 0, 0, 0, 0];
+const mixedRubricEstimated = [1039, 210, 320, 80, 100, -2, 493, 0, 9, 10, -11, 5];
+const mixedRubricResolved = [140, 30, 50, 80, 100, -2, -12, 0, 9, 10, -11, 5];
+const mixedItemAActual = [100, 0, 0, 0, 0, 0, -5, 0, 0, 0, 0, 0];
+const mixedItemAEstimated = [999, 10, 20, 30, 40, -2, 500, 0, 0, 0, 0, 5];
+const mixedItemAResolved = [100, 10, 20, 30, 40, -2, -5, 0, 0, 0, 0, 5];
+const mixedRubricSeries = itemByItemFallback.api.buildComparisonSeriesForKind("outcome")[0];
+assert.deepEqual(Array.from(mixedRubricSeries.values), mixedRubricActual);
+assert.deepEqual(Array.from(mixedRubricSeries.estimatedValues), mixedRubricEstimated);
+assert.deepEqual(Array.from(mixedRubricSeries.realAverageValues), mixedRubricResolved);
+assert.equal(mixedRubricSeries.values[0], 100);
+assert.equal(mixedRubricSeries.realAverageValues[0], 140);
+assert.equal(mixedRubricSeries.expenses[0].realAverageValues[6], -5);
+itemByItemFallback.context.window.cgdToggleOutcomeComparisonChart();
+assertComparisonBarsPreserved(
+  itemByItemFallback.outcomeHost.html,
+  "id-81",
+  mixedRubricActual,
+  mixedRubricEstimated,
+  itemByItemFallback.api.computeChartVerticalScale
+);
+assertDualAverages(itemByItemFallback.outcomeHost.html, {
+  sourceKind: "rubric",
+  sourceKey: "id-81",
+  name: "Fallback item a item",
+  color: "#111111",
+  real: 399 / 12,
+  estimated: 2253 / 12
+});
+itemByItemFallback.outcomeHost.click("data-outcome-comparison-expense-detail-toggle");
+assertComparisonBarsPreserved(
+  itemByItemFallback.outcomeHost.html,
+  "id-811",
+  mixedItemAActual,
+  mixedItemAEstimated,
+  itemByItemFallback.api.computeChartVerticalScale
+);
+assertDualAverages(itemByItemFallback.outcomeHost.html, {
+  sourceKind: "expense",
+  sourceKey: "id-811",
+  name: "Misto legacy",
+  color: "#333333",
+  real: 198 / 12,
+  estimated: 1602 / 12
+});
+assert.deepEqual(
+  Array.from(
+    itemByItemFallback.api
+      .buildComparisonSeriesForKind("outcome")[0]
+      .expenses[0]
+      .realAverageValues
+  ),
+  mixedItemAResolved
+);
 
 const zeroReal = makeContext({
   explicitDetail: true,
@@ -739,10 +932,10 @@ assertDualAverages(zeroReal.outcomeHost.html, {
   sourceKey: "id-88",
   name: "Real zero",
   color: "#111111",
-  real: 0,
+  real: 125.5,
   estimated: 125.5
 });
-assert.match(zeroReal.outcomeHost.html, /Média Real: 0\.00/);
+assert.match(zeroReal.outcomeHost.html, /Média Real: 125\.50/);
 
 const largeAndNegative = makeContext({
   explicitDetail: true,
@@ -871,6 +1064,7 @@ sharedOpening.context.window.cgdToggleOutcomeComparisonChart();
 assert.equal(countBars(sharedOpening.outcomeHost.html, "rubric"), 48);
 assert.equal(countBars(sharedOpening.outcomeHost.html, "expense"), 0);
 assert.doesNotMatch(sharedOpening.outcomeHost.html, /data-outcome-comparison-expense-detail-toggle/);
+assert.doesNotMatch(sharedOpening.outcomeHost.html, /outcome-comparison-toolbar/);
 assertNoComparisonAverages(sharedOpening.outcomeHost.html);
 
 const sharedLegacy = makeContext({
@@ -908,13 +1102,29 @@ assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-outcome-comparison-expen
 assertNoComparisonAverages(sharedLegacy.incomeHost.html);
 
 assert.match(novoBancoHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL = true/);
-assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260812-5/);
-assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260812-1/);
+assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260812-6/);
+assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260812-2/);
 assert.match(styles, /\.nb-theme \.panel-stack\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
 assert.doesNotMatch(cgdHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
 assert.doesNotMatch(coverflexHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
-assert.doesNotMatch(cgdHtml, /20260812-5/);
-assert.doesNotMatch(coverflexHtml, /20260812-5/);
+assert.doesNotMatch(cgdHtml, /20260812-6/);
+assert.doesNotMatch(coverflexHtml, /20260812-6/);
+const comparisonControlRule = styles.match(
+  /\.nb-theme \.outcome-drilldown-toolbar\.outcome-comparison-toolbar > \.outcome-expense-detail-toggle,\s*\.nb-theme \.outcome-drilldown-toolbar\.outcome-comparison-toolbar > \.outcome-drilldown-close-btn \{([^}]*)\}/
+)?.[1] || "";
+assert.match(comparisonControlRule, /height:\s*36px;/);
+assert.match(comparisonControlRule, /min-height:\s*36px;/);
+assert.match(comparisonControlRule, /padding:\s*0 12px;/);
+assert.match(comparisonControlRule, /border:\s*1px solid rgba\(176, 210, 226, 0\.24\);/);
+assert.match(comparisonControlRule, /border-radius:\s*9px;/);
+assert.doesNotMatch(comparisonControlRule, /999px|50%/);
+assert.match(comparisonControlRule, /align-items:\s*center;/);
+assert.match(comparisonControlRule, /justify-content:\s*center;/);
+const comparisonTouchTargetRule = styles.match(
+  /\.nb-theme \.outcome-drilldown-toolbar\.outcome-comparison-toolbar > \.outcome-expense-detail-toggle::before,\s*\.nb-theme \.outcome-drilldown-toolbar\.outcome-comparison-toolbar > \.outcome-drilldown-close-btn::before \{([^}]*)\}/
+)?.[1] || "";
+assert.match(comparisonTouchTargetRule, /inset-block:\s*-4px;/);
+assert.match(comparisonTouchTargetRule, /inset-inline:\s*0;/);
 assert.match(cgd, /function computeOutcomeSeriesAverage\(series\)[\s\S]*return computeTwelveMonthAverage\(series\?\.values\);/);
 assert.ok(
   (cgd.match(/resetOutcomeComparisonRubricSelectionToFirst\(\);\s*renderPanels\(\);/g) || []).length >= 3,

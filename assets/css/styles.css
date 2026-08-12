@@ -2445,6 +2445,33 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   outline-offset: 2px;
 }
 
+.nb-theme .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-expense-detail-toggle,
+.nb-theme .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-drilldown-close-btn {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(176, 210, 226, 0.24);
+  border-radius: 9px;
+  background: rgba(15, 38, 49, 0.72);
+  color: #d6e8f2;
+  font-size: 0.73rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  touch-action: manipulation;
+  transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease, opacity 160ms ease;
+}
+
+.nb-theme .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-expense-detail-toggle[aria-expanded="true"] {
+  border-color: rgba(154, 217, 255, 0.54);
+  background: rgba(33, 73, 94, 0.78);
+}
+
 .outcome-drilldown-close-btn {
   border: 1px solid rgba(176, 210, 226, 0.24);
   border-radius: 999px;
@@ -5101,6 +5128,20 @@ body {
 }
 
 @media (pointer: coarse) {
+  .nb-theme .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-expense-detail-toggle,
+  .nb-theme .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-drilldown-close-btn {
+    min-width: 44px;
+  }
+
+  .nb-theme .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-expense-detail-toggle::before,
+  .nb-theme .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-drilldown-close-btn::before {
+    content: "";
+    position: absolute;
+    inset-block: -4px;
+    inset-inline: 0;
+    background: transparent;
+  }
+
   .menu-link,
   .ghost-btn,
   .history-delete-btn,
