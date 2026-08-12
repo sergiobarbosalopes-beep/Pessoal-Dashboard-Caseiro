@@ -30,15 +30,15 @@ const buildDataModelSource = sliceBetween(
   "\nfunction money("
 );
 const moneySource = sliceBetween(cgd, "function money(", "\nfunction isZeroMoneyDisplayValue");
-const outcomeRubricBuilderSource = sliceBetween(
+const rubricBuildersSource = sliceBetween(
   cgd,
   "function buildOutcomeRubricSeries()",
-  "\nfunction buildIncomeRubricSeries()"
+  "\nfunction buildSavingsRubricSeries()"
 );
-const outcomeExpenseBuilderSource = sliceBetween(
+const expenseBuildersSource = sliceBetween(
   cgd,
   "function buildOutcomeExpenseSeriesForRubric(",
-  "\nfunction buildIncomeExpenseSeriesForRubric("
+  "\nfunction buildSavingsExpenseSeriesForRubric("
 );
 const outcomeChartSource = sliceBetween(
   cgd,
@@ -47,8 +47,13 @@ const outcomeChartSource = sliceBetween(
 );
 const incomeChartSource = sliceBetween(
   cgd,
-  "function renderIncomeEvolutionChart()",
+  "function bindIncomeChartInteractions(",
   "\nfunction bindSavingsChartInteractions("
+);
+const incomeToggleSource = sliceBetween(
+  cgd,
+  "window.cgdToggleIncomeChart =",
+  "\nwindow.cgdToggleIncomeComparisonChart ="
 );
 const outcomeToggleSource = sliceBetween(
   cgd,
@@ -116,7 +121,13 @@ class FakeHost {
   }
 
   querySelector(selector) {
-    if (selector === "[data-outcome-expense-detail-toggle]" && this.html.includes("data-outcome-expense-detail-toggle")) {
+    if (
+      [
+        "[data-outcome-expense-detail-toggle]",
+        "[data-income-revenue-detail-toggle]"
+      ].includes(selector)
+      && this.html.includes(selector.slice(1, -1))
+    ) {
       return {
         focus: () => {
           this.focusCount += 1;
@@ -127,12 +138,13 @@ class FakeHost {
   }
 
   querySelectorAll(selector) {
-    if (selector !== "[data-outcome-chart-toggle]") {
+    const attribute = selector.match(/^\[([^\]]+)\]$/)?.[1];
+    if (!["data-outcome-chart-toggle", "data-income-chart-toggle"].includes(attribute)) {
       return [];
     }
 
-    return Array.from(this.html.matchAll(/data-outcome-chart-toggle='([^']+)'/g), (match) => ({
-      getAttribute: (name) => (name === "data-outcome-chart-toggle" ? match[1] : null)
+    return Array.from(this.html.matchAll(new RegExp(`${attribute}='([^']+)'`, "g")), (match) => ({
+      getAttribute: (name) => (name === attribute ? match[1] : null)
     }));
   }
 
@@ -148,7 +160,25 @@ const monthValues = (base) => months.map((_, index) => base + index);
 const zeroValues = () => months.map(() => 0);
 
 const makeData = () => ({
-  income: [],
+  income: [
+    {
+      id: 31,
+      name: "Salarios",
+      values: monthValues(2000),
+      expenses: [
+        { id: 301, name: "Ordenado", values: monthValues(1000) },
+        { id: 302, name: "Bonus", values: monthValues(200) }
+      ]
+    },
+    {
+      id: 32,
+      name: "Rendas",
+      values: monthValues(500),
+      expenses: [
+        { id: 303, name: "Apartamento", values: monthValues(400) }
+      ]
+    }
+  ],
   savings: [],
   outcome: [
     {
@@ -171,7 +201,13 @@ const makeData = () => ({
   ]
 });
 
-const makeContext = ({ explicitDetail, data = makeData(), outcomeChartVisible = true }) => {
+const makeContext = ({
+  explicitDetail,
+  incomeExplicitDetail = explicitDetail,
+  data = makeData(),
+  outcomeChartVisible = true,
+  incomeChartVisible = true
+}) => {
   const outcomeHost = new FakeHost();
   const incomeHost = new FakeHost();
   const state = {
@@ -182,9 +218,11 @@ const makeContext = ({ explicitDetail, data = makeData(), outcomeChartVisible = 
     outcomeChartExpenseDetailVisible: false,
     outcomeChartExpenseDetailRubricKey: null,
     outcomeDrilldownHiddenExpenses: new Set(),
-    incomeChartVisible: true,
+    incomeChartVisible,
     incomeChartHiddenRubrics: new Set(),
     incomeChartSelectedRubricKey: null,
+    incomeChartRevenueDetailVisible: false,
+    incomeChartRevenueDetailRubricKey: null,
     incomeDrilldownHiddenExpenses: new Set()
   };
   let api;
@@ -197,27 +235,16 @@ const makeContext = ({ explicitDetail, data = makeData(), outcomeChartVisible = 
     Set,
     String,
     EXPENSE_SEQ_COLUMN: "despesa_seq",
+    EXPLICIT_INCOME_REVENUE_DETAIL: incomeExplicitDetail,
     EXPLICIT_OUTCOME_EXPENSE_DETAIL: explicitDetail,
     HIDE_SAVINGS: false,
     THEME_COLORS: {
+      incomeRubrics: ["#115511", "#226622"],
+      incomeExpenses: ["#337733", "#448844", "#559955"],
       outcomeRubrics: ["#111111", "#222222"],
       outcomeExpenses: ["#333333", "#444444", "#555555"]
     },
-    bindIncomeChartInteractions: () => {},
     bindOutcomeChartHover: () => {},
-    buildIncomeExpenseSeriesForRubric: (rubric) => rubric.expenses,
-    buildIncomeRubricSeries: () => [{
-      key: "income-1",
-      name: "Receitas",
-      values: monthValues(1000),
-      color: "#117744",
-      expenses: [{
-        key: "income-expense-1",
-        name: "Salario",
-        values: monthValues(1000),
-        color: "#33aa66"
-      }]
-    }],
     buildSmoothPathData: (points) => points
       .map((point, index) => `${index ? "L" : "M"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
       .join(" "),
@@ -245,8 +272,10 @@ const makeContext = ({ explicitDetail, data = makeData(), outcomeChartVisible = 
     renderPanels: () => {
       if (api) {
         api.renderOutcomeEvolutionChart();
+        api.renderIncomeEvolutionChart();
       }
     },
+    scheduleChartOpenScroll: () => {},
     scheduleChartOpenScrollByHostId: () => {},
     window: {},
     chartApi: null
@@ -257,14 +286,16 @@ const makeContext = ({ explicitDetail, data = makeData(), outcomeChartVisible = 
     ${buildDataModelSource}
     ${moneySource}
     ${escapeHtmlSource}
-    ${outcomeRubricBuilderSource}
-    ${outcomeExpenseBuilderSource}
-    ${outcomeChartSource}
+    ${rubricBuildersSource}
+    ${expenseBuildersSource}
     ${incomeChartSource}
+    ${outcomeChartSource}
+    ${incomeToggleSource}
     ${outcomeToggleSource}
     chartApi = {
       renderIncomeEvolutionChart,
       renderOutcomeEvolutionChart,
+      resetIncomeRubricSelectionToFirst,
       resetOutcomeRubricSelectionToFirst,
       buildDataModel,
       computeOutcomeSeriesAverage,
@@ -281,7 +312,9 @@ const countSeries = (html, kind) => (html.match(new RegExp(`data-series-kind='${
 const countPressed = (html, attribute, pressed) => (
   html.match(new RegExp(`${attribute}='[^']+' aria-pressed='${pressed}'`, "g")) || []
 ).length;
-const countAverageLines = (html) => (html.match(/data-outcome-average-line/g) || []).length;
+const countAverageLines = (html, namespace = "outcome") => (
+  html.match(new RegExp(`data-${namespace}-average-line`, "g")) || []
+).length;
 const countNormalLines = (html) => (html.match(/class='outcome-evolution-line'/g) || []).length;
 const countAreas = (html) => (html.match(/class='outcome-evolution-area'/g) || []).length;
 const extractPointValues = (html) => Array.from(
@@ -292,22 +325,24 @@ const extractAverageValue = (html) => {
   const match = html.match(/data-average-value='([^']+)'/);
   return match ? Number(match[1]) : null;
 };
-const assertAverageLine = (html, { kind, key, color, value }) => {
+const assertAverageLine = (html, { kind, key, color, value, namespace = "outcome" }) => {
   const formattedValue = Number(value).toFixed(2);
-  assert.equal(countAverageLines(html), 1);
+  assert.equal(countAverageLines(html, namespace), 1);
   assert.match(html, new RegExp(`data-average-source-kind='${kind}'`));
   assert.match(html, new RegExp(`data-average-source-key='${key}'`));
-  assert.match(html, new RegExp(`data-outcome-average-line[\\s\\S]*stroke='${color}'`));
+  assert.match(html, new RegExp(`data-${namespace}-average-line[\\s\\S]*stroke='${color}'`));
   assert.match(html, /stroke-dasharray='8 6'/);
   assert.match(html, /vector-effect='non-scaling-stroke'/);
-  assert.match(html, /data-outcome-average-label/);
+  assert.match(html, new RegExp(`data-${namespace}-average-label`));
   assert.match(html, /aria-label='Média - /);
   assert.match(html, new RegExp(`: ${formattedValue.replace(".", "\\.")}\\. Usa valores estimados`));
   assert.match(html, new RegExp(`>Média: ${formattedValue.replace(".", "\\.")}</span>`));
   assert.doesNotMatch(html, new RegExp(`Média[^<']*[0-9],[0-9]{3}\\.${formattedValue.slice(-2)}`));
   assert.match(html, /Usa valores estimados nos meses sem valor real/);
   assert.ok(Math.abs(extractAverageValue(html) - value) < 1e-12);
-  const coordinates = html.match(/data-outcome-average-line[\s\S]*?y1='([^']+)'[\s\S]*?y2='([^']+)'/);
+  const coordinates = html.match(
+    new RegExp(`data-${namespace}-average-line[\\s\\S]*?y1='([^']+)'[\\s\\S]*?y2='([^']+)'`)
+  );
   assert.ok(coordinates);
   assert.equal(coordinates[1], coordinates[2]);
 };
@@ -316,6 +351,15 @@ const assertCollapsedToggle = (html) => {
   assert.match(html, /data-outcome-expense-detail-toggle/);
   assert.match(html, /aria-expanded='false'/);
   assert.match(html, />Mostrar despesas<\/button>/);
+};
+
+const assertCollapsedRevenueToggle = (html) => {
+  assert.match(html, /data-income-revenue-detail-toggle/);
+  assert.match(html, /aria-expanded='false'/);
+  assert.match(html, /aria-controls='income-revenue-detail-series'/);
+  assert.match(html, />Mostrar receitas<\/button>/);
+  assert.match(html, /id='income-revenue-detail-series'[^>]*\shidden(?:\s|>)/);
+  assert.doesNotMatch(html, />Mostrar despesas<\/button>|>Ocultar despesas<\/button>/);
 };
 
 const explicit = makeContext({ explicitDetail: true, outcomeChartVisible: false });
@@ -630,6 +674,140 @@ assertAverageLine(negativeAverage.outcomeHost.html, {
   value: -1234.5
 });
 
+const incomeExplicit = makeContext({
+  explicitDetail: true,
+  incomeChartVisible: false
+});
+incomeExplicit.state.outcomeChartHiddenRubrics.add("id-22");
+incomeExplicit.state.outcomeChartSelectedRubricKey = "id-11";
+incomeExplicit.state.outcomeChartExpenseDetailVisible = true;
+incomeExplicit.state.outcomeChartExpenseDetailRubricKey = "id-11";
+incomeExplicit.state.outcomeDrilldownHiddenExpenses.add("id-11::expense-0-1-102");
+incomeExplicit.api.renderOutcomeEvolutionChart();
+const outcomeStateBeforeIncome = {
+  visible: incomeExplicit.state.outcomeChartVisible,
+  selected: incomeExplicit.state.outcomeChartSelectedRubricKey,
+  detailVisible: incomeExplicit.state.outcomeChartExpenseDetailVisible,
+  detailKey: incomeExplicit.state.outcomeChartExpenseDetailRubricKey,
+  hiddenRubrics: Array.from(incomeExplicit.state.outcomeChartHiddenRubrics),
+  hiddenExpenses: Array.from(incomeExplicit.state.outcomeDrilldownHiddenExpenses)
+};
+
+incomeExplicit.context.window.cgdToggleIncomeChart();
+assert.equal(incomeExplicit.state.incomeChartVisible, true);
+assert.equal(countSeries(incomeExplicit.incomeHost.html, "rubric"), 1);
+assert.equal(countSeries(incomeExplicit.incomeHost.html, "expense"), 0);
+assert.match(incomeExplicit.incomeHost.html, /data-series-key='id-31'/);
+assert.doesNotMatch(incomeExplicit.incomeHost.html, /data-series-key='id-32'/);
+assert.equal(countPressed(incomeExplicit.incomeHost.html, "data-income-chart-toggle", "true"), 1);
+assert.equal(countPressed(incomeExplicit.incomeHost.html, "data-income-chart-toggle", "false"), 1);
+assertCollapsedRevenueToggle(incomeExplicit.incomeHost.html);
+assertAverageLine(incomeExplicit.incomeHost.html, {
+  namespace: "income",
+  kind: "rubric",
+  key: "id-31",
+  color: "#115511",
+  value: 2005.5
+});
+
+incomeExplicit.incomeHost.click("data-income-revenue-detail-toggle");
+assert.equal(countSeries(incomeExplicit.incomeHost.html, "rubric"), 0);
+assert.equal(countSeries(incomeExplicit.incomeHost.html, "expense"), 1);
+assert.match(incomeExplicit.incomeHost.html, /data-series-key='expense-0-0-301'/);
+assert.doesNotMatch(incomeExplicit.incomeHost.html, /data-series-key='expense-0-1-302'/);
+assert.equal(countPressed(incomeExplicit.incomeHost.html, "data-income-drilldown-toggle", "true"), 1);
+assert.equal(countPressed(incomeExplicit.incomeHost.html, "data-income-drilldown-toggle", "false"), 1);
+assert.match(incomeExplicit.incomeHost.html, /aria-expanded='true'/);
+assert.match(incomeExplicit.incomeHost.html, />Ocultar receitas<\/button>/);
+assert.doesNotMatch(incomeExplicit.incomeHost.html, />Ocultar despesas<\/button>/);
+assert.equal(incomeExplicit.incomeHost.focusCount, 1);
+assertAverageLine(incomeExplicit.incomeHost.html, {
+  namespace: "income",
+  kind: "expense",
+  key: "expense-0-0-301",
+  color: "#337733",
+  value: 1005.5
+});
+
+incomeExplicit.incomeHost.click("data-income-drilldown-toggle", "expense-0-1-302");
+assert.equal(countSeries(incomeExplicit.incomeHost.html, "expense"), 2);
+assert.equal(countAverageLines(incomeExplicit.incomeHost.html, "income"), 0);
+incomeExplicit.incomeHost.click("data-income-drilldown-toggle", "expense-0-0-301");
+assert.equal(countSeries(incomeExplicit.incomeHost.html, "expense"), 1);
+assert.match(incomeExplicit.incomeHost.html, /data-series-key='expense-0-1-302'/);
+assertAverageLine(incomeExplicit.incomeHost.html, {
+  namespace: "income",
+  kind: "expense",
+  key: "expense-0-1-302",
+  color: "#448844",
+  value: 205.5
+});
+
+incomeExplicit.incomeHost.click("data-income-revenue-detail-toggle");
+assert.equal(countSeries(incomeExplicit.incomeHost.html, "rubric"), 1);
+assert.equal(countSeries(incomeExplicit.incomeHost.html, "expense"), 0);
+assertCollapsedRevenueToggle(incomeExplicit.incomeHost.html);
+assert.equal(incomeExplicit.incomeHost.focusCount, 2);
+incomeExplicit.incomeHost.click("data-income-revenue-detail-toggle");
+assert.match(incomeExplicit.incomeHost.html, /data-series-key='expense-0-0-301'/);
+assert.doesNotMatch(incomeExplicit.incomeHost.html, /data-series-key='expense-0-1-302'/);
+
+incomeExplicit.incomeHost.click("data-income-revenue-detail-toggle");
+incomeExplicit.incomeHost.click("data-income-chart-toggle", "id-32");
+assert.equal(countSeries(incomeExplicit.incomeHost.html, "rubric"), 2);
+assert.equal(incomeExplicit.state.incomeChartRevenueDetailVisible, false);
+assert.equal(countAverageLines(incomeExplicit.incomeHost.html, "income"), 0);
+assert.doesNotMatch(incomeExplicit.incomeHost.html, /data-income-revenue-detail-toggle/);
+incomeExplicit.incomeHost.click("data-income-chart-toggle", "id-31");
+assert.equal(countSeries(incomeExplicit.incomeHost.html, "rubric"), 1);
+assert.match(incomeExplicit.incomeHost.html, /data-series-key='id-32'/);
+assertCollapsedRevenueToggle(incomeExplicit.incomeHost.html);
+assertAverageLine(incomeExplicit.incomeHost.html, {
+  namespace: "income",
+  kind: "rubric",
+  key: "id-32",
+  color: "#226622",
+  value: 505.5
+});
+
+incomeExplicit.incomeHost.click("data-income-revenue-detail-toggle");
+assert.match(incomeExplicit.incomeHost.html, /data-series-key='expense-1-0-303'/);
+incomeExplicit.incomeHost.click("data-income-chart-close-main");
+assert.equal(incomeExplicit.state.incomeChartVisible, false);
+assert.equal(incomeExplicit.state.incomeChartRevenueDetailVisible, false);
+assert.equal(incomeExplicit.state.incomeChartHiddenRubrics.size, 0);
+assert.equal(incomeExplicit.state.incomeDrilldownHiddenExpenses.size, 0);
+assert.equal(incomeExplicit.incomeHost.html, "");
+incomeExplicit.context.window.cgdToggleIncomeChart();
+assert.equal(countSeries(incomeExplicit.incomeHost.html, "rubric"), 1);
+assert.match(incomeExplicit.incomeHost.html, /data-series-key='id-31'/);
+assertCollapsedRevenueToggle(incomeExplicit.incomeHost.html);
+
+const reorderedIncome = makeData();
+reorderedIncome.income.reverse();
+incomeExplicit.state.data = reorderedIncome;
+incomeExplicit.api.resetIncomeRubricSelectionToFirst();
+incomeExplicit.api.renderIncomeEvolutionChart();
+assert.equal(countSeries(incomeExplicit.incomeHost.html, "rubric"), 1);
+assert.match(incomeExplicit.incomeHost.html, /data-series-key='id-32'/);
+assert.doesNotMatch(incomeExplicit.incomeHost.html, /data-series-key='id-31'/);
+assert.equal(incomeExplicit.state.incomeChartRevenueDetailVisible, false);
+assertAverageLine(incomeExplicit.incomeHost.html, {
+  namespace: "income",
+  kind: "rubric",
+  key: "id-32",
+  color: "#115511",
+  value: 505.5
+});
+assert.deepEqual({
+  visible: incomeExplicit.state.outcomeChartVisible,
+  selected: incomeExplicit.state.outcomeChartSelectedRubricKey,
+  detailVisible: incomeExplicit.state.outcomeChartExpenseDetailVisible,
+  detailKey: incomeExplicit.state.outcomeChartExpenseDetailRubricKey,
+  hiddenRubrics: Array.from(incomeExplicit.state.outcomeChartHiddenRubrics),
+  hiddenExpenses: Array.from(incomeExplicit.state.outcomeDrilldownHiddenExpenses)
+}, outcomeStateBeforeIncome);
+
 assert.equal(explicit.api.formatOutcomeAverageValue(96.25), "96.25");
 assert.equal(explicit.api.formatOutcomeAverageValue(1234.5), "1234.50");
 assert.equal(explicit.api.formatOutcomeAverageValue(12345678.9), "12345678.90");
@@ -731,6 +909,129 @@ assertAverageLine(fallbackContext.outcomeHost.html, {
   value: 25 / 12
 });
 
+const incomeFallback = makeContext({
+  explicitDetail: true,
+  incomeChartVisible: false,
+  data: { income: [], savings: [], outcome: [] }
+});
+const normalizedIncomeModel = incomeFallback.api.buildDataModel(
+  [{
+    rubrica_id: 87,
+    rubrica_desc: "Receita mensal",
+    rubrica_tipo: "Receita",
+    rubrica_seq: 1,
+    mes: 1
+  }],
+  [
+    ...normalizedRows.map((row, index) => ({
+      ...row,
+      ano: 2026,
+      mes: index + 1,
+      rubrica_id: 87,
+      despesa_id: 801,
+      despesa_desc: "Receita mista",
+      despesa_seq: 1,
+      totalizador: true
+    })),
+    ...secondExpenseRows.map((row, index) => ({
+      ...row,
+      ano: 2026,
+      mes: index + 1,
+      rubrica_id: 87,
+      despesa_id: 802,
+      despesa_desc: "Receita nao totalizadora",
+      despesa_seq: 2,
+      totalizador: false
+    }))
+  ]
+);
+assert.deepEqual(Array.from(normalizedIncomeModel.income[0].expenses[0].values), expectedFirstExpenseValues);
+assert.deepEqual(Array.from(normalizedIncomeModel.income[0].expenses[1].values), expectedSecondExpenseValues);
+assert.deepEqual(Array.from(normalizedIncomeModel.income[0].values), expectedFirstExpenseValues);
+incomeFallback.state.data = normalizedIncomeModel;
+incomeFallback.context.window.cgdToggleIncomeChart();
+assert.deepEqual(extractPointValues(incomeFallback.incomeHost.html), expectedFirstExpenseValues);
+assertAverageLine(incomeFallback.incomeHost.html, {
+  namespace: "income",
+  kind: "rubric",
+  key: "id-87",
+  color: "#115511",
+  value: 20
+});
+incomeFallback.incomeHost.click("data-income-revenue-detail-toggle");
+assert.deepEqual(extractPointValues(incomeFallback.incomeHost.html), expectedFirstExpenseValues);
+assertAverageLine(incomeFallback.incomeHost.html, {
+  namespace: "income",
+  kind: "expense",
+  key: "expense-0-0-801",
+  color: "#337733",
+  value: 20
+});
+
+const incomeEmptyItems = makeContext({
+  explicitDetail: true,
+  incomeChartVisible: false,
+  data: {
+    income: [{
+      id: 91,
+      name: "Sem detalhe",
+      values: monthValues(50),
+      expenses: [{ id: 901, name: "Sem valores", values: zeroValues() }]
+    }],
+    savings: [],
+    outcome: []
+  }
+});
+incomeEmptyItems.context.window.cgdToggleIncomeChart();
+assert.equal(countSeries(incomeEmptyItems.incomeHost.html, "rubric"), 1);
+assert.doesNotMatch(incomeEmptyItems.incomeHost.html, /data-income-revenue-detail-toggle/);
+
+const incomeUnnamedItem = makeContext({
+  explicitDetail: true,
+  incomeChartVisible: false,
+  data: {
+    income: [{
+      id: 93,
+      name: "Receita sem nome interno",
+      values: monthValues(70),
+      expenses: [{ id: 903, name: "", values: monthValues(70) }]
+    }],
+    savings: [],
+    outcome: []
+  }
+});
+incomeUnnamedItem.context.window.cgdToggleIncomeChart();
+incomeUnnamedItem.incomeHost.click("data-income-revenue-detail-toggle");
+assert.match(incomeUnnamedItem.incomeHost.html, />Receita 1<\/button>/);
+assert.doesNotMatch(incomeUnnamedItem.incomeHost.html, />Despesa 1<\/button>/);
+
+const maliciousIncome = makeContext({
+  explicitDetail: true,
+  incomeChartVisible: false,
+  data: {
+    income: [{
+      id: 92,
+      name: "Receita <img src=x onerror=alert(1)>",
+      values: monthValues(90),
+      expenses: [{
+        id: 902,
+        name: "Item '><svg onload=alert(2)>",
+        values: monthValues(10)
+      }]
+    }],
+    savings: [],
+    outcome: []
+  }
+});
+maliciousIncome.context.window.cgdToggleIncomeChart();
+assert.match(maliciousIncome.incomeHost.html, /Receita &lt;img/);
+assert.doesNotMatch(maliciousIncome.incomeHost.html, /<img/);
+assert.match(maliciousIncome.incomeHost.html, /aria-label='Média - Receita &lt;img/);
+maliciousIncome.incomeHost.click("data-income-revenue-detail-toggle");
+assert.match(maliciousIncome.incomeHost.html, /Item &#39;&gt;&lt;svg/);
+assert.doesNotMatch(maliciousIncome.incomeHost.html, /<svg onload/);
+assert.match(maliciousIncome.incomeHost.html, /aria-label='Média - Item &#39;&gt;&lt;svg/);
+
 const sharedOpening = makeContext({
   explicitDetail: false,
   outcomeChartVisible: false
@@ -743,7 +1044,7 @@ assert.equal(countAverageLines(sharedOpening.outcomeHost.html), 0);
 const sharedLegacy = makeContext({
   explicitDetail: false,
   data: {
-    income: [],
+    income: [makeData().income[0]],
     savings: [],
     outcome: [makeData().outcome[0]]
   }
@@ -755,21 +1056,31 @@ assert.doesNotMatch(sharedLegacy.outcomeHost.html, /data-outcome-expense-detail-
 assert.equal(countAverageLines(sharedLegacy.outcomeHost.html), 0);
 
 sharedLegacy.api.renderIncomeEvolutionChart();
-assert.match(sharedLegacy.incomeHost.html, /data-series-name='Salario'/);
-assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-series-name='Receitas'/);
+assert.match(sharedLegacy.incomeHost.html, /data-series-name='Ordenado'/);
+assert.match(sharedLegacy.incomeHost.html, /data-series-name='Bonus'/);
+assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-series-name='Salarios'/);
+assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-income-revenue-detail-toggle/);
 assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-outcome-average/);
+assert.equal(countAverageLines(sharedLegacy.incomeHost.html, "income"), 0);
 
 assert.match(novoBancoHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL = true/);
-assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260812-6/);
-assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260812-2/);
+assert.match(novoBancoHtml, /DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL = true/);
+assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260812-7/);
+assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260812-3/);
 assert.doesNotMatch(cgdHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
 assert.doesNotMatch(coverflexHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
+assert.doesNotMatch(cgdHtml, /DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL/);
+assert.doesNotMatch(coverflexHtml, /DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL/);
 assert.doesNotMatch(cgdHtml, /20260812-1/);
 assert.doesNotMatch(coverflexHtml, /20260812-1/);
 assert.doesNotMatch(cgdHtml, /20260812-2/);
 assert.doesNotMatch(coverflexHtml, /20260812-2/);
+assert.doesNotMatch(cgdHtml, /20260812-3/);
+assert.doesNotMatch(coverflexHtml, /20260812-3/);
 assert.doesNotMatch(cgdHtml, /20260812-6/);
 assert.doesNotMatch(coverflexHtml, /20260812-6/);
+assert.doesNotMatch(cgdHtml, /20260812-7/);
+assert.doesNotMatch(coverflexHtml, /20260812-7/);
 assert.match(styles, /\.outcome-evolution-tooltip-series\s*\{\s*font-size:\s*0\.73rem;/);
 const averageTextTag = cgd.match(/<span\s+[^>]*data-outcome-average-label[^>]*>/)?.[0] || "";
 assert.match(averageTextTag, /class='outcome-evolution-tooltip-series'/);
@@ -785,6 +1096,14 @@ assert.ok(
     ) || []
   ).length >= 3,
   "Every year-load render path must reset to the first valid rubric"
+);
+assert.ok(
+  (
+    cgd.match(
+      /resetIncomeRubricSelectionToFirst\(\);\s*resetIncomeComparisonRubricSelectionToFirst\(\);\s*resetOutcomeRubricSelectionToFirst\(\);\s*resetOutcomeComparisonRubricSelectionToFirst\(\);\s*renderPanels\(\);/g
+    ) || []
+  ).length >= 3,
+  "Every year-load render path must independently reset both income charts"
 );
 
 console.log("Outcome expense detail regression checks passed.");

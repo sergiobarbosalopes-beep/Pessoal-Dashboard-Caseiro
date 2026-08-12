@@ -19,8 +19,12 @@ const cgdState = {
   incomeComparisonChartVisible: false,
   incomeComparisonHiddenRubrics: new Set(),
   incomeComparisonHiddenExpenses: new Set(),
+  incomeComparisonRevenueDetailVisible: false,
+  incomeComparisonRevenueDetailRubricKey: null,
   incomeChartHiddenRubrics: new Set(),
   incomeChartSelectedRubricKey: null,
+  incomeChartRevenueDetailVisible: false,
+  incomeChartRevenueDetailRubricKey: null,
   incomeDrilldownHiddenExpenses: new Set(),
   savingsChartVisible: false,
   savingsComparisonChartVisible: false,
@@ -53,6 +57,7 @@ const tableName = (suffix) => `${TABLE_PREFIX}_${suffix}`;
 const HIDE_SAVINGS = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_SAVINGS);
 const HIDE_BALANCE = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_BALANCE);
 const HIDE_AVAILABLE_ROW = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_AVAILABLE_ROW);
+const EXPLICIT_INCOME_REVENUE_DETAIL = Boolean(window.DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL);
 const EXPLICIT_OUTCOME_EXPENSE_DETAIL = Boolean(window.DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL);
 const TOTALIZER_PEOPLE = Array.isArray(window.DASHBOARD_TOTALIZER_PEOPLE) && window.DASHBOARD_TOTALIZER_PEOPLE.length
   ? window.DASHBOARD_TOTALIZER_PEOPLE.map((entry) => String(entry || "").trim()).filter(Boolean)
@@ -2664,7 +2669,7 @@ function buildIncomeRubricSeries() {
       const expenses = Array.isArray(rubric?.expenses)
         ? rubric.expenses.map((expense, expenseIndex) => ({
             key: `expense-${index}-${expenseIndex}-${Number(expense?.id) || 0}`,
-            name: expense?.name || `Despesa ${expenseIndex + 1}`,
+            name: expense?.name || `Receita ${expenseIndex + 1}`,
             values: months.map((_, monthIndex) => {
               const numeric = Number(expense?.values?.[monthIndex]);
               return Number.isFinite(numeric) ? numeric : 0;
@@ -2743,7 +2748,7 @@ function buildIncomeExpenseSeriesForRubric(rubric) {
   return (rubric.expenses || [])
     .map((expense, index) => ({
       key: expense.key || `expense-${index}`,
-      name: expense.name || `Despesa ${index + 1}`,
+      name: expense.name || `Receita ${index + 1}`,
       values: months.map((_, monthIndex) => {
         const numeric = Number(expense.values?.[monthIndex]);
         return Number.isFinite(numeric) ? numeric : 0;
@@ -2784,11 +2789,30 @@ function bindIncomeChartInteractions(host) {
       cgdState.incomeChartVisible = false;
       cgdState.incomeChartSelectedRubricKey = null;
       cgdState.incomeChartHiddenRubrics.clear();
+      resetIncomeRevenueDetail();
       renderPanels();
       document.dispatchEvent(new Event("cgd:rendered"));
       requestAnimationFrame(() => {
         ensurePanelHeadVisible("income");
       });
+      return;
+    }
+
+    const revenueDetailToggle = event.target.closest("[data-income-revenue-detail-toggle]");
+    if (revenueDetailToggle && EXPLICIT_INCOME_REVENUE_DETAIL) {
+      const detailConfig = getExplicitDetailConfig("income", "evolution");
+      const activeRubricKey = String(host.dataset.singleIncomeRubricKey || "").trim();
+      if (!activeRubricKey) {
+        return;
+      }
+
+      if (isExplicitDetailExpanded(detailConfig, activeRubricKey)) {
+        resetExplicitItemDetail(detailConfig);
+      } else {
+        expandExplicitItemDetail(detailConfig, activeRubricKey);
+      }
+      renderIncomeEvolutionChart();
+      focusExplicitDetailToggle(host, detailConfig);
       return;
     }
 
@@ -2812,6 +2836,7 @@ function bindIncomeChartInteractions(host) {
     if (drilldownTarget) {
       const key = String(drilldownTarget.getAttribute("data-income-chart-drilldown") || "").trim();
       const isSameSelectedRubric = cgdState.incomeChartSelectedRubricKey === key;
+      resetIncomeRevenueDetail();
 
       if (isSameSelectedRubric) {
         cgdState.incomeChartSelectedRubricKey = null;
@@ -2835,6 +2860,7 @@ function bindIncomeChartInteractions(host) {
     if (toggleBtn) {
       const key = String(toggleBtn.getAttribute("data-income-chart-toggle") || "").trim();
       if (key) {
+        resetIncomeRevenueDetail();
         if (cgdState.incomeChartHiddenRubrics.has(key)) {
           cgdState.incomeChartHiddenRubrics.delete(key);
         } else {
@@ -2850,6 +2876,7 @@ function bindIncomeChartInteractions(host) {
 
     const selectAllBtn = event.target.closest("[data-income-chart-select-all]");
     if (selectAllBtn) {
+      resetIncomeRevenueDetail();
       cgdState.incomeChartHiddenRubrics.clear();
       renderIncomeEvolutionChart();
       return;
@@ -2857,6 +2884,7 @@ function bindIncomeChartInteractions(host) {
 
     const deselectAllBtn = event.target.closest("[data-income-chart-deselect-all]");
     if (deselectAllBtn) {
+      resetIncomeRevenueDetail();
       host.querySelectorAll("[data-income-chart-toggle]").forEach((item) => {
         const key = String(item.getAttribute("data-income-chart-toggle") || "").trim();
         if (key) {
@@ -2894,6 +2922,19 @@ function renderIncomeEvolutionChart() {
   const visibleSeries = series.filter((entry) => !cgdState.incomeChartHiddenRubrics.has(entry.key));
   const singleVisibleRubric = visibleSeries.length === 1 ? visibleSeries[0] : null;
   host.dataset.singleIncomeRubricKey = singleVisibleRubric ? singleVisibleRubric.key : "";
+  const detailConfig = getExplicitDetailConfig("income", "evolution");
+  if (
+    detailConfig.enabled
+    && (
+      !singleVisibleRubric
+      || (
+        cgdState.incomeChartRevenueDetailVisible
+        && cgdState.incomeChartRevenueDetailRubricKey !== singleVisibleRubric.key
+      )
+    )
+  ) {
+    resetExplicitItemDetail(detailConfig);
+  }
 
   const legend = series
     .map((entry) => {
@@ -2919,10 +2960,26 @@ function renderIncomeEvolutionChart() {
     return;
   }
 
-  const isSingleRubricMode = Boolean(singleVisibleRubric);
-  const expenseSeries = isSingleRubricMode ? buildIncomeExpenseSeriesForRubric(singleVisibleRubric) : [];
-  const expenseStateKey = (expenseKey) => `${singleVisibleRubric.key}::${expenseKey}`;
-  const visibleExpenseSeries = isSingleRubricMode
+  const isLegacySingleRubricMode = Boolean(singleVisibleRubric) && !detailConfig.enabled;
+  const expenseSeries = singleVisibleRubric ? buildIncomeExpenseSeriesForRubric(singleVisibleRubric) : [];
+  const expenseStateKey = (expenseKey) => `${singleVisibleRubric?.key || ""}::${expenseKey}`;
+  const isExplicitRevenueDetailAvailable = Boolean(
+    detailConfig.enabled
+    && singleVisibleRubric
+    && expenseSeries.length
+  );
+  if (
+    detailConfig.enabled
+    && !isExplicitRevenueDetailAvailable
+    && cgdState.incomeChartRevenueDetailVisible
+  ) {
+    resetExplicitItemDetail(detailConfig);
+  }
+  const isExplicitRevenueDetailExpanded = Boolean(
+    isExplicitRevenueDetailAvailable
+    && isExplicitDetailExpanded(detailConfig, singleVisibleRubric.key)
+  );
+  const visibleExpenseSeries = isLegacySingleRubricMode || isExplicitRevenueDetailExpanded
     ? expenseSeries.filter((entry) => !cgdState.incomeDrilldownHiddenExpenses.has(expenseStateKey(entry.key)))
     : [];
 
@@ -2934,25 +2991,33 @@ function renderIncomeEvolutionChart() {
   const monthStep = plotWidth / (months.length - 1);
   const plotBottom = padding.top + plotHeight;
 
-  const plottedSeries = isSingleRubricMode ? visibleExpenseSeries : visibleSeries;
-  if (isSingleRubricMode && !expenseSeries.length) {
+  const rubricPlotSeries = visibleSeries.map((entry) => ({ ...entry, seriesKind: "rubric" }));
+  const expensePlotSeries = visibleExpenseSeries.map((entry) => ({ ...entry, seriesKind: "expense" }));
+  const plottedSeries = isLegacySingleRubricMode || isExplicitRevenueDetailExpanded
+    ? expensePlotSeries
+    : rubricPlotSeries;
+  const averageSource = detailConfig.enabled && plottedSeries.length === 1
+    ? plottedSeries[0]
+    : null;
+  const averageValue = averageSource ? computeOutcomeSeriesAverage(averageSource) : null;
+  if (isLegacySingleRubricMode && !expenseSeries.length) {
     host.innerHTML = `
       <div class='outcome-drilldown-toolbar'>
         <button type='button' class='outcome-drilldown-close-btn' data-income-chart-close-main>Fechar</button>
       </div>
       <div class='outcome-evolution-top-series'>${legend}</div>
-      <p class='outcome-evolution-empty'>Esta rubrica nao tem despesas com valores ao longo do ano.</p>
+      <p class='outcome-evolution-empty'>Esta rubrica nao tem receitas com valores ao longo do ano.</p>
     `;
     return;
   }
 
-  if (isSingleRubricMode && !visibleExpenseSeries.length) {
+  if (isLegacySingleRubricMode && !visibleExpenseSeries.length) {
     host.innerHTML = `
       <div class='outcome-drilldown-toolbar'>
         <button type='button' class='outcome-drilldown-close-btn' data-income-chart-close-main>Fechar</button>
       </div>
       <div class='outcome-evolution-top-series'>${legend}</div>
-      <p class='outcome-evolution-empty'>Nenhuma despesa selecionada. Clica na legenda para voltar a mostrar.</p>
+      <p class='outcome-evolution-empty'>Nenhuma receita selecionada. Clica na legenda para voltar a mostrar.</p>
       <div class='outcome-evolution-top-series'>${expenseSeries
         .map((entry) => {
           const isVisible = !cgdState.incomeDrilldownHiddenExpenses.has(expenseStateKey(entry.key));
@@ -2997,8 +3062,9 @@ function renderIncomeEvolutionChart() {
 
   const lines = plottedSeries
     .map((entry) => {
-      const isSelected = !isSingleRubricMode && entry.key === cgdState.incomeChartSelectedRubricKey;
-      const strokeWidth = isSingleRubricMode ? "0.6" : "1.3";
+      const isRubricSeries = entry.seriesKind === "rubric";
+      const isSelected = isRubricSeries && entry.key === cgdState.incomeChartSelectedRubricKey;
+      const strokeWidth = isRubricSeries ? "1.3" : "0.6";
       const selectionClass = isSelected ? "is-selected" : "";
       const points = entry.values.map((value, monthIndex) => ({ x: xFor(monthIndex), y: yFor(value), value, monthIndex }));
       const pathData = buildSmoothPathData(points);
@@ -3011,7 +3077,12 @@ function renderIncomeEvolutionChart() {
         })
         .join("");
       return `
-        <g class='outcome-evolution-series ${selectionClass}' ${isSingleRubricMode ? "" : `data-income-chart-drilldown='${escapeHtml(entry.key)}'`}>
+        <g
+          class='outcome-evolution-series ${selectionClass}'
+          data-series-kind='${entry.seriesKind}'
+          data-series-key='${escapeHtml(entry.key)}'
+          ${isRubricSeries && !singleVisibleRubric ? `data-income-chart-drilldown='${escapeHtml(entry.key)}'` : ""}
+        >
           <path d='${areaPath}' class='outcome-evolution-area' fill='${entry.color}' fill-opacity='0.10' />
           <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='${strokeWidth}' stroke-linecap='round' stroke-linejoin='round' />
           ${pointsMarkup}
@@ -3020,7 +3091,53 @@ function renderIncomeEvolutionChart() {
     })
     .join("");
 
-  const expenseLegend = isSingleRubricMode
+  const averageLine = averageSource && Number.isFinite(averageValue)
+    ? (() => {
+        const averageY = yFor(averageValue);
+        const formattedAverage = formatOutcomeAverageValue(averageValue);
+        const averageAccessibleLabel = `Média - ${averageSource.name}: ${formattedAverage}. Usa valores estimados nos meses sem valor real.`;
+        return `
+          <g
+            class='outcome-evolution-average'
+            data-income-average
+            data-average-source-kind='${averageSource.seriesKind}'
+            data-average-source-key='${escapeHtml(averageSource.key)}'
+            data-average-value='${averageValue}'
+            role='img'
+            aria-label='${escapeHtml(averageAccessibleLabel)}'
+            pointer-events='none'
+          >
+            <title>${escapeHtml(averageAccessibleLabel)}</title>
+            <line
+              data-income-average-line
+              x1='${padding.left}'
+              y1='${averageY.toFixed(2)}'
+              x2='${chartWidth - padding.right}'
+              y2='${averageY.toFixed(2)}'
+              fill='none'
+              stroke='${averageSource.color}'
+              stroke-width='1.8'
+              stroke-dasharray='8 6'
+              stroke-linecap='butt'
+              vector-effect='non-scaling-stroke'
+            />
+          </g>
+        `;
+      })()
+    : "";
+  const averageLabelMarkup = averageSource && Number.isFinite(averageValue)
+    ? `
+      <div class='outcome-evolution-top-series' data-income-average-label-row aria-hidden='true'>
+        <span
+          class='outcome-evolution-tooltip-series'
+          data-income-average-label
+          style='color:${averageSource.color};'
+        >${escapeHtml(`Média: ${formatOutcomeAverageValue(averageValue)}`)}</span>
+      </div>
+    `
+    : "";
+
+  const expenseLegend = isLegacySingleRubricMode || isExplicitRevenueDetailExpanded
     ? expenseSeries
         .map((entry) => {
           const isVisible = !cgdState.incomeDrilldownHiddenExpenses.has(expenseStateKey(entry.key));
@@ -3030,21 +3147,55 @@ function renderIncomeEvolutionChart() {
         .join("")
     : "";
 
-  const singleRubricLegendMarkup = isSingleRubricMode && expenseSeries.length
+  const singleRubricLegendMarkup = isLegacySingleRubricMode && expenseSeries.length
     ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>`
     : "";
+  const revenueDetailToggleMarkup = isExplicitRevenueDetailAvailable
+    ? `
+      <button
+        type='button'
+        class='outcome-evolution-control-btn outcome-expense-detail-toggle'
+        data-income-revenue-detail-toggle
+        aria-expanded='${isExplicitRevenueDetailExpanded ? "true" : "false"}'
+        aria-controls='income-revenue-detail-series'
+      >${isExplicitRevenueDetailExpanded ? "Ocultar receitas" : "Mostrar receitas"}</button>
+    `
+    : "";
+  const revenueDetailMarkup = isExplicitRevenueDetailAvailable
+    ? `
+      <div
+        id='income-revenue-detail-series'
+        class='outcome-expense-detail'
+        role='group'
+        aria-label='Receitas da rubrica selecionada'
+        ${isExplicitRevenueDetailExpanded ? "" : "hidden"}
+      >
+        ${isExplicitRevenueDetailExpanded ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>` : ""}
+      </div>
+    `
+    : "";
+  const chartAriaLabelBase = isLegacySingleRubricMode || isExplicitRevenueDetailExpanded
+    ? "Grafico de linhas com evolucao das receitas da rubrica selecionada"
+    : "Grafico de linhas com evolucao das rubricas de receitas";
+  const chartAriaLabel = averageSource && Number.isFinite(averageValue)
+    ? `${chartAriaLabelBase}. Média de ${averageSource.name}: ${formatOutcomeAverageValue(averageValue)}, usando valores estimados nos meses sem valor real`
+    : chartAriaLabelBase;
 
   host.innerHTML = `
-    <div class='outcome-drilldown-toolbar'>
+    <div class='outcome-drilldown-toolbar ${isExplicitRevenueDetailAvailable ? "has-expense-detail" : ""}'>
+      ${revenueDetailToggleMarkup}
       <button type='button' class='outcome-drilldown-close-btn' data-income-chart-close-main>Fechar</button>
     </div>
     <div class='outcome-evolution-top-series'>${legend}</div>
     ${singleRubricLegendMarkup}
+    ${revenueDetailMarkup}
+    ${averageLabelMarkup}
     <div class='outcome-evolution-svg-wrap'>
-      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${isSingleRubricMode ? "Grafico de linhas com evolucao das despesas da rubrica selecionada" : "Grafico de linhas com evolucao das rubricas de receitas"}'>
+      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${escapeHtml(chartAriaLabel)}'>
         ${gridLines}
         ${monthGridLines}
         ${lines}
+        ${averageLine}
         ${monthLabels}
       </svg>
       <div class='outcome-evolution-tooltip' aria-hidden='true'></div>
@@ -3337,13 +3488,11 @@ function renderSavingsEvolutionChart() {
 }
 
 function resetOutcomeExpenseDetail() {
-  if (!EXPLICIT_OUTCOME_EXPENSE_DETAIL) {
-    return;
-  }
+  resetExplicitItemDetail(getExplicitDetailConfig("outcome", "evolution"));
+}
 
-  cgdState.outcomeChartExpenseDetailVisible = false;
-  cgdState.outcomeChartExpenseDetailRubricKey = null;
-  cgdState.outcomeDrilldownHiddenExpenses.clear();
+function resetIncomeRevenueDetail() {
+  resetExplicitItemDetail(getExplicitDetailConfig("income", "evolution"));
 }
 
 function resetHiddenSeriesSelectionToFirst(series, hiddenSet) {
@@ -3360,25 +3509,156 @@ function resetHiddenExpenseSelectionToFirst(rubricKey, expenseSeries, hiddenSet)
   });
 }
 
-function resetOutcomeRubricSelectionToFirst() {
-  if (!EXPLICIT_OUTCOME_EXPENSE_DETAIL) {
+function getExplicitDetailConfig(kind, renderer) {
+  const isComparison = renderer === "comparison";
+  if (kind === "income") {
+    return {
+      enabled: EXPLICIT_INCOME_REVENUE_DETAIL,
+      detailVisibleStateKey: isComparison
+        ? "incomeComparisonRevenueDetailVisible"
+        : "incomeChartRevenueDetailVisible",
+      detailRubricKeyStateKey: isComparison
+        ? "incomeComparisonRevenueDetailRubricKey"
+        : "incomeChartRevenueDetailRubricKey",
+      selectedRubricStateKey: isComparison ? null : "incomeChartSelectedRubricKey",
+      hiddenRubricsSet: isComparison
+        ? cgdState.incomeComparisonHiddenRubrics
+        : cgdState.incomeChartHiddenRubrics,
+      hiddenItemsSet: isComparison
+        ? cgdState.incomeComparisonHiddenExpenses
+        : cgdState.incomeDrilldownHiddenExpenses,
+      buildRubricSeries: isComparison
+        ? () => buildComparisonSeriesForKind("income")
+        : buildIncomeRubricSeries,
+      buildItemSeries: isComparison
+        ? (rubric) => buildComparisonExpenseSeriesForRubric(rubric, "income")
+        : buildIncomeExpenseSeriesForRubric,
+      toggleSelector: isComparison
+        ? "[data-income-comparison-revenue-detail-toggle]"
+        : "[data-income-revenue-detail-toggle]",
+      toggleAttribute: isComparison
+        ? "data-income-comparison-revenue-detail-toggle"
+        : "data-income-revenue-detail-toggle",
+      detailSeriesId: isComparison
+        ? "income-comparison-revenue-detail-series"
+        : "income-revenue-detail-series",
+      itemPlural: "receitas",
+      detailGroupLabel: isComparison
+        ? "Receitas da rubrica selecionada no grafico comparativo"
+        : "Receitas da rubrica selecionada"
+    };
+  }
+  if (kind === "outcome") {
+    return {
+      enabled: EXPLICIT_OUTCOME_EXPENSE_DETAIL,
+      detailVisibleStateKey: isComparison
+        ? "outcomeComparisonExpenseDetailVisible"
+        : "outcomeChartExpenseDetailVisible",
+      detailRubricKeyStateKey: isComparison
+        ? "outcomeComparisonExpenseDetailRubricKey"
+        : "outcomeChartExpenseDetailRubricKey",
+      selectedRubricStateKey: isComparison ? null : "outcomeChartSelectedRubricKey",
+      hiddenRubricsSet: isComparison
+        ? cgdState.outcomeComparisonHiddenRubrics
+        : cgdState.outcomeChartHiddenRubrics,
+      hiddenItemsSet: isComparison
+        ? cgdState.outcomeComparisonHiddenExpenses
+        : cgdState.outcomeDrilldownHiddenExpenses,
+      buildRubricSeries: isComparison
+        ? () => buildComparisonSeriesForKind("outcome")
+        : buildOutcomeRubricSeries,
+      buildItemSeries: isComparison
+        ? (rubric) => buildComparisonExpenseSeriesForRubric(rubric, "outcome")
+        : buildOutcomeExpenseSeriesForRubric,
+      toggleSelector: isComparison
+        ? "[data-outcome-comparison-expense-detail-toggle]"
+        : "[data-outcome-expense-detail-toggle]",
+      toggleAttribute: isComparison
+        ? "data-outcome-comparison-expense-detail-toggle"
+        : "data-outcome-expense-detail-toggle",
+      detailSeriesId: isComparison
+        ? "outcome-comparison-expense-detail-series"
+        : "outcome-expense-detail-series",
+      itemPlural: "despesas",
+      detailGroupLabel: isComparison
+        ? "Despesas da rubrica selecionada no grafico comparativo"
+        : "Despesas da rubrica selecionada"
+    };
+  }
+  return null;
+}
+
+function resetExplicitItemDetail(config) {
+  if (!config?.enabled) {
     return;
   }
+  cgdState[config.detailVisibleStateKey] = false;
+  cgdState[config.detailRubricKeyStateKey] = null;
+  config.hiddenItemsSet.clear();
+}
 
-  const rubricSeries = buildOutcomeRubricSeries();
-  cgdState.outcomeChartSelectedRubricKey = null;
-  resetHiddenSeriesSelectionToFirst(rubricSeries, cgdState.outcomeChartHiddenRubrics);
-  resetOutcomeExpenseDetail();
+function isExplicitDetailExpanded(config, rubricKey) {
+  return Boolean(
+    config?.enabled
+    && rubricKey
+    && cgdState[config.detailVisibleStateKey]
+    && cgdState[config.detailRubricKeyStateKey] === rubricKey
+  );
+}
+
+function resetExplicitRubricSelectionToFirst(config) {
+  if (!config?.enabled) {
+    return;
+  }
+  const rubricSeries = config.buildRubricSeries();
+  if (config.selectedRubricStateKey) {
+    cgdState[config.selectedRubricStateKey] = null;
+  }
+  resetHiddenSeriesSelectionToFirst(rubricSeries, config.hiddenRubricsSet);
+  resetExplicitItemDetail(config);
+}
+
+function resetExplicitItemSelectionToFirst(config, rubricKey) {
+  if (!config?.enabled) {
+    return;
+  }
+  const activeRubric = config.buildRubricSeries().find((entry) => entry.key === rubricKey);
+  const itemSeries = config.buildItemSeries(activeRubric);
+  resetHiddenExpenseSelectionToFirst(rubricKey, itemSeries, config.hiddenItemsSet);
+}
+
+function expandExplicitItemDetail(config, rubricKey) {
+  if (!config?.enabled || !rubricKey) {
+    return;
+  }
+  cgdState[config.detailVisibleStateKey] = true;
+  cgdState[config.detailRubricKeyStateKey] = rubricKey;
+  resetExplicitItemSelectionToFirst(config, rubricKey);
+}
+
+function focusExplicitDetailToggle(host, config) {
+  if (!config?.enabled) {
+    return;
+  }
+  requestAnimationFrame(() => {
+    host.querySelector(config.toggleSelector)?.focus();
+  });
+}
+
+function resetOutcomeRubricSelectionToFirst() {
+  resetExplicitRubricSelectionToFirst(getExplicitDetailConfig("outcome", "evolution"));
 }
 
 function resetOutcomeExpenseSelectionToFirst(rubricKey) {
-  if (!EXPLICIT_OUTCOME_EXPENSE_DETAIL) {
-    return;
-  }
+  resetExplicitItemSelectionToFirst(getExplicitDetailConfig("outcome", "evolution"), rubricKey);
+}
 
-  const activeRubric = buildOutcomeRubricSeries().find((entry) => entry.key === rubricKey);
-  const expenseSeries = buildOutcomeExpenseSeriesForRubric(activeRubric);
-  resetHiddenExpenseSelectionToFirst(rubricKey, expenseSeries, cgdState.outcomeDrilldownHiddenExpenses);
+function resetIncomeRubricSelectionToFirst() {
+  resetExplicitRubricSelectionToFirst(getExplicitDetailConfig("income", "evolution"));
+}
+
+function resetIncomeRevenueSelectionToFirst(rubricKey) {
+  resetExplicitItemSelectionToFirst(getExplicitDetailConfig("income", "evolution"), rubricKey);
 }
 
 function computeTwelveMonthAverage(values) {
@@ -4155,7 +4435,7 @@ function buildComparisonSeriesForKind(kind) {
 
           return {
             key: expenseKey,
-            name: expense?.name || `Despesa ${expenseIndex + 1}`,
+            name: expense?.name || `${kind === "income" ? "Receita" : "Despesa"} ${expenseIndex + 1}`,
             values: expenseValues,
             estimatedValues: expenseEstimatedValues,
             realAverageValues: expenseRealAverageValues
@@ -4199,39 +4479,31 @@ function buildComparisonExpenseSeriesForRubric(rubric, kind) {
 }
 
 function resetOutcomeComparisonExpenseDetail() {
-  if (!EXPLICIT_OUTCOME_EXPENSE_DETAIL) {
-    return;
-  }
+  resetExplicitItemDetail(getExplicitDetailConfig("outcome", "comparison"));
+}
 
-  cgdState.outcomeComparisonExpenseDetailVisible = false;
-  cgdState.outcomeComparisonExpenseDetailRubricKey = null;
-  cgdState.outcomeComparisonHiddenExpenses.clear();
+function resetIncomeComparisonRevenueDetail() {
+  resetExplicitItemDetail(getExplicitDetailConfig("income", "comparison"));
 }
 
 function resetOutcomeComparisonRubricSelectionToFirst() {
-  if (!EXPLICIT_OUTCOME_EXPENSE_DETAIL) {
-    return;
-  }
+  resetExplicitRubricSelectionToFirst(getExplicitDetailConfig("outcome", "comparison"));
+}
 
-  const rubricSeries = buildComparisonSeriesForKind("outcome");
-  resetHiddenSeriesSelectionToFirst(rubricSeries, cgdState.outcomeComparisonHiddenRubrics);
-  resetOutcomeComparisonExpenseDetail();
+function resetIncomeComparisonRubricSelectionToFirst() {
+  resetExplicitRubricSelectionToFirst(getExplicitDetailConfig("income", "comparison"));
 }
 
 function resetOutcomeComparisonExpenseSelectionToFirst(rubricKey) {
-  if (!EXPLICIT_OUTCOME_EXPENSE_DETAIL) {
-    return;
-  }
+  resetExplicitItemSelectionToFirst(getExplicitDetailConfig("outcome", "comparison"), rubricKey);
+}
 
-  const activeRubric = buildComparisonSeriesForKind("outcome").find((entry) => entry.key === rubricKey);
-  const expenseSeries = buildComparisonExpenseSeriesForRubric(activeRubric, "outcome");
-  resetHiddenExpenseSelectionToFirst(rubricKey, expenseSeries, cgdState.outcomeComparisonHiddenExpenses);
+function resetIncomeComparisonRevenueSelectionToFirst(rubricKey) {
+  resetExplicitItemSelectionToFirst(getExplicitDetailConfig("income", "comparison"), rubricKey);
 }
 
 function focusOutcomeComparisonExpenseDetailToggle(host) {
-  requestAnimationFrame(() => {
-    host.querySelector("[data-outcome-comparison-expense-detail-toggle]")?.focus();
-  });
+  focusExplicitDetailToggle(host, getExplicitDetailConfig("outcome", "comparison"));
 }
 
 function renderComparisonChartByKind(kind) {
@@ -4312,6 +4584,7 @@ function bindComparisonChartInteractions(host, kind) {
 
   host.dataset.comparisonChartBound = "1";
   host.addEventListener("click", (event) => {
+    const detailConfig = getExplicitDetailConfig(kind, "comparison");
     const hiddenSet = kind === "income"
       ? cgdState.incomeComparisonHiddenRubrics
       : kind === "savings"
@@ -4329,6 +4602,7 @@ function bindComparisonChartInteractions(host, kind) {
       hiddenExpensesSet.clear();
       if (kind === "income") {
         cgdState.incomeComparisonChartVisible = false;
+        resetExplicitItemDetail(detailConfig);
       } else if (kind === "savings") {
         cgdState.savingsComparisonChartVisible = false;
       } else {
@@ -4344,24 +4618,22 @@ function bindComparisonChartInteractions(host, kind) {
       return;
     }
 
-    const expenseDetailToggle = event.target.closest("[data-outcome-comparison-expense-detail-toggle]");
-    if (expenseDetailToggle && kind === "outcome" && EXPLICIT_OUTCOME_EXPENSE_DETAIL) {
+    const expenseDetailToggle = detailConfig?.enabled
+      ? event.target.closest(detailConfig.toggleSelector)
+      : null;
+    if (expenseDetailToggle) {
       const activeRubricKey = String(host.dataset.singleComparisonRubricKey || "").trim();
       if (!activeRubricKey) {
         return;
       }
 
-      const isExpanded = cgdState.outcomeComparisonExpenseDetailVisible
-        && cgdState.outcomeComparisonExpenseDetailRubricKey === activeRubricKey;
-      if (isExpanded) {
-        resetOutcomeComparisonExpenseDetail();
+      if (isExplicitDetailExpanded(detailConfig, activeRubricKey)) {
+        resetExplicitItemDetail(detailConfig);
       } else {
-        cgdState.outcomeComparisonExpenseDetailVisible = true;
-        cgdState.outcomeComparisonExpenseDetailRubricKey = activeRubricKey;
-        resetOutcomeComparisonExpenseSelectionToFirst(activeRubricKey);
+        expandExplicitItemDetail(detailConfig, activeRubricKey);
       }
-      renderOutcomeComparisonChart();
-      focusOutcomeComparisonExpenseDetailToggle(host);
+      renderComparisonChartByKind(kind);
+      focusExplicitDetailToggle(host, detailConfig);
       return;
     }
 
@@ -4391,9 +4663,7 @@ function bindComparisonChartInteractions(host, kind) {
         return;
       }
 
-      if (kind === "outcome") {
-        resetOutcomeComparisonExpenseDetail();
-      }
+      resetExplicitItemDetail(detailConfig);
 
       if (hiddenSet.has(key)) {
         hiddenSet.delete(key);
@@ -4440,16 +4710,15 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
       ? cgdState.savingsComparisonHiddenExpenses
       : cgdState.outcomeComparisonHiddenExpenses;
   const rubricSeries = buildComparisonSeriesForKind(kind);
-  const isExplicitOutcomeDetail = kind === "outcome" && EXPLICIT_OUTCOME_EXPENSE_DETAIL;
-  const comparisonToolbarClass = isExplicitOutcomeDetail
+  const detailConfig = getExplicitDetailConfig(kind, "comparison");
+  const isExplicitDetail = Boolean(detailConfig?.enabled);
+  const comparisonToolbarClass = isExplicitDetail
     ? "outcome-drilldown-toolbar outcome-comparison-toolbar"
     : "outcome-drilldown-toolbar";
 
   if (!rubricSeries.length) {
     host.dataset.singleComparisonRubricKey = "";
-    if (isExplicitOutcomeDetail) {
-      resetOutcomeComparisonExpenseDetail();
-    }
+    resetExplicitItemDetail(detailConfig);
     host.innerHTML = `
       <div class='${comparisonToolbarClass}'>
         <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
@@ -4463,39 +4732,38 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
   const singleVisibleRubric = visibleRubrics.length === 1 ? visibleRubrics[0] : null;
   host.dataset.singleComparisonRubricKey = singleVisibleRubric ? singleVisibleRubric.key : "";
   if (
-    isExplicitOutcomeDetail
+    isExplicitDetail
     && (
       !singleVisibleRubric
       || (
-        cgdState.outcomeComparisonExpenseDetailVisible
-        && cgdState.outcomeComparisonExpenseDetailRubricKey !== singleVisibleRubric.key
+        cgdState[detailConfig.detailVisibleStateKey]
+        && cgdState[detailConfig.detailRubricKeyStateKey] !== singleVisibleRubric.key
       )
     )
   ) {
-    resetOutcomeComparisonExpenseDetail();
+    resetExplicitItemDetail(detailConfig);
   }
 
   const expenseSeries = singleVisibleRubric ? buildComparisonExpenseSeriesForRubric(singleVisibleRubric, kind) : [];
   const expenseStateKey = (expenseKey) => `${singleVisibleRubric?.key || ""}::${expenseKey}`;
-  const isExplicitOutcomeDetailAvailable = Boolean(
-    isExplicitOutcomeDetail
+  const isExplicitDetailAvailable = Boolean(
+    isExplicitDetail
     && singleVisibleRubric
     && expenseSeries.length
   );
   if (
-    isExplicitOutcomeDetail
-    && !isExplicitOutcomeDetailAvailable
-    && cgdState.outcomeComparisonExpenseDetailVisible
+    isExplicitDetail
+    && !isExplicitDetailAvailable
+    && cgdState[detailConfig.detailVisibleStateKey]
   ) {
-    resetOutcomeComparisonExpenseDetail();
+    resetExplicitItemDetail(detailConfig);
   }
-  const isExplicitOutcomeDetailExpanded = Boolean(
-    isExplicitOutcomeDetailAvailable
-    && cgdState.outcomeComparisonExpenseDetailVisible
-    && cgdState.outcomeComparisonExpenseDetailRubricKey === singleVisibleRubric.key
+  const isExplicitDetailExpandedState = Boolean(
+    isExplicitDetailAvailable
+    && isExplicitDetailExpanded(detailConfig, singleVisibleRubric.key)
   );
-  const isLegacySingleRubricMode = Boolean(singleVisibleRubric) && !isExplicitOutcomeDetail;
-  const showsExpenseSeries = isLegacySingleRubricMode || isExplicitOutcomeDetailExpanded;
+  const isLegacySingleRubricMode = Boolean(singleVisibleRubric) && !isExplicitDetail;
+  const showsExpenseSeries = isLegacySingleRubricMode || isExplicitDetailExpandedState;
   const visibleExpenseSeries = showsExpenseSeries
     ? expenseSeries.filter((entry) => !hiddenExpensesSet.has(expenseStateKey(entry.key)))
     : [];
@@ -4514,7 +4782,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
   const rubricPlotSeries = visibleRubrics.map((entry) => withComparisonBarColors(entry, "rubric"));
   const expensePlotSeries = visibleExpenseSeries.map((entry) => withComparisonBarColors(entry, "expense"));
   const plottedSeries = showsExpenseSeries ? expensePlotSeries : rubricPlotSeries;
-  const comparisonAverageSource = isExplicitOutcomeDetail && plottedSeries.length === 1
+  const comparisonAverageSource = isExplicitDetail && plottedSeries.length === 1
     ? plottedSeries[0]
     : null;
   const comparisonAverages = comparisonAverageSource
@@ -4717,7 +4985,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
 
   const chartLabelBase = kind === "income"
     ? (showsExpenseSeries
-      ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de receitas selecionada"
+      ? "Grafico comparativo mensal de valor e valor estimado das receitas da rubrica selecionada"
       : "Grafico comparativo mensal de valor e valor estimado das receitas")
     : kind === "savings"
       ? (showsExpenseSeries
@@ -4735,33 +5003,33 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
   const singleRubricLegendMarkup = isLegacySingleRubricMode && expenseSeries.length
     ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>`
     : "";
-  const expenseDetailToggleMarkup = isExplicitOutcomeDetailAvailable
+  const expenseDetailToggleMarkup = isExplicitDetailAvailable
     ? `
       <button
         type='button'
         class='outcome-evolution-control-btn outcome-expense-detail-toggle'
-        data-outcome-comparison-expense-detail-toggle
-        aria-expanded='${isExplicitOutcomeDetailExpanded ? "true" : "false"}'
-        aria-controls='outcome-comparison-expense-detail-series'
-      >${isExplicitOutcomeDetailExpanded ? "Ocultar despesas" : "Mostrar despesas"}</button>
+        ${detailConfig.toggleAttribute}
+        aria-expanded='${isExplicitDetailExpandedState ? "true" : "false"}'
+        aria-controls='${detailConfig.detailSeriesId}'
+      >${isExplicitDetailExpandedState ? `Ocultar ${detailConfig.itemPlural}` : `Mostrar ${detailConfig.itemPlural}`}</button>
     `
     : "";
-  const expenseDetailMarkup = isExplicitOutcomeDetailAvailable
+  const expenseDetailMarkup = isExplicitDetailAvailable
     ? `
       <div
-        id='outcome-comparison-expense-detail-series'
+        id='${detailConfig.detailSeriesId}'
         class='outcome-expense-detail'
         role='group'
-        aria-label='Despesas da rubrica selecionada no grafico comparativo'
-        ${isExplicitOutcomeDetailExpanded ? "" : "hidden"}
+        aria-label='${detailConfig.detailGroupLabel}'
+        ${isExplicitDetailExpandedState ? "" : "hidden"}
       >
-        ${isExplicitOutcomeDetailExpanded ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>` : ""}
+        ${isExplicitDetailExpandedState ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>` : ""}
       </div>
     `
     : "";
 
   host.innerHTML = `
-    <div class='${comparisonToolbarClass}${isExplicitOutcomeDetailAvailable ? " has-expense-detail" : ""}'>
+    <div class='${comparisonToolbarClass}${isExplicitDetailAvailable ? " has-expense-detail" : ""}'>
       ${expenseDetailToggleMarkup}
       <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
     </div>
@@ -4813,9 +5081,12 @@ function renderSavingsComparisonChart() {
 
 window.cgdToggleIncomeChart = () => {
   cgdState.incomeChartVisible = !cgdState.incomeChartVisible;
-  if (!cgdState.incomeChartVisible) {
+  if (cgdState.incomeChartVisible) {
+    resetIncomeRubricSelectionToFirst();
+  } else {
     cgdState.incomeChartSelectedRubricKey = null;
     cgdState.incomeChartHiddenRubrics.clear();
+    resetIncomeRevenueDetail();
   }
   renderPanels();
   document.dispatchEvent(new Event("cgd:rendered"));
@@ -4833,9 +5104,12 @@ window.cgdToggleIncomeChart = () => {
 
 window.cgdToggleIncomeComparisonChart = () => {
   cgdState.incomeComparisonChartVisible = !cgdState.incomeComparisonChartVisible;
-  if (!cgdState.incomeComparisonChartVisible) {
+  if (cgdState.incomeComparisonChartVisible) {
+    resetIncomeComparisonRubricSelectionToFirst();
+  } else {
     cgdState.incomeComparisonHiddenRubrics.clear();
     cgdState.incomeComparisonHiddenExpenses.clear();
+    resetIncomeComparisonRevenueDetail();
   }
   renderPanels();
   document.dispatchEvent(new Event("cgd:rendered"));
@@ -4945,6 +5219,8 @@ async function loadYearData(year, options = {}) {
     activeYearBootstrapPromptCancel = null;
   }
   cgdState.selectedYear = normalizedYear;
+  resetIncomeRevenueDetail();
+  resetIncomeComparisonRevenueDetail();
   resetOutcomeExpenseDetail();
   resetOutcomeComparisonExpenseDetail();
   delete cgdState.personTotalizerSeriesCache[normalizedYear];
@@ -4969,6 +5245,8 @@ async function loadYearData(year, options = {}) {
     renderCgdTemporalSummaryChart();
     renderNbPieCharts();
     renderSoberTotalizer();
+    resetIncomeRubricSelectionToFirst();
+    resetIncomeComparisonRubricSelectionToFirst();
     resetOutcomeRubricSelectionToFirst();
     resetOutcomeComparisonRubricSelectionToFirst();
     renderPanels();
@@ -5113,6 +5391,8 @@ async function loadYearData(year, options = {}) {
         totalizerHost.innerHTML = "";
       }
     }
+    resetIncomeRubricSelectionToFirst();
+    resetIncomeComparisonRubricSelectionToFirst();
     resetOutcomeRubricSelectionToFirst();
     resetOutcomeComparisonRubricSelectionToFirst();
     renderPanels();
@@ -5163,6 +5443,8 @@ async function loadYearData(year, options = {}) {
         totalizerHost.innerHTML = "";
       }
     }
+    resetIncomeRubricSelectionToFirst();
+    resetIncomeComparisonRubricSelectionToFirst();
     resetOutcomeRubricSelectionToFirst();
     resetOutcomeComparisonRubricSelectionToFirst();
     renderPanels();

@@ -5127,7 +5127,7 @@ body {
   }
 }
 
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 1024px) {
   .nb-theme .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-expense-detail-toggle,
   .nb-theme .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-drilldown-close-btn {
     min-width: 44px;
@@ -5141,7 +5141,9 @@ body {
     inset-inline: 0;
     background: transparent;
   }
+}
 
+@media (pointer: coarse) {
   .menu-link,
   .ghost-btn,
   .history-delete-btn,
