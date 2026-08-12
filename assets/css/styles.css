@@ -2158,7 +2158,7 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   margin-top: 14px;
 }
 
-.nb-theme .panel-stack {
+.explicit-chart-detail .panel-stack {
   grid-template-columns: minmax(0, 1fr);
 }
 
@@ -2422,16 +2422,16 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   gap: 8px;
 }
 
-.nb-theme .outcome-drilldown-toolbar.has-expense-detail {
+.explicit-chart-detail .outcome-drilldown-toolbar.has-expense-detail {
   justify-content: space-between;
 }
 
-.nb-theme .outcome-expense-detail-toggle,
-.nb-theme .outcome-drilldown-toolbar.has-expense-detail .outcome-drilldown-close-btn {
+.explicit-chart-detail .outcome-expense-detail-toggle,
+.explicit-chart-detail .outcome-drilldown-toolbar.has-expense-detail .outcome-drilldown-close-btn {
   min-height: 44px;
 }
 
-.nb-theme .outcome-expense-detail-toggle {
+.explicit-chart-detail .outcome-expense-detail-toggle {
   padding-inline: 14px;
 }
 
@@ -2439,14 +2439,14 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   min-width: 0;
 }
 
-.nb-theme .outcome-expense-detail-toggle:focus-visible,
-.nb-theme .outcome-drilldown-toolbar.has-expense-detail .outcome-drilldown-close-btn:focus-visible {
+.explicit-chart-detail .outcome-expense-detail-toggle:focus-visible,
+.explicit-chart-detail .outcome-drilldown-toolbar.has-expense-detail .outcome-drilldown-close-btn:focus-visible {
   outline: 2px solid rgba(154, 217, 255, 0.9);
   outline-offset: 2px;
 }
 
-.nb-theme .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-expense-detail-toggle,
-.nb-theme .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-drilldown-close-btn {
+.explicit-chart-detail .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-expense-detail-toggle,
+.explicit-chart-detail .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-drilldown-close-btn {
   position: relative;
   box-sizing: border-box;
   display: inline-flex;
@@ -2467,7 +2467,7 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease, opacity 160ms ease;
 }
 
-.nb-theme .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-expense-detail-toggle[aria-expanded="true"] {
+.explicit-chart-detail .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-expense-detail-toggle[aria-expanded="true"] {
   border-color: rgba(154, 217, 255, 0.54);
   background: rgba(33, 73, 94, 0.78);
 }
@@ -5026,7 +5026,7 @@ body {
 }
 
 @media (max-width: 430px) {
-  .nb-theme .outcome-drilldown-toolbar.has-expense-detail > button {
+  .explicit-chart-detail .outcome-drilldown-toolbar.has-expense-detail > button {
     flex: 1 1 calc(50% - 4px);
   }
 
@@ -5128,13 +5128,13 @@ body {
 }
 
 @media (pointer: coarse), (max-width: 1024px) {
-  .nb-theme .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-expense-detail-toggle,
-  .nb-theme .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-drilldown-close-btn {
+  .explicit-chart-detail .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-expense-detail-toggle,
+  .explicit-chart-detail .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-drilldown-close-btn {
     min-width: 44px;
   }
 
-  .nb-theme .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-expense-detail-toggle::before,
-  .nb-theme .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-drilldown-close-btn::before {
+  .explicit-chart-detail .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-expense-detail-toggle::before,
+  .explicit-chart-detail .outcome-drilldown-toolbar.outcome-comparison-toolbar > .outcome-drilldown-close-btn::before {
     content: "";
     position: absolute;
     inset-block: -4px;

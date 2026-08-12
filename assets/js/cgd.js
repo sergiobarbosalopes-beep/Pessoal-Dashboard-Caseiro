@@ -30,8 +30,12 @@ const cgdState = {
   savingsComparisonChartVisible: false,
   savingsComparisonHiddenRubrics: new Set(),
   savingsComparisonHiddenExpenses: new Set(),
+  savingsComparisonDetailVisible: false,
+  savingsComparisonDetailRubricKey: null,
   savingsChartHiddenRubrics: new Set(),
   savingsChartSelectedRubricKey: null,
+  savingsChartDetailVisible: false,
+  savingsChartDetailRubricKey: null,
   savingsDrilldownHiddenExpenses: new Set(),
   temporalSummaryHiddenSeries: new Set(),
   outcomeChartVisible: false,
@@ -57,8 +61,24 @@ const tableName = (suffix) => `${TABLE_PREFIX}_${suffix}`;
 const HIDE_SAVINGS = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_SAVINGS);
 const HIDE_BALANCE = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_BALANCE);
 const HIDE_AVAILABLE_ROW = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_AVAILABLE_ROW);
-const EXPLICIT_INCOME_REVENUE_DETAIL = Boolean(window.DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL);
-const EXPLICIT_OUTCOME_EXPENSE_DETAIL = Boolean(window.DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL);
+const SUPPORTED_CHART_DETAIL_KINDS = new Set(["income", "savings", "outcome"]);
+const EXPLICIT_CHART_DETAIL_KINDS = new Set(
+  (Array.isArray(window.DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS)
+    ? window.DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS
+    : []
+  )
+    .map((kind) => String(kind || "").trim().toLowerCase())
+    .filter((kind) => SUPPORTED_CHART_DETAIL_KINDS.has(kind))
+);
+if (window.DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL) {
+  EXPLICIT_CHART_DETAIL_KINDS.add("income");
+}
+if (window.DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL) {
+  EXPLICIT_CHART_DETAIL_KINDS.add("outcome");
+}
+if (window.DASHBOARD_EXPLICIT_SAVINGS_DETAIL) {
+  EXPLICIT_CHART_DETAIL_KINDS.add("savings");
+}
 const TOTALIZER_PEOPLE = Array.isArray(window.DASHBOARD_TOTALIZER_PEOPLE) && window.DASHBOARD_TOTALIZER_PEOPLE.length
   ? window.DASHBOARD_TOTALIZER_PEOPLE.map((entry) => String(entry || "").trim()).filter(Boolean)
   : ["Sergio", "Carina"];
@@ -94,6 +114,10 @@ const YEAR_BOOTSTRAP_PREFIXES = new Set(["cgd", "nb", "coverflex"]);
 const YEAR_BOOTSTRAP_RPC = "bootstrap_dashboard_year";
 let yearLoadGeneration = 0;
 let activeYearBootstrapPromptCancel = null;
+
+function isExplicitChartDetailEnabled(kind) {
+  return EXPLICIT_CHART_DETAIL_KINDS.has(String(kind || "").trim().toLowerCase());
+}
 
 const THEME_COLORS = {
   summary: {
@@ -2702,7 +2726,7 @@ function buildSavingsRubricSeries() {
       const expenses = Array.isArray(rubric?.expenses)
         ? rubric.expenses.map((expense, expenseIndex) => ({
             key: `expense-${index}-${expenseIndex}-${Number(expense?.id) || 0}`,
-            name: expense?.name || `Despesa ${expenseIndex + 1}`,
+            name: expense?.name || `Poupança ${expenseIndex + 1}`,
             values: months.map((_, monthIndex) => {
               const numeric = Number(expense?.values?.[monthIndex]);
               return Number.isFinite(numeric) ? numeric : 0;
@@ -2767,7 +2791,7 @@ function buildSavingsExpenseSeriesForRubric(rubric) {
   return (rubric.expenses || [])
     .map((expense, index) => ({
       key: expense.key || `expense-${index}`,
-      name: expense.name || `Despesa ${index + 1}`,
+      name: expense.name || `Poupança ${index + 1}`,
       values: months.map((_, monthIndex) => {
         const numeric = Number(expense.values?.[monthIndex]);
         return Number.isFinite(numeric) ? numeric : 0;
@@ -2799,7 +2823,7 @@ function bindIncomeChartInteractions(host) {
     }
 
     const revenueDetailToggle = event.target.closest("[data-income-revenue-detail-toggle]");
-    if (revenueDetailToggle && EXPLICIT_INCOME_REVENUE_DETAIL) {
+    if (revenueDetailToggle && isExplicitChartDetailEnabled("income")) {
       const detailConfig = getExplicitDetailConfig("income", "evolution");
       const activeRubricKey = String(host.dataset.singleIncomeRubricKey || "").trim();
       if (!activeRubricKey) {
@@ -2999,7 +3023,7 @@ function renderIncomeEvolutionChart() {
   const averageSource = detailConfig.enabled && plottedSeries.length === 1
     ? plottedSeries[0]
     : null;
-  const averageValue = averageSource ? computeOutcomeSeriesAverage(averageSource) : null;
+  const averageValue = averageSource ? computeEvolutionSeriesAverage(averageSource) : null;
   if (isLegacySingleRubricMode && !expenseSeries.length) {
     host.innerHTML = `
       <div class='outcome-drilldown-toolbar'>
@@ -3217,6 +3241,7 @@ function bindSavingsChartInteractions(host) {
       cgdState.savingsChartVisible = false;
       cgdState.savingsChartSelectedRubricKey = null;
       cgdState.savingsChartHiddenRubrics.clear();
+      resetExplicitItemDetail(getExplicitDetailConfig("savings", "evolution"));
       renderPanels();
       document.dispatchEvent(new Event("cgd:rendered"));
       requestAnimationFrame(() => {
@@ -3225,10 +3250,30 @@ function bindSavingsChartInteractions(host) {
       return;
     }
 
+    const savingDetailToggle = event.target.closest("[data-savings-saving-detail-toggle]");
+    if (savingDetailToggle && isExplicitChartDetailEnabled("savings")) {
+      const detailConfig = getExplicitDetailConfig("savings", "evolution");
+      const activeRubricKey = String(host.dataset.singleSavingsRubricKey || "").trim();
+      if (!activeRubricKey) {
+        return;
+      }
+
+      if (isExplicitDetailExpanded(detailConfig, activeRubricKey)) {
+        resetExplicitItemDetail(detailConfig);
+      } else {
+        expandExplicitItemDetail(detailConfig, activeRubricKey);
+      }
+      renderSavingsEvolutionChart();
+      focusExplicitDetailToggle(host, detailConfig);
+      return;
+    }
+
     const drilldownToggle = event.target.closest("[data-savings-drilldown-toggle]");
     if (drilldownToggle) {
       const expenseKey = String(drilldownToggle.getAttribute("data-savings-drilldown-toggle") || "").trim();
-      const activeRubricKey = cgdState.savingsChartSelectedRubricKey || String(host.dataset.singleSavingsRubricKey || "").trim();
+      const activeRubricKey = cgdState.savingsChartSelectedRubricKey
+        || cgdState.savingsChartDetailRubricKey
+        || String(host.dataset.singleSavingsRubricKey || "").trim();
       if (expenseKey) {
         const stateKey = `${activeRubricKey}::${expenseKey}`;
         if (cgdState.savingsDrilldownHiddenExpenses.has(stateKey)) {
@@ -3245,6 +3290,7 @@ function bindSavingsChartInteractions(host) {
     if (drilldownTarget) {
       const key = String(drilldownTarget.getAttribute("data-savings-chart-drilldown") || "").trim();
       const isSameSelectedRubric = cgdState.savingsChartSelectedRubricKey === key;
+      resetExplicitItemDetail(getExplicitDetailConfig("savings", "evolution"));
 
       if (isSameSelectedRubric) {
         cgdState.savingsChartSelectedRubricKey = null;
@@ -3276,6 +3322,7 @@ function bindSavingsChartInteractions(host) {
             cgdState.savingsChartSelectedRubricKey = null;
           }
         }
+        resetExplicitItemDetail(getExplicitDetailConfig("savings", "evolution"));
         renderSavingsEvolutionChart();
       }
       return;
@@ -3284,6 +3331,8 @@ function bindSavingsChartInteractions(host) {
     const selectAllBtn = event.target.closest("[data-savings-chart-select-all]");
     if (selectAllBtn) {
       cgdState.savingsChartHiddenRubrics.clear();
+      cgdState.savingsChartSelectedRubricKey = null;
+      resetExplicitItemDetail(getExplicitDetailConfig("savings", "evolution"));
       renderSavingsEvolutionChart();
       return;
     }
@@ -3297,6 +3346,7 @@ function bindSavingsChartInteractions(host) {
         }
       });
       cgdState.savingsChartSelectedRubricKey = null;
+      resetExplicitItemDetail(getExplicitDetailConfig("savings", "evolution"));
       renderSavingsEvolutionChart();
     }
   });
@@ -3327,6 +3377,19 @@ function renderSavingsEvolutionChart() {
   const visibleSeries = series.filter((entry) => !cgdState.savingsChartHiddenRubrics.has(entry.key));
   const singleVisibleRubric = visibleSeries.length === 1 ? visibleSeries[0] : null;
   host.dataset.singleSavingsRubricKey = singleVisibleRubric ? singleVisibleRubric.key : "";
+  const detailConfig = getExplicitDetailConfig("savings", "evolution");
+  if (
+    detailConfig.enabled
+    && (
+      !singleVisibleRubric
+      || (
+        cgdState.savingsChartDetailVisible
+        && cgdState.savingsChartDetailRubricKey !== singleVisibleRubric.key
+      )
+    )
+  ) {
+    resetExplicitItemDetail(detailConfig);
+  }
 
   const legend = series
     .map((entry) => {
@@ -3352,10 +3415,26 @@ function renderSavingsEvolutionChart() {
     return;
   }
 
-  const isSingleRubricMode = Boolean(singleVisibleRubric);
-  const expenseSeries = isSingleRubricMode ? buildSavingsExpenseSeriesForRubric(singleVisibleRubric) : [];
-  const expenseStateKey = (expenseKey) => `${singleVisibleRubric.key}::${expenseKey}`;
-  const visibleExpenseSeries = isSingleRubricMode
+  const isLegacySingleRubricMode = Boolean(singleVisibleRubric) && !detailConfig.enabled;
+  const expenseSeries = singleVisibleRubric ? buildSavingsExpenseSeriesForRubric(singleVisibleRubric) : [];
+  const expenseStateKey = (expenseKey) => `${singleVisibleRubric?.key || ""}::${expenseKey}`;
+  const isExplicitSavingDetailAvailable = Boolean(
+    detailConfig.enabled
+    && singleVisibleRubric
+    && expenseSeries.length
+  );
+  if (
+    detailConfig.enabled
+    && !isExplicitSavingDetailAvailable
+    && cgdState.savingsChartDetailVisible
+  ) {
+    resetExplicitItemDetail(detailConfig);
+  }
+  const isExplicitSavingDetailExpanded = Boolean(
+    isExplicitSavingDetailAvailable
+    && isExplicitDetailExpanded(detailConfig, singleVisibleRubric.key)
+  );
+  const visibleExpenseSeries = isLegacySingleRubricMode || isExplicitSavingDetailExpanded
     ? expenseSeries.filter((entry) => !cgdState.savingsDrilldownHiddenExpenses.has(expenseStateKey(entry.key)))
     : [];
 
@@ -3367,25 +3446,33 @@ function renderSavingsEvolutionChart() {
   const monthStep = plotWidth / (months.length - 1);
   const plotBottom = padding.top + plotHeight;
 
-  const plottedSeries = isSingleRubricMode ? visibleExpenseSeries : visibleSeries;
-  if (isSingleRubricMode && !expenseSeries.length) {
+  const rubricPlotSeries = visibleSeries.map((entry) => ({ ...entry, seriesKind: "rubric" }));
+  const expensePlotSeries = visibleExpenseSeries.map((entry) => ({ ...entry, seriesKind: "expense" }));
+  const plottedSeries = isLegacySingleRubricMode || isExplicitSavingDetailExpanded
+    ? expensePlotSeries
+    : rubricPlotSeries;
+  const averageSource = detailConfig.enabled && plottedSeries.length === 1
+    ? plottedSeries[0]
+    : null;
+  const averageValue = averageSource ? computeEvolutionSeriesAverage(averageSource) : null;
+  if (isLegacySingleRubricMode && !expenseSeries.length) {
     host.innerHTML = `
       <div class='outcome-drilldown-toolbar'>
         <button type='button' class='outcome-drilldown-close-btn' data-savings-chart-close-main>Fechar</button>
       </div>
       <div class='outcome-evolution-top-series'>${legend}</div>
-      <p class='outcome-evolution-empty'>Esta rubrica nao tem despesas com valores ao longo do ano.</p>
+      <p class='outcome-evolution-empty'>Esta rubrica nao tem poupanças com valores ao longo do ano.</p>
     `;
     return;
   }
 
-  if (isSingleRubricMode && !visibleExpenseSeries.length) {
+  if (isLegacySingleRubricMode && !visibleExpenseSeries.length) {
     host.innerHTML = `
       <div class='outcome-drilldown-toolbar'>
         <button type='button' class='outcome-drilldown-close-btn' data-savings-chart-close-main>Fechar</button>
       </div>
       <div class='outcome-evolution-top-series'>${legend}</div>
-      <p class='outcome-evolution-empty'>Nenhuma despesa selecionada. Clica na legenda para voltar a mostrar.</p>
+      <p class='outcome-evolution-empty'>Nenhuma poupança selecionada. Clica na legenda para voltar a mostrar.</p>
       <div class='outcome-evolution-top-series'>${expenseSeries
         .map((entry) => {
           const isVisible = !cgdState.savingsDrilldownHiddenExpenses.has(expenseStateKey(entry.key));
@@ -3430,8 +3517,9 @@ function renderSavingsEvolutionChart() {
 
   const lines = plottedSeries
     .map((entry) => {
-      const isSelected = !isSingleRubricMode && entry.key === cgdState.savingsChartSelectedRubricKey;
-      const strokeWidth = isSingleRubricMode ? "0.6" : "1.3";
+      const isRubricSeries = entry.seriesKind === "rubric";
+      const isSelected = isRubricSeries && entry.key === cgdState.savingsChartSelectedRubricKey;
+      const strokeWidth = isRubricSeries ? "1.3" : "0.6";
       const selectionClass = isSelected ? "is-selected" : "";
       const points = entry.values.map((value, monthIndex) => ({ x: xFor(monthIndex), y: yFor(value), value, monthIndex }));
       const pathData = buildSmoothPathData(points);
@@ -3444,7 +3532,12 @@ function renderSavingsEvolutionChart() {
         })
         .join("");
       return `
-        <g class='outcome-evolution-series ${selectionClass}' ${isSingleRubricMode ? "" : `data-savings-chart-drilldown='${escapeHtml(entry.key)}'`}>
+        <g
+          class='outcome-evolution-series ${selectionClass}'
+          data-series-kind='${entry.seriesKind}'
+          data-series-key='${escapeHtml(entry.key)}'
+          ${isRubricSeries && !singleVisibleRubric ? `data-savings-chart-drilldown='${escapeHtml(entry.key)}'` : ""}
+        >
           <path d='${areaPath}' class='outcome-evolution-area' fill='${entry.color}' fill-opacity='0.10' />
           <path d='${pathData}' class='outcome-evolution-line' fill='none' stroke='${entry.color}' stroke-width='${strokeWidth}' stroke-linecap='round' stroke-linejoin='round' />
           ${pointsMarkup}
@@ -3453,7 +3546,53 @@ function renderSavingsEvolutionChart() {
     })
     .join("");
 
-  const expenseLegend = isSingleRubricMode
+  const averageLine = averageSource && Number.isFinite(averageValue)
+    ? (() => {
+        const averageY = yFor(averageValue);
+        const formattedAverage = formatOutcomeAverageValue(averageValue);
+        const averageAccessibleLabel = `Média - ${averageSource.name}: ${formattedAverage}. Usa valores estimados nos meses sem valor real.`;
+        return `
+          <g
+            class='outcome-evolution-average'
+            data-savings-average
+            data-average-source-kind='${averageSource.seriesKind}'
+            data-average-source-key='${escapeHtml(averageSource.key)}'
+            data-average-value='${averageValue}'
+            role='img'
+            aria-label='${escapeHtml(averageAccessibleLabel)}'
+            pointer-events='none'
+          >
+            <title>${escapeHtml(averageAccessibleLabel)}</title>
+            <line
+              data-savings-average-line
+              x1='${padding.left}'
+              y1='${averageY.toFixed(2)}'
+              x2='${chartWidth - padding.right}'
+              y2='${averageY.toFixed(2)}'
+              fill='none'
+              stroke='${averageSource.color}'
+              stroke-width='1.8'
+              stroke-dasharray='8 6'
+              stroke-linecap='butt'
+              vector-effect='non-scaling-stroke'
+            />
+          </g>
+        `;
+      })()
+    : "";
+  const averageLabelMarkup = averageSource && Number.isFinite(averageValue)
+    ? `
+      <div class='outcome-evolution-top-series' data-savings-average-label-row aria-hidden='true'>
+        <span
+          class='outcome-evolution-tooltip-series'
+          data-savings-average-label
+          style='color:${averageSource.color};'
+        >${escapeHtml(`Média: ${formatOutcomeAverageValue(averageValue)}`)}</span>
+      </div>
+    `
+    : "";
+
+  const expenseLegend = isLegacySingleRubricMode || isExplicitSavingDetailExpanded
     ? expenseSeries
         .map((entry) => {
           const isVisible = !cgdState.savingsDrilldownHiddenExpenses.has(expenseStateKey(entry.key));
@@ -3463,21 +3602,55 @@ function renderSavingsEvolutionChart() {
         .join("")
     : "";
 
-  const singleRubricLegendMarkup = isSingleRubricMode && expenseSeries.length
+  const singleRubricLegendMarkup = isLegacySingleRubricMode && expenseSeries.length
     ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>`
     : "";
+  const savingDetailToggleMarkup = isExplicitSavingDetailAvailable
+    ? `
+      <button
+        type='button'
+        class='outcome-evolution-control-btn outcome-expense-detail-toggle'
+        data-savings-saving-detail-toggle
+        aria-expanded='${isExplicitSavingDetailExpanded ? "true" : "false"}'
+        aria-controls='savings-saving-detail-series'
+      >${isExplicitSavingDetailExpanded ? "Ocultar poupanças" : "Mostrar poupanças"}</button>
+    `
+    : "";
+  const savingDetailMarkup = isExplicitSavingDetailAvailable
+    ? `
+      <div
+        id='savings-saving-detail-series'
+        class='outcome-expense-detail'
+        role='group'
+        aria-label='Poupanças da rubrica selecionada'
+        ${isExplicitSavingDetailExpanded ? "" : "hidden"}
+      >
+        ${isExplicitSavingDetailExpanded ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>` : ""}
+      </div>
+    `
+    : "";
+  const chartAriaLabelBase = isLegacySingleRubricMode || isExplicitSavingDetailExpanded
+    ? "Grafico de linhas com evolucao das poupanças da rubrica selecionada"
+    : "Grafico de linhas com evolucao das rubricas de poupanças";
+  const chartAriaLabel = averageSource && Number.isFinite(averageValue)
+    ? `${chartAriaLabelBase}. Média de ${averageSource.name}: ${formatOutcomeAverageValue(averageValue)}, usando valores estimados nos meses sem valor real`
+    : chartAriaLabelBase;
 
   host.innerHTML = `
-    <div class='outcome-drilldown-toolbar'>
+    <div class='outcome-drilldown-toolbar ${isExplicitSavingDetailAvailable ? "has-expense-detail" : ""}'>
+      ${savingDetailToggleMarkup}
       <button type='button' class='outcome-drilldown-close-btn' data-savings-chart-close-main>Fechar</button>
     </div>
     <div class='outcome-evolution-top-series'>${legend}</div>
     ${singleRubricLegendMarkup}
+    ${savingDetailMarkup}
+    ${averageLabelMarkup}
     <div class='outcome-evolution-svg-wrap'>
-      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${isSingleRubricMode ? "Grafico de linhas com evolucao das despesas da rubrica selecionada" : "Grafico de linhas com evolucao das rubricas de poupancas"}'>
+      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${escapeHtml(chartAriaLabel)}'>
         ${gridLines}
         ${monthGridLines}
         ${lines}
+        ${averageLine}
         ${monthLabels}
       </svg>
       <div class='outcome-evolution-tooltip' aria-hidden='true'></div>
@@ -3493,6 +3666,10 @@ function resetOutcomeExpenseDetail() {
 
 function resetIncomeRevenueDetail() {
   resetExplicitItemDetail(getExplicitDetailConfig("income", "evolution"));
+}
+
+function resetSavingsDetail() {
+  resetExplicitItemDetail(getExplicitDetailConfig("savings", "evolution"));
 }
 
 function resetHiddenSeriesSelectionToFirst(series, hiddenSet) {
@@ -3513,7 +3690,7 @@ function getExplicitDetailConfig(kind, renderer) {
   const isComparison = renderer === "comparison";
   if (kind === "income") {
     return {
-      enabled: EXPLICIT_INCOME_REVENUE_DETAIL,
+      enabled: isExplicitChartDetailEnabled("income"),
       detailVisibleStateKey: isComparison
         ? "incomeComparisonRevenueDetailVisible"
         : "incomeChartRevenueDetailVisible",
@@ -3548,9 +3725,46 @@ function getExplicitDetailConfig(kind, renderer) {
         : "Receitas da rubrica selecionada"
     };
   }
+  if (kind === "savings") {
+    return {
+      enabled: isExplicitChartDetailEnabled("savings"),
+      detailVisibleStateKey: isComparison
+        ? "savingsComparisonDetailVisible"
+        : "savingsChartDetailVisible",
+      detailRubricKeyStateKey: isComparison
+        ? "savingsComparisonDetailRubricKey"
+        : "savingsChartDetailRubricKey",
+      selectedRubricStateKey: isComparison ? null : "savingsChartSelectedRubricKey",
+      hiddenRubricsSet: isComparison
+        ? cgdState.savingsComparisonHiddenRubrics
+        : cgdState.savingsChartHiddenRubrics,
+      hiddenItemsSet: isComparison
+        ? cgdState.savingsComparisonHiddenExpenses
+        : cgdState.savingsDrilldownHiddenExpenses,
+      buildRubricSeries: isComparison
+        ? () => buildComparisonSeriesForKind("savings")
+        : buildSavingsRubricSeries,
+      buildItemSeries: isComparison
+        ? (rubric) => buildComparisonExpenseSeriesForRubric(rubric, "savings")
+        : buildSavingsExpenseSeriesForRubric,
+      toggleSelector: isComparison
+        ? "[data-savings-comparison-saving-detail-toggle]"
+        : "[data-savings-saving-detail-toggle]",
+      toggleAttribute: isComparison
+        ? "data-savings-comparison-saving-detail-toggle"
+        : "data-savings-saving-detail-toggle",
+      detailSeriesId: isComparison
+        ? "savings-comparison-saving-detail-series"
+        : "savings-saving-detail-series",
+      itemPlural: "poupanças",
+      detailGroupLabel: isComparison
+        ? "Poupanças da rubrica selecionada no grafico comparativo"
+        : "Poupanças da rubrica selecionada"
+    };
+  }
   if (kind === "outcome") {
     return {
-      enabled: EXPLICIT_OUTCOME_EXPENSE_DETAIL,
+      enabled: isExplicitChartDetailEnabled("outcome"),
       detailVisibleStateKey: isComparison
         ? "outcomeComparisonExpenseDetailVisible"
         : "outcomeChartExpenseDetailVisible",
@@ -3657,6 +3871,10 @@ function resetIncomeRubricSelectionToFirst() {
   resetExplicitRubricSelectionToFirst(getExplicitDetailConfig("income", "evolution"));
 }
 
+function resetSavingsRubricSelectionToFirst() {
+  resetExplicitRubricSelectionToFirst(getExplicitDetailConfig("savings", "evolution"));
+}
+
 function resetIncomeRevenueSelectionToFirst(rubricKey) {
   resetExplicitItemSelectionToFirst(getExplicitDetailConfig("income", "evolution"), rubricKey);
 }
@@ -3669,7 +3887,7 @@ function computeTwelveMonthAverage(values) {
   return normalizedValues.reduce((sum, value) => sum + value, 0) / months.length;
 }
 
-function computeOutcomeSeriesAverage(series) {
+function computeEvolutionSeriesAverage(series) {
   // Series values already contain the model's real-to-estimated monthly fallback.
   return computeTwelveMonthAverage(series?.values);
 }
@@ -3878,7 +4096,7 @@ function renderOutcomeEvolutionChart() {
   const singleVisibleRubric = visibleSeries.length === 1 ? visibleSeries[0] : null;
   host.dataset.singleRubricKey = singleVisibleRubric ? singleVisibleRubric.key : "";
   if (
-    EXPLICIT_OUTCOME_EXPENSE_DETAIL
+    isExplicitChartDetailEnabled("outcome")
     && (
       !singleVisibleRubric
       || (
@@ -3914,16 +4132,16 @@ function renderOutcomeEvolutionChart() {
     return;
   }
 
-  const isLegacySingleRubricMode = Boolean(singleVisibleRubric) && !EXPLICIT_OUTCOME_EXPENSE_DETAIL;
+  const isLegacySingleRubricMode = Boolean(singleVisibleRubric) && !isExplicitChartDetailEnabled("outcome");
   const expenseSeries = singleVisibleRubric ? buildOutcomeExpenseSeriesForRubric(singleVisibleRubric) : [];
   const expenseStateKey = (expenseKey) => `${singleVisibleRubric?.key || ""}::${expenseKey}`;
   const isExplicitExpenseDetailAvailable = Boolean(
-    EXPLICIT_OUTCOME_EXPENSE_DETAIL
+    isExplicitChartDetailEnabled("outcome")
     && singleVisibleRubric
     && expenseSeries.length
   );
   if (
-    EXPLICIT_OUTCOME_EXPENSE_DETAIL
+    isExplicitChartDetailEnabled("outcome")
     && !isExplicitExpenseDetailAvailable
     && cgdState.outcomeChartExpenseDetailVisible
   ) {
@@ -3950,10 +4168,10 @@ function renderOutcomeEvolutionChart() {
   const plottedSeries = isLegacySingleRubricMode || isExplicitExpenseDetailExpanded
     ? expensePlotSeries
     : rubricPlotSeries;
-  const averageSource = EXPLICIT_OUTCOME_EXPENSE_DETAIL && plottedSeries.length === 1
+  const averageSource = isExplicitChartDetailEnabled("outcome") && plottedSeries.length === 1
     ? plottedSeries[0]
     : null;
-  const averageValue = averageSource ? computeOutcomeSeriesAverage(averageSource) : null;
+  const averageValue = averageSource ? computeEvolutionSeriesAverage(averageSource) : null;
   if (isLegacySingleRubricMode && !expenseSeries.length) {
     host.innerHTML = `
       <div class='outcome-drilldown-toolbar'>
@@ -4422,20 +4640,25 @@ function buildComparisonSeriesForKind(kind) {
             const normalizedEstimado = Number.isFinite(rawEstimado) ? rawEstimado : 0;
             const resolvedRealAverage = parseExpenseValue({
               valor: normalizedValor,
-              valor_estimado: normalizedEstimado
+              valor_estimado: normalizedEstimado,
+              zerado: monthData.zerado
             });
 
             expenseValues[monthIndex] = normalizedValor;
             expenseEstimatedValues[monthIndex] = normalizedEstimado;
             expenseRealAverageValues[monthIndex] = resolvedRealAverage;
-            valueTotals[monthIndex] += normalizedValor;
-            estimatedTotals[monthIndex] += normalizedEstimado;
-            realAverageTotals[monthIndex] += resolvedRealAverage;
+            if (monthData.totalizador !== false) {
+              valueTotals[monthIndex] += normalizedValor;
+              estimatedTotals[monthIndex] += normalizedEstimado;
+              realAverageTotals[monthIndex] += resolvedRealAverage;
+            }
           });
 
           return {
             key: expenseKey,
-            name: expense?.name || `${kind === "income" ? "Receita" : "Despesa"} ${expenseIndex + 1}`,
+            name: expense?.name || `${
+              kind === "income" ? "Receita" : kind === "savings" ? "Poupança" : "Despesa"
+            } ${expenseIndex + 1}`,
             values: expenseValues,
             estimatedValues: expenseEstimatedValues,
             realAverageValues: expenseRealAverageValues
@@ -4486,12 +4709,20 @@ function resetIncomeComparisonRevenueDetail() {
   resetExplicitItemDetail(getExplicitDetailConfig("income", "comparison"));
 }
 
+function resetSavingsComparisonDetail() {
+  resetExplicitItemDetail(getExplicitDetailConfig("savings", "comparison"));
+}
+
 function resetOutcomeComparisonRubricSelectionToFirst() {
   resetExplicitRubricSelectionToFirst(getExplicitDetailConfig("outcome", "comparison"));
 }
 
 function resetIncomeComparisonRubricSelectionToFirst() {
   resetExplicitRubricSelectionToFirst(getExplicitDetailConfig("income", "comparison"));
+}
+
+function resetSavingsComparisonRubricSelectionToFirst() {
+  resetExplicitRubricSelectionToFirst(getExplicitDetailConfig("savings", "comparison"));
 }
 
 function resetOutcomeComparisonExpenseSelectionToFirst(rubricKey) {
@@ -4600,14 +4831,13 @@ function bindComparisonChartInteractions(host, kind) {
     if (closeBtn) {
       hiddenSet.clear();
       hiddenExpensesSet.clear();
+      resetExplicitItemDetail(detailConfig);
       if (kind === "income") {
         cgdState.incomeComparisonChartVisible = false;
-        resetExplicitItemDetail(detailConfig);
       } else if (kind === "savings") {
         cgdState.savingsComparisonChartVisible = false;
       } else {
         cgdState.outcomeComparisonChartVisible = false;
-        resetOutcomeComparisonExpenseDetail();
       }
 
       renderPanels();
@@ -4869,7 +5099,10 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
   const plotHeight = chartHeight - padding.top - padding.bottom;
   const monthBand = plotWidth / months.length;
 
-  const allValues = plottedSeries.flatMap((entry) => [...entry.values, ...entry.estimatedValues]);
+  const allValues = [
+    ...plottedSeries.flatMap((entry) => [...entry.values, ...entry.estimatedValues]),
+    ...comparisonAverages.map((average) => average.value)
+  ];
   const verticalScale = computeChartVerticalScale(allValues, { top: padding.top, height: plotHeight });
   const xFor = (monthIndex) => padding.left + monthIndex * monthBand;
   const yFor = verticalScale.yFor;
@@ -4989,8 +5222,8 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
       : "Grafico comparativo mensal de valor e valor estimado das receitas")
     : kind === "savings"
       ? (showsExpenseSeries
-        ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de poupancas selecionada"
-        : "Grafico comparativo mensal de valor e valor estimado das poupancas")
+        ? "Grafico comparativo mensal de valor e valor estimado das poupanças da rubrica selecionada"
+        : "Grafico comparativo mensal de valor e valor estimado das poupanças")
       : (showsExpenseSeries
         ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de despesas selecionada"
         : "Grafico comparativo mensal de valor e valor estimado das despesas");
@@ -5127,9 +5360,12 @@ window.cgdToggleIncomeComparisonChart = () => {
 
 window.cgdToggleSavingsChart = () => {
   cgdState.savingsChartVisible = !cgdState.savingsChartVisible;
-  if (!cgdState.savingsChartVisible) {
+  if (cgdState.savingsChartVisible && isExplicitChartDetailEnabled("savings")) {
+    resetSavingsRubricSelectionToFirst();
+  } else if (!cgdState.savingsChartVisible) {
     cgdState.savingsChartSelectedRubricKey = null;
     cgdState.savingsChartHiddenRubrics.clear();
+    resetSavingsDetail();
   }
   renderPanels();
   document.dispatchEvent(new Event("cgd:rendered"));
@@ -5147,9 +5383,12 @@ window.cgdToggleSavingsChart = () => {
 
 window.cgdToggleSavingsComparisonChart = () => {
   cgdState.savingsComparisonChartVisible = !cgdState.savingsComparisonChartVisible;
-  if (!cgdState.savingsComparisonChartVisible) {
+  if (cgdState.savingsComparisonChartVisible && isExplicitChartDetailEnabled("savings")) {
+    resetSavingsComparisonRubricSelectionToFirst();
+  } else if (!cgdState.savingsComparisonChartVisible) {
     cgdState.savingsComparisonHiddenRubrics.clear();
     cgdState.savingsComparisonHiddenExpenses.clear();
+    resetSavingsComparisonDetail();
   }
   renderPanels();
   document.dispatchEvent(new Event("cgd:rendered"));
@@ -5221,6 +5460,8 @@ async function loadYearData(year, options = {}) {
   cgdState.selectedYear = normalizedYear;
   resetIncomeRevenueDetail();
   resetIncomeComparisonRevenueDetail();
+  resetSavingsDetail();
+  resetSavingsComparisonDetail();
   resetOutcomeExpenseDetail();
   resetOutcomeComparisonExpenseDetail();
   delete cgdState.personTotalizerSeriesCache[normalizedYear];
@@ -5247,6 +5488,8 @@ async function loadYearData(year, options = {}) {
     renderSoberTotalizer();
     resetIncomeRubricSelectionToFirst();
     resetIncomeComparisonRubricSelectionToFirst();
+    resetSavingsRubricSelectionToFirst();
+    resetSavingsComparisonRubricSelectionToFirst();
     resetOutcomeRubricSelectionToFirst();
     resetOutcomeComparisonRubricSelectionToFirst();
     renderPanels();
@@ -5393,6 +5636,8 @@ async function loadYearData(year, options = {}) {
     }
     resetIncomeRubricSelectionToFirst();
     resetIncomeComparisonRubricSelectionToFirst();
+    resetSavingsRubricSelectionToFirst();
+    resetSavingsComparisonRubricSelectionToFirst();
     resetOutcomeRubricSelectionToFirst();
     resetOutcomeComparisonRubricSelectionToFirst();
     renderPanels();
@@ -5445,6 +5690,8 @@ async function loadYearData(year, options = {}) {
     }
     resetIncomeRubricSelectionToFirst();
     resetIncomeComparisonRubricSelectionToFirst();
+    resetSavingsRubricSelectionToFirst();
+    resetSavingsComparisonRubricSelectionToFirst();
     resetOutcomeRubricSelectionToFirst();
     resetOutcomeComparisonRubricSelectionToFirst();
     renderPanels();

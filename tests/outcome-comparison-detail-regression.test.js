@@ -54,6 +54,11 @@ const incomeComparisonToggleSource = sliceBetween(
   "window.cgdToggleIncomeComparisonChart =",
   "\nwindow.cgdToggleSavingsChart ="
 );
+const savingsComparisonToggleSource = sliceBetween(
+  cgd,
+  "window.cgdToggleSavingsComparisonChart =",
+  "\nwindow.cgdToggleOutcomeChart ="
+);
 
 class FakeClassList {
   constructor() {
@@ -118,7 +123,8 @@ class FakeHost {
     if (
       [
         "[data-outcome-comparison-expense-detail-toggle]",
-        "[data-income-comparison-revenue-detail-toggle]"
+        "[data-income-comparison-revenue-detail-toggle]",
+        "[data-savings-comparison-saving-detail-toggle]"
       ].includes(selector)
       && this.html.includes(selector.slice(1, -1))
     ) {
@@ -184,15 +190,33 @@ const makeData = () => ({
       ]
     }
   ],
-  savings: []
+  savings: [
+    {
+      id: 41,
+      name: "Reserva",
+      expenses: [
+        { id: 401, name: "Conta reserva", monthData: monthData(600, 650) },
+        { id: 402, name: "Objetivo", monthData: monthData(100, 150) }
+      ]
+    },
+    {
+      id: 42,
+      name: "Ferias",
+      expenses: [
+        { id: 403, name: "Viagem", monthData: monthData(250, 275) }
+      ]
+    }
+  ]
 });
 
 const makeContext = ({
   explicitDetail,
   incomeExplicitDetail = explicitDetail,
+  savingsExplicitDetail = explicitDetail,
   data = makeData(),
   outcomeVisible = false,
-  incomeVisible = false
+  incomeVisible = false,
+  savingsVisible = false
 }) => {
   const outcomeHost = new FakeHost();
   const incomeHost = new FakeHost();
@@ -209,9 +233,11 @@ const makeContext = ({
     incomeComparisonHiddenExpenses: new Set(),
     incomeComparisonRevenueDetailVisible: false,
     incomeComparisonRevenueDetailRubricKey: null,
-    savingsComparisonChartVisible: false,
+    savingsComparisonChartVisible: savingsVisible,
     savingsComparisonHiddenRubrics: new Set(),
     savingsComparisonHiddenExpenses: new Set(),
+    savingsComparisonDetailVisible: false,
+    savingsComparisonDetailRubricKey: null,
     outcomeChartVisible: true,
     outcomeChartHiddenRubrics: new Set(["line-rubric-hidden"]),
     outcomeChartSelectedRubricKey: "line-rubric",
@@ -229,8 +255,6 @@ const makeContext = ({
     Set,
     String,
     EXPENSE_SEQ_COLUMN: "despesa_seq",
-    EXPLICIT_INCOME_REVENUE_DETAIL: incomeExplicitDetail,
-    EXPLICIT_OUTCOME_EXPENSE_DETAIL: explicitDetail,
     HIDE_SAVINGS: false,
     THEME_COLORS: {
       incomeRubrics: ["#115511", "#226622"],
@@ -259,6 +283,13 @@ const makeContext = ({
     },
     emptyValues: () => months.map(() => 0),
     ensurePanelHeadVisible: () => {},
+    isExplicitChartDetailEnabled: (kind) => (
+      kind === "income"
+        ? incomeExplicitDetail
+        : kind === "savings"
+          ? savingsExplicitDetail
+          : explicitDetail
+    ),
     months,
     positionOutcomeChartTooltip: () => {},
     requestAnimationFrame: (callback) => callback(),
@@ -266,6 +297,7 @@ const makeContext = ({
       if (api) {
         api.renderOutcomeComparisonChart();
         api.renderIncomeComparisonChart();
+        api.renderSavingsComparisonChart();
       }
     },
     scheduleChartOpenScroll: () => {},
@@ -281,14 +313,17 @@ const makeContext = ({
     ${averageHelpersSource}
     ${comparisonSource}
     ${incomeComparisonToggleSource}
+    ${savingsComparisonToggleSource}
     ${outcomeComparisonToggleSource}
     comparisonApi = {
       buildDataModel,
       buildComparisonSeriesForKind,
       computeChartVerticalScale,
       renderIncomeComparisonChart,
+      renderSavingsComparisonChart,
       renderOutcomeComparisonChart,
       resetIncomeComparisonRubricSelectionToFirst,
+      resetSavingsComparisonRubricSelectionToFirst,
       resetOutcomeComparisonRubricSelectionToFirst
     };
   `, context);
@@ -526,6 +561,23 @@ const assertExpandedRevenueDetail = (html) => {
   assert.match(html, />Ocultar receitas<\/button>/);
   assert.doesNotMatch(html, /id='income-comparison-revenue-detail-series'[^>]*\shidden(?:\s|>)/);
   assert.doesNotMatch(html, />Ocultar despesas<\/button>/);
+};
+
+const assertCollapsedSavingDetail = (html) => {
+  assert.match(html, /data-savings-comparison-saving-detail-toggle/);
+  assert.match(html, /aria-expanded='false'/);
+  assert.match(html, /aria-controls='savings-comparison-saving-detail-series'/);
+  assert.match(html, />Mostrar poupanças<\/button>/);
+  assert.match(html, /id='savings-comparison-saving-detail-series'[^>]*\shidden(?:\s|>)/);
+  assert.doesNotMatch(html, />Mostrar despesas<\/button>|>Mostrar receitas<\/button>/);
+};
+
+const assertExpandedSavingDetail = (html) => {
+  assert.match(html, /data-savings-comparison-saving-detail-toggle/);
+  assert.match(html, /aria-expanded='true'/);
+  assert.match(html, />Ocultar poupanças<\/button>/);
+  assert.doesNotMatch(html, />Ocultar despesas<\/button>|>Ocultar receitas<\/button>/);
+  assert.doesNotMatch(html, /id='savings-comparison-saving-detail-series'[^>]*\shidden(?:\s|>)/);
 };
 
 const explicit = makeContext({ explicitDetail: true });
@@ -896,6 +948,109 @@ assert.deepEqual({
   hiddenExpenses: Array.from(incomeExplicit.state.outcomeComparisonHiddenExpenses)
 }, outcomeComparisonStateBeforeIncome);
 
+const savingsExplicit = makeContext({
+  explicitDetail: true,
+  savingsVisible: false
+});
+const otherComparisonStateBeforeSavings = {
+  incomeVisible: savingsExplicit.state.incomeComparisonChartVisible,
+  incomeHidden: Array.from(savingsExplicit.state.incomeComparisonHiddenRubrics),
+  outcomeVisible: savingsExplicit.state.outcomeComparisonChartVisible,
+  outcomeHidden: Array.from(savingsExplicit.state.outcomeComparisonHiddenRubrics)
+};
+const savingsRubricActual = months.map((_, index) => 700 + (index * 2));
+const savingsRubricEstimated = months.map((_, index) => 800 + (index * 2));
+const firstSavingActual = months.map((_, index) => 600 + index);
+const firstSavingEstimated = months.map((_, index) => 650 + index);
+savingsExplicit.context.window.cgdToggleSavingsComparisonChart();
+assert.equal(savingsExplicit.state.savingsComparisonChartVisible, true);
+assert.equal(countBars(savingsExplicit.savingsHost.html, "rubric"), 24);
+assert.equal(countBars(savingsExplicit.savingsHost.html, "expense"), 0);
+assert.equal(countBarsForKey(savingsExplicit.savingsHost.html, "id-41"), 24);
+assert.equal(countBarsForKey(savingsExplicit.savingsHost.html, "id-42"), 0);
+assert.equal(countPressed(savingsExplicit.savingsHost.html, "data-comparison-chart-toggle", "true"), 1);
+assert.equal(countPressed(savingsExplicit.savingsHost.html, "data-comparison-chart-toggle", "false"), 1);
+assertCollapsedSavingDetail(savingsExplicit.savingsHost.html);
+assertComparisonBarsPreserved(
+  savingsExplicit.savingsHost.html,
+  "id-41",
+  savingsRubricActual,
+  savingsRubricEstimated,
+  savingsExplicit.api.computeChartVerticalScale
+);
+assertDualAverages(savingsExplicit.savingsHost.html, {
+  sourceKind: "rubric",
+  sourceKey: "id-41",
+  name: "Reserva",
+  color: "#111155",
+  real: 711,
+  estimated: 811
+});
+
+savingsExplicit.savingsHost.click("data-savings-comparison-saving-detail-toggle");
+assert.equal(countBars(savingsExplicit.savingsHost.html, "rubric"), 0);
+assert.equal(countBars(savingsExplicit.savingsHost.html, "expense"), 24);
+assert.equal(countBarsForKey(savingsExplicit.savingsHost.html, "id-401"), 24);
+assert.equal(countBarsForKey(savingsExplicit.savingsHost.html, "id-402"), 0);
+assertExpandedSavingDetail(savingsExplicit.savingsHost.html);
+assertComparisonBarsPreserved(
+  savingsExplicit.savingsHost.html,
+  "id-401",
+  firstSavingActual,
+  firstSavingEstimated,
+  savingsExplicit.api.computeChartVerticalScale
+);
+assertDualAverages(savingsExplicit.savingsHost.html, {
+  sourceKind: "expense",
+  sourceKey: "id-401",
+  name: "Conta reserva",
+  color: "#333377",
+  real: 605.5,
+  estimated: 655.5
+});
+savingsExplicit.savingsHost.click("data-comparison-drilldown-toggle", "id-402");
+assert.equal(countBars(savingsExplicit.savingsHost.html, "expense"), 48);
+assertNoComparisonAverages(savingsExplicit.savingsHost.html);
+savingsExplicit.savingsHost.click("data-comparison-drilldown-toggle", "id-401");
+assert.equal(countBarsForKey(savingsExplicit.savingsHost.html, "id-402"), 24);
+assertDualAverages(savingsExplicit.savingsHost.html, {
+  sourceKind: "expense",
+  sourceKey: "id-402",
+  name: "Objetivo",
+  color: "#444488",
+  real: 105.5,
+  estimated: 155.5
+});
+savingsExplicit.savingsHost.click("data-savings-comparison-saving-detail-toggle");
+assertCollapsedSavingDetail(savingsExplicit.savingsHost.html);
+savingsExplicit.savingsHost.click("data-savings-comparison-saving-detail-toggle");
+assert.equal(countBarsForKey(savingsExplicit.savingsHost.html, "id-401"), 24);
+assert.equal(countBarsForKey(savingsExplicit.savingsHost.html, "id-402"), 0);
+savingsExplicit.savingsHost.click("data-savings-comparison-saving-detail-toggle");
+savingsExplicit.savingsHost.click("data-comparison-chart-toggle", "id-42");
+assert.equal(countBars(savingsExplicit.savingsHost.html, "rubric"), 48);
+assert.equal(savingsExplicit.state.savingsComparisonDetailVisible, false);
+assertNoComparisonAverages(savingsExplicit.savingsHost.html);
+savingsExplicit.savingsHost.click("data-comparison-chart-toggle", "id-41");
+assert.equal(countBarsForKey(savingsExplicit.savingsHost.html, "id-42"), 24);
+assertCollapsedSavingDetail(savingsExplicit.savingsHost.html);
+savingsExplicit.savingsHost.click("data-savings-comparison-saving-detail-toggle");
+assert.equal(countBarsForKey(savingsExplicit.savingsHost.html, "id-403"), 24);
+savingsExplicit.savingsHost.click("data-savings-comparison-chart-close-main");
+assert.equal(savingsExplicit.state.savingsComparisonChartVisible, false);
+assert.equal(savingsExplicit.state.savingsComparisonDetailVisible, false);
+assert.equal(savingsExplicit.state.savingsComparisonHiddenRubrics.size, 0);
+assert.equal(savingsExplicit.state.savingsComparisonHiddenExpenses.size, 0);
+savingsExplicit.context.window.cgdToggleSavingsComparisonChart();
+assert.equal(countBarsForKey(savingsExplicit.savingsHost.html, "id-41"), 24);
+assertCollapsedSavingDetail(savingsExplicit.savingsHost.html);
+assert.deepEqual({
+  incomeVisible: savingsExplicit.state.incomeComparisonChartVisible,
+  incomeHidden: Array.from(savingsExplicit.state.incomeComparisonHiddenRubrics),
+  outcomeVisible: savingsExplicit.state.outcomeComparisonChartVisible,
+  outcomeHidden: Array.from(savingsExplicit.state.outcomeComparisonHiddenRubrics)
+}, otherComparisonStateBeforeSavings);
+
 const empty = makeContext({
   explicitDetail: true,
   data: {
@@ -991,6 +1146,86 @@ assertDualAverages(rawNormalization.outcomeHost.html, {
   real: 2407.2 / 12,
   estimated: 1172.7 / 12
 });
+
+const zeroedMonths = makeContext({
+  explicitDetail: true,
+  data: { income: [], savings: [], outcome: [] }
+});
+zeroedMonths.state.data = zeroedMonths.api.buildDataModel(
+  [{
+    rubrica_id: 78,
+    rubrica_desc: "Meses zerados",
+    rubrica_tipo: "Despesa",
+    rubrica_seq: 1,
+    mes: 1
+  }],
+  months.map((_, index) => ({
+    rubrica_id: 78,
+    despesa_id: 708,
+    despesa_desc: "Zero explícito",
+    despesa_seq: 1,
+    mes: index + 1,
+    valor: 0,
+    valor_estimado: 120,
+    zerado: true,
+    totalizador: true
+  })),
+  new Set()
+);
+zeroedMonths.context.window.cgdToggleOutcomeComparisonChart();
+assertComparisonBarsPreserved(
+  zeroedMonths.outcomeHost.html,
+  "id-78",
+  months.map(() => 0),
+  months.map(() => 120),
+  zeroedMonths.api.computeChartVerticalScale
+);
+assertDualAverages(zeroedMonths.outcomeHost.html, {
+  sourceKind: "rubric",
+  sourceKey: "id-78",
+  name: "Meses zerados",
+  color: "#111111",
+  real: 0,
+  estimated: 120
+});
+
+const outOfRangeHybridAverage = makeContext({
+  explicitDetail: true,
+  data: {
+    income: [],
+    savings: [],
+    outcome: [{
+      id: 79,
+      name: "Fallback acima das barras",
+      expenses: [
+        {
+          id: 709,
+          name: "Real",
+          monthData: months.map(() => ({ valor: 100, valorEstimado: 0, totalizador: true }))
+        },
+        {
+          id: 710,
+          name: "Estimado",
+          monthData: months.map(() => ({ valor: 0, valorEstimado: 100, totalizador: true }))
+        }
+      ]
+    }]
+  }
+});
+outOfRangeHybridAverage.context.window.cgdToggleOutcomeComparisonChart();
+const outOfRangeReal = getComparisonAverage(outOfRangeHybridAverage.outcomeHost.html, "real");
+assert.equal(outOfRangeReal.value, 200);
+assert.ok(outOfRangeReal.y1 >= 20 && outOfRangeReal.y1 <= 282);
+assert.deepEqual(
+  getComparisonBars(outOfRangeHybridAverage.outcomeHost.html, "id-79", "value")
+    .map((bar) => bar.value),
+  months.map(() => 100)
+);
+assert.deepEqual(
+  getComparisonBars(outOfRangeHybridAverage.outcomeHost.html, "id-79", "estimated")
+    .map((bar) => bar.value),
+  months.map(() => 100)
+);
 
 const itemByItemFallback = makeContext({ explicitDetail: true });
 const mixedItemA = [
@@ -1176,6 +1411,92 @@ assertDualAverages(incomeItemByItemFallback.incomeHost.html, {
   sourceKey: "id-1811",
   name: "Receita legacy",
   color: "#337733",
+  real: 198 / 12,
+  estimated: 1602 / 12
+});
+
+const savingsItemByItemFallback = makeContext({
+  explicitDetail: true,
+  savingsVisible: false,
+  data: { income: [], savings: [], outcome: [] }
+});
+savingsItemByItemFallback.state.data = savingsItemByItemFallback.api.buildDataModel(
+  [{
+    rubrica_id: 281,
+    rubrica_desc: "Poupança fallback item a item",
+    rubrica_tipo: "Aprovisionamento",
+    rubrica_seq: 1,
+    mes: 1
+  }],
+  [
+    ...mixedItemA.map((values, index) => ({
+      ...values,
+      rubrica_id: 281,
+      despesa_id: 2811,
+      despesa_desc: "Poupança legacy",
+      despesa_seq: 1,
+      mes: index + 1,
+      totalizador: true
+    })),
+    ...mixedItemB.map((values, index) => ({
+      ...values,
+      rubrica_id: 281,
+      despesa_id: 2812,
+      despesa_desc: "Poupança atual",
+      despesa_seq: 2,
+      mes: index + 1,
+      totalizador: true
+    })),
+    ...months.map((_, index) => ({
+      valor: 9999,
+      valor_estimado: 8888,
+      rubrica_id: 281,
+      despesa_id: 2813,
+      despesa_desc: "Poupança não totalizadora",
+      despesa_seq: 3,
+      mes: index + 1,
+      totalizador: false
+    }))
+  ],
+  new Set()
+);
+const mixedSavingsSeries = savingsItemByItemFallback.api.buildComparisonSeriesForKind("savings")[0];
+assert.deepEqual(Array.from(mixedSavingsSeries.values), mixedRubricActual);
+assert.deepEqual(Array.from(mixedSavingsSeries.estimatedValues), mixedRubricEstimated);
+assert.deepEqual(Array.from(mixedSavingsSeries.realAverageValues), mixedRubricResolved);
+assert.equal(mixedSavingsSeries.values[0], 100);
+assert.equal(mixedSavingsSeries.realAverageValues[0], 140);
+assert.equal(mixedSavingsSeries.expenses.length, 3);
+assert.equal(mixedSavingsSeries.expenses[2].values[0], 9999);
+savingsItemByItemFallback.context.window.cgdToggleSavingsComparisonChart();
+assertComparisonBarsPreserved(
+  savingsItemByItemFallback.savingsHost.html,
+  "id-281",
+  mixedRubricActual,
+  mixedRubricEstimated,
+  savingsItemByItemFallback.api.computeChartVerticalScale
+);
+assertDualAverages(savingsItemByItemFallback.savingsHost.html, {
+  sourceKind: "rubric",
+  sourceKey: "id-281",
+  name: "Poupança fallback item a item",
+  color: "#111155",
+  real: 399 / 12,
+  estimated: 2253 / 12
+});
+savingsItemByItemFallback.savingsHost.click("data-savings-comparison-saving-detail-toggle");
+assertComparisonBarsPreserved(
+  savingsItemByItemFallback.savingsHost.html,
+  "id-2811",
+  mixedItemAActual,
+  mixedItemAEstimated,
+  savingsItemByItemFallback.api.computeChartVerticalScale
+);
+assertDualAverages(savingsItemByItemFallback.savingsHost.html, {
+  sourceKind: "expense",
+  sourceKey: "id-2811",
+  name: "Poupança legacy",
+  color: "#333377",
   real: 198 / 12,
   estimated: 1602 / 12
 });
@@ -1401,6 +1722,34 @@ assert.match(
   /Entrada &#39;&gt;&lt;svg onload=alert\(4\)&gt;/
 );
 
+const maliciousSavings = makeContext({
+  explicitDetail: true,
+  savingsVisible: false,
+  data: {
+    income: [],
+    outcome: [],
+    savings: [{
+      id: 266,
+      name: "Poupança <img src=x onerror=alert(5)>",
+      expenses: [{
+        id: 2601,
+        name: "Conta '><svg onload=alert(6)>",
+        monthData: monthData(10, 20)
+      }]
+    }]
+  }
+});
+maliciousSavings.context.window.cgdToggleSavingsComparisonChart();
+assert.match(maliciousSavings.savingsHost.html, /Poupança &lt;img/);
+assert.doesNotMatch(maliciousSavings.savingsHost.html, /<img/);
+maliciousSavings.savingsHost.click("data-savings-comparison-saving-detail-toggle");
+assert.match(maliciousSavings.savingsHost.html, /Conta &#39;&gt;&lt;svg/);
+assert.doesNotMatch(maliciousSavings.savingsHost.html, /<svg onload/);
+assert.match(
+  getComparisonAverage(maliciousSavings.savingsHost.html, "estimated").ariaLabel,
+  /Conta &#39;&gt;&lt;svg onload=alert\(6\)&gt;/
+);
+
 const emptyIncome = makeContext({
   explicitDetail: true,
   incomeVisible: false,
@@ -1420,6 +1769,26 @@ assert.equal(countBars(emptyIncome.incomeHost.html, "expense"), 0);
 assert.match(emptyIncome.incomeHost.html, /Ainda nao existem valores para comparar/);
 assert.doesNotMatch(emptyIncome.incomeHost.html, /data-income-comparison-revenue-detail-toggle/);
 assertNoComparisonAverages(emptyIncome.incomeHost.html);
+
+const emptySavings = makeContext({
+  explicitDetail: true,
+  savingsVisible: false,
+  data: {
+    income: [],
+    outcome: [],
+    savings: [{
+      id: 255,
+      name: "Poupança sem valores",
+      expenses: [{ id: 2501, name: "Sem valores", monthData: zeroMonthData() }]
+    }]
+  }
+});
+emptySavings.context.window.cgdToggleSavingsComparisonChart();
+assert.equal(countBars(emptySavings.savingsHost.html, "rubric"), 0);
+assert.equal(countBars(emptySavings.savingsHost.html, "expense"), 0);
+assert.match(emptySavings.savingsHost.html, /Ainda nao existem valores para comparar/);
+assert.doesNotMatch(emptySavings.savingsHost.html, /data-savings-comparison-saving-detail-toggle/);
+assertNoComparisonAverages(emptySavings.savingsHost.html);
 
 const sharedOpening = makeContext({ explicitDetail: false });
 sharedOpening.context.window.cgdToggleOutcomeComparisonChart();
@@ -1467,21 +1836,16 @@ assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-income-comparison-revenu
 assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-outcome-comparison-expense-detail-toggle/);
 assertNoComparisonAverages(sharedLegacy.incomeHost.html);
 
-assert.match(novoBancoHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL = true/);
-assert.match(novoBancoHtml, /DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL = true/);
-assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260812-7/);
-assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260812-3/);
-assert.match(styles, /\.nb-theme \.panel-stack\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
-assert.doesNotMatch(cgdHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
-assert.doesNotMatch(coverflexHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
-assert.doesNotMatch(cgdHtml, /DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL/);
-assert.doesNotMatch(coverflexHtml, /DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL/);
-assert.doesNotMatch(cgdHtml, /20260812-6/);
-assert.doesNotMatch(coverflexHtml, /20260812-6/);
-assert.doesNotMatch(cgdHtml, /20260812-7/);
-assert.doesNotMatch(coverflexHtml, /20260812-7/);
+assert.match(novoBancoHtml, /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "outcome"\]/);
+assert.match(cgdHtml, /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "savings", "outcome"\]/);
+assert.match(coverflexHtml, /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "outcome"\]/);
+for (const source of [novoBancoHtml, cgdHtml, coverflexHtml]) {
+  assert.match(source, /assets\/js\/cgd\.js\?v=20260812-8/);
+  assert.match(source, /assets\/css\/styles\.css\?v=20260812-4/);
+}
+assert.match(styles, /\.explicit-chart-detail \.panel-stack\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
 const comparisonControlRule = styles.match(
-  /\.nb-theme \.outcome-drilldown-toolbar\.outcome-comparison-toolbar > \.outcome-expense-detail-toggle,\s*\.nb-theme \.outcome-drilldown-toolbar\.outcome-comparison-toolbar > \.outcome-drilldown-close-btn \{([^}]*)\}/
+  /\.explicit-chart-detail \.outcome-drilldown-toolbar\.outcome-comparison-toolbar > \.outcome-expense-detail-toggle,\s*\.explicit-chart-detail \.outcome-drilldown-toolbar\.outcome-comparison-toolbar > \.outcome-drilldown-close-btn \{([^}]*)\}/
 )?.[1] || "";
 assert.match(comparisonControlRule, /height:\s*36px;/);
 assert.match(comparisonControlRule, /min-height:\s*36px;/);
@@ -1492,23 +1856,23 @@ assert.doesNotMatch(comparisonControlRule, /999px|50%/);
 assert.match(comparisonControlRule, /align-items:\s*center;/);
 assert.match(comparisonControlRule, /justify-content:\s*center;/);
 const comparisonTouchTargetRule = styles.match(
-  /\.nb-theme \.outcome-drilldown-toolbar\.outcome-comparison-toolbar > \.outcome-expense-detail-toggle::before,\s*\.nb-theme \.outcome-drilldown-toolbar\.outcome-comparison-toolbar > \.outcome-drilldown-close-btn::before \{([^}]*)\}/
+  /\.explicit-chart-detail \.outcome-drilldown-toolbar\.outcome-comparison-toolbar > \.outcome-expense-detail-toggle::before,\s*\.explicit-chart-detail \.outcome-drilldown-toolbar\.outcome-comparison-toolbar > \.outcome-drilldown-close-btn::before \{([^}]*)\}/
 )?.[1] || "";
 assert.match(comparisonTouchTargetRule, /inset-block:\s*-4px;/);
 assert.match(comparisonTouchTargetRule, /inset-inline:\s*0;/);
 assert.match(
   styles,
-  /@media \(pointer: coarse\), \(max-width: 1024px\) \{[\s\S]*?\.nb-theme \.outcome-drilldown-toolbar\.outcome-comparison-toolbar > \.outcome-expense-detail-toggle::before,[\s\S]*?inset-block:\s*-4px;/
+  /@media \(pointer: coarse\), \(max-width: 1024px\) \{[\s\S]*?\.explicit-chart-detail \.outcome-drilldown-toolbar\.outcome-comparison-toolbar > \.outcome-expense-detail-toggle::before,[\s\S]*?inset-block:\s*-4px;/
 );
-assert.match(cgd, /function computeOutcomeSeriesAverage\(series\)[\s\S]*return computeTwelveMonthAverage\(series\?\.values\);/);
+assert.match(cgd, /function computeEvolutionSeriesAverage\(series\)[\s\S]*return computeTwelveMonthAverage\(series\?\.values\);/);
 assert.ok(
-  (cgd.match(/resetOutcomeComparisonRubricSelectionToFirst\(\);\s*renderPanels\(\);/g) || []).length >= 3,
+  (cgd.match(/resetSavingsComparisonRubricSelectionToFirst\(\);\s*resetOutcomeRubricSelectionToFirst\(\);\s*resetOutcomeComparisonRubricSelectionToFirst\(\);\s*renderPanels\(\);/g) || []).length >= 3,
   "Every year-load render path must reset the comparison chart to the first valid rubric"
 );
 assert.ok(
   (
     cgd.match(
-      /resetIncomeRubricSelectionToFirst\(\);\s*resetIncomeComparisonRubricSelectionToFirst\(\);\s*resetOutcomeRubricSelectionToFirst\(\);\s*resetOutcomeComparisonRubricSelectionToFirst\(\);\s*renderPanels\(\);/g
+      /resetIncomeRubricSelectionToFirst\(\);\s*resetIncomeComparisonRubricSelectionToFirst\(\);\s*resetSavingsRubricSelectionToFirst\(\);\s*resetSavingsComparisonRubricSelectionToFirst\(\);\s*resetOutcomeRubricSelectionToFirst\(\);\s*resetOutcomeComparisonRubricSelectionToFirst\(\);\s*renderPanels\(\);/g
     ) || []
   ).length >= 3,
   "Every year-load render path must reset all four explicit chart states"
@@ -1518,6 +1882,8 @@ assert.match(cgd, /id='outcome-expense-detail-series'/);
 assert.match(cgd, /"outcome-comparison-expense-detail-series"/);
 assert.match(cgd, /id='income-revenue-detail-series'/);
 assert.match(cgd, /"income-comparison-revenue-detail-series"/);
+assert.match(cgd, /id='savings-saving-detail-series'/);
+assert.match(cgd, /"savings-comparison-saving-detail-series"/);
 assert.notEqual("income-revenue-detail-series", "income-comparison-revenue-detail-series");
 assert.notEqual("income-comparison-revenue-detail-series", "outcome-comparison-expense-detail-series");
 

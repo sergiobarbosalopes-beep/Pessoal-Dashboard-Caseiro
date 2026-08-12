@@ -1181,7 +1181,9 @@ const htmlFiles = [...authenticatedHtmlFiles, "login.html"];
 const html = htmlFiles.map(read);
 for (const relativePath of htmlFiles) {
   const source = read(relativePath);
-  const stylesVersion = relativePath === "novobanco.html" ? "20260812-3" : "20260806-1";
+  const stylesVersion = ["caixa-geral-depositos.html", "novobanco.html", "coverflex.html"].includes(relativePath)
+    ? "20260812-4"
+    : "20260806-1";
   assert.match(source, /viewport-fit=cover/);
   assert.match(source, new RegExp(`assets/css/styles\\.css\\?v=${stylesVersion}`));
 }
@@ -1189,12 +1191,48 @@ for (const source of html.filter((value) => value.includes("assets/js/main.js"))
   assert.match(source, /assets\/js\/main\.js\?v=20260806-1/);
 }
 for (const relativePath of ["caixa-geral-depositos.html", "novobanco.html", "coverflex.html"]) {
-  const cgdVersion = relativePath === "novobanco.html" ? "20260812-7" : "20260803-1";
-  assert.match(read(relativePath), new RegExp(`assets/js/cgd\\.js\\?v=${cgdVersion}`));
+  assert.match(read(relativePath), /assets\/js\/cgd\.js\?v=20260812-8/);
 }
-assert.match(read("novobanco.html"), /DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL = true/);
-assert.doesNotMatch(read("caixa-geral-depositos.html"), /DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL/);
-assert.doesNotMatch(read("coverflex.html"), /DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL/);
+assert.match(read("novobanco.html"), /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "outcome"\]/);
+assert.match(read("caixa-geral-depositos.html"), /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "savings", "outcome"\]/);
+assert.match(read("coverflex.html"), /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "outcome"\]/);
+assert.doesNotMatch(read("index.html"), /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS/);
+assert.doesNotMatch(read("admin.html"), /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS/);
+const chartCapabilitySource = cgd.slice(
+  cgd.indexOf("const SUPPORTED_CHART_DETAIL_KINDS"),
+  cgd.indexOf("const TOTALIZER_PEOPLE")
+);
+const evaluateChartCapabilities = (kinds) => {
+  const context = vm.createContext({
+    Array,
+    Set,
+    String,
+    window: { DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS: kinds },
+    result: null
+  });
+  vm.runInContext(`
+    ${chartCapabilitySource}
+    result = ["income", "savings", "outcome", "unknown"]
+      .map((kind) => [kind, EXPLICIT_CHART_DETAIL_KINDS.has(kind)]);
+  `, context);
+  return Object.fromEntries(context.result);
+};
+assert.deepEqual(
+  evaluateChartCapabilities(["income", "outcome"]),
+  { income: true, savings: false, outcome: true, unknown: false }
+);
+assert.deepEqual(
+  evaluateChartCapabilities(["income", "savings", "outcome"]),
+  { income: true, savings: true, outcome: true, unknown: false }
+);
+assert.deepEqual(
+  evaluateChartCapabilities(["income", "outcome", "unknown"]),
+  { income: true, savings: false, outcome: true, unknown: false }
+);
+assert.deepEqual(
+  evaluateChartCapabilities([]),
+  { income: false, savings: false, outcome: false, unknown: false }
+);
 const expectedMenuHrefs = [
   "index.html",
   "caixa-geral-depositos.html",

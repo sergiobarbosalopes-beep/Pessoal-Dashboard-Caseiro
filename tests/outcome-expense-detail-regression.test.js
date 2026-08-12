@@ -30,15 +30,10 @@ const buildDataModelSource = sliceBetween(
   "\nfunction money("
 );
 const moneySource = sliceBetween(cgd, "function money(", "\nfunction isZeroMoneyDisplayValue");
-const rubricBuildersSource = sliceBetween(
+const chartBuildersSource = sliceBetween(
   cgd,
   "function buildOutcomeRubricSeries()",
-  "\nfunction buildSavingsRubricSeries()"
-);
-const expenseBuildersSource = sliceBetween(
-  cgd,
-  "function buildOutcomeExpenseSeriesForRubric(",
-  "\nfunction buildSavingsExpenseSeriesForRubric("
+  "\nfunction bindIncomeChartInteractions("
 );
 const outcomeChartSource = sliceBetween(
   cgd,
@@ -50,6 +45,11 @@ const incomeChartSource = sliceBetween(
   "function bindIncomeChartInteractions(",
   "\nfunction bindSavingsChartInteractions("
 );
+const savingsChartSource = sliceBetween(
+  cgd,
+  "function bindSavingsChartInteractions(",
+  "\nfunction resetOutcomeExpenseDetail("
+);
 const incomeToggleSource = sliceBetween(
   cgd,
   "window.cgdToggleIncomeChart =",
@@ -59,6 +59,11 @@ const outcomeToggleSource = sliceBetween(
   cgd,
   "window.cgdToggleOutcomeChart =",
   "\nwindow.cgdToggleOutcomeComparisonChart ="
+);
+const savingsToggleSource = sliceBetween(
+  cgd,
+  "window.cgdToggleSavingsChart =",
+  "\nwindow.cgdToggleSavingsComparisonChart ="
 );
 
 class FakeClassList {
@@ -124,7 +129,8 @@ class FakeHost {
     if (
       [
         "[data-outcome-expense-detail-toggle]",
-        "[data-income-revenue-detail-toggle]"
+        "[data-income-revenue-detail-toggle]",
+        "[data-savings-saving-detail-toggle]"
       ].includes(selector)
       && this.html.includes(selector.slice(1, -1))
     ) {
@@ -139,7 +145,7 @@ class FakeHost {
 
   querySelectorAll(selector) {
     const attribute = selector.match(/^\[([^\]]+)\]$/)?.[1];
-    if (!["data-outcome-chart-toggle", "data-income-chart-toggle"].includes(attribute)) {
+    if (!["data-outcome-chart-toggle", "data-income-chart-toggle", "data-savings-chart-toggle"].includes(attribute)) {
       return [];
     }
 
@@ -179,7 +185,25 @@ const makeData = () => ({
       ]
     }
   ],
-  savings: [],
+  savings: [
+    {
+      id: 41,
+      name: "Reserva",
+      values: monthValues(800),
+      expenses: [
+        { id: 401, name: "Conta reserva", values: monthValues(600) },
+        { id: 402, name: "Objetivo", values: monthValues(100) }
+      ]
+    },
+    {
+      id: 42,
+      name: "Ferias",
+      values: monthValues(300),
+      expenses: [
+        { id: 403, name: "Viagem", values: monthValues(250) }
+      ]
+    }
+  ],
   outcome: [
     {
       id: 11,
@@ -204,12 +228,15 @@ const makeData = () => ({
 const makeContext = ({
   explicitDetail,
   incomeExplicitDetail = explicitDetail,
+  savingsExplicitDetail = explicitDetail,
   data = makeData(),
   outcomeChartVisible = true,
-  incomeChartVisible = true
+  incomeChartVisible = true,
+  savingsChartVisible = true
 }) => {
   const outcomeHost = new FakeHost();
   const incomeHost = new FakeHost();
+  const savingsHost = new FakeHost();
   const state = {
     data,
     outcomeChartVisible,
@@ -223,7 +250,13 @@ const makeContext = ({
     incomeChartSelectedRubricKey: null,
     incomeChartRevenueDetailVisible: false,
     incomeChartRevenueDetailRubricKey: null,
-    incomeDrilldownHiddenExpenses: new Set()
+    incomeDrilldownHiddenExpenses: new Set(),
+    savingsChartVisible,
+    savingsChartHiddenRubrics: new Set(),
+    savingsChartSelectedRubricKey: null,
+    savingsChartDetailVisible: false,
+    savingsChartDetailRubricKey: null,
+    savingsDrilldownHiddenExpenses: new Set()
   };
   let api;
   const context = vm.createContext({
@@ -235,12 +268,12 @@ const makeContext = ({
     Set,
     String,
     EXPENSE_SEQ_COLUMN: "despesa_seq",
-    EXPLICIT_INCOME_REVENUE_DETAIL: incomeExplicitDetail,
-    EXPLICIT_OUTCOME_EXPENSE_DETAIL: explicitDetail,
     HIDE_SAVINGS: false,
     THEME_COLORS: {
       incomeRubrics: ["#115511", "#226622"],
       incomeExpenses: ["#337733", "#448844", "#559955"],
+      savingsRubrics: ["#115", "#226"],
+      savingsExpenses: ["#337", "#448", "#559"],
       outcomeRubrics: ["#111111", "#222222"],
       outcomeExpenses: ["#333333", "#444444", "#555555"]
     },
@@ -263,16 +296,32 @@ const makeContext = ({
     buildExpenseHistoryMonthKey: (rubricId, expenseId, month) => `${rubricId}::${expenseId}::${month}`,
     document: {
       dispatchEvent: () => {},
-      getElementById: (id) => (id === "outcome-evolution-chart" ? outcomeHost : incomeHost)
+      getElementById: (id) => {
+        if (id === "outcome-evolution-chart") {
+          return outcomeHost;
+        }
+        if (id === "savings-evolution-chart") {
+          return savingsHost;
+        }
+        return incomeHost;
+      }
     },
     emptyValues: () => months.map(() => 0),
     ensurePanelHeadVisible: () => {},
+    isExplicitChartDetailEnabled: (kind) => (
+      kind === "income"
+        ? incomeExplicitDetail
+        : kind === "savings"
+          ? savingsExplicitDetail
+          : explicitDetail
+    ),
     months,
     requestAnimationFrame: (callback) => callback(),
     renderPanels: () => {
       if (api) {
         api.renderOutcomeEvolutionChart();
         api.renderIncomeEvolutionChart();
+        api.renderSavingsEvolutionChart();
       }
     },
     scheduleChartOpenScroll: () => {},
@@ -286,26 +335,29 @@ const makeContext = ({
     ${buildDataModelSource}
     ${moneySource}
     ${escapeHtmlSource}
-    ${rubricBuildersSource}
-    ${expenseBuildersSource}
+    ${chartBuildersSource}
     ${incomeChartSource}
+    ${savingsChartSource}
     ${outcomeChartSource}
     ${incomeToggleSource}
+    ${savingsToggleSource}
     ${outcomeToggleSource}
     chartApi = {
       renderIncomeEvolutionChart,
+      renderSavingsEvolutionChart,
       renderOutcomeEvolutionChart,
       resetIncomeRubricSelectionToFirst,
+      resetSavingsRubricSelectionToFirst,
       resetOutcomeRubricSelectionToFirst,
       buildDataModel,
-      computeOutcomeSeriesAverage,
+      computeEvolutionSeriesAverage,
       formatOutcomeAverageValue,
       parseExpenseValue
     };
   `, context);
   api = context.chartApi;
 
-  return { api, context, incomeHost, outcomeHost, state };
+  return { api, context, incomeHost, outcomeHost, savingsHost, state };
 };
 
 const countSeries = (html, kind) => (html.match(new RegExp(`data-series-kind='${kind}'`, "g")) || []).length;
@@ -360,6 +412,15 @@ const assertCollapsedRevenueToggle = (html) => {
   assert.match(html, />Mostrar receitas<\/button>/);
   assert.match(html, /id='income-revenue-detail-series'[^>]*\shidden(?:\s|>)/);
   assert.doesNotMatch(html, />Mostrar despesas<\/button>|>Ocultar despesas<\/button>/);
+};
+
+const assertCollapsedSavingToggle = (html) => {
+  assert.match(html, /data-savings-saving-detail-toggle/);
+  assert.match(html, /aria-expanded='false'/);
+  assert.match(html, /aria-controls='savings-saving-detail-series'/);
+  assert.match(html, />Mostrar poupanças<\/button>/);
+  assert.match(html, /id='savings-saving-detail-series'[^>]*\shidden(?:\s|>)/);
+  assert.doesNotMatch(html, />Mostrar despesas<\/button>|>Mostrar receitas<\/button>/);
 };
 
 const explicit = makeContext({ explicitDetail: true, outcomeChartVisible: false });
@@ -1032,6 +1093,185 @@ assert.match(maliciousIncome.incomeHost.html, /Item &#39;&gt;&lt;svg/);
 assert.doesNotMatch(maliciousIncome.incomeHost.html, /<svg onload/);
 assert.match(maliciousIncome.incomeHost.html, /aria-label='Média - Item &#39;&gt;&lt;svg/);
 
+const savingsExplicit = makeContext({
+  explicitDetail: true,
+  savingsChartVisible: false
+});
+const incomeOutcomeStateBeforeSavings = {
+  incomeHidden: Array.from(savingsExplicit.state.incomeChartHiddenRubrics),
+  incomeDetail: savingsExplicit.state.incomeChartRevenueDetailVisible,
+  outcomeHidden: Array.from(savingsExplicit.state.outcomeChartHiddenRubrics),
+  outcomeDetail: savingsExplicit.state.outcomeChartExpenseDetailVisible
+};
+savingsExplicit.context.window.cgdToggleSavingsChart();
+assert.equal(countSeries(savingsExplicit.savingsHost.html, "rubric"), 1);
+assert.equal(countSeries(savingsExplicit.savingsHost.html, "expense"), 0);
+assert.match(savingsExplicit.savingsHost.html, /data-series-key='id-41'/);
+assert.doesNotMatch(savingsExplicit.savingsHost.html, /data-series-key='id-42'/);
+assert.equal(countPressed(savingsExplicit.savingsHost.html, "data-savings-chart-toggle", "true"), 1);
+assert.equal(countPressed(savingsExplicit.savingsHost.html, "data-savings-chart-toggle", "false"), 1);
+assertCollapsedSavingToggle(savingsExplicit.savingsHost.html);
+assertAverageLine(savingsExplicit.savingsHost.html, {
+  namespace: "savings",
+  kind: "rubric",
+  key: "id-41",
+  color: "#115",
+  value: 805.5
+});
+
+savingsExplicit.savingsHost.click("data-savings-saving-detail-toggle");
+assert.equal(countSeries(savingsExplicit.savingsHost.html, "rubric"), 0);
+assert.equal(countSeries(savingsExplicit.savingsHost.html, "expense"), 1);
+assert.match(savingsExplicit.savingsHost.html, /data-series-key='expense-0-0-401'/);
+assert.doesNotMatch(savingsExplicit.savingsHost.html, /data-series-key='expense-0-1-402'/);
+assert.match(savingsExplicit.savingsHost.html, />Ocultar poupanças<\/button>/);
+assert.doesNotMatch(savingsExplicit.savingsHost.html, />Ocultar despesas<\/button>|>Ocultar receitas<\/button>/);
+assert.equal(countPressed(savingsExplicit.savingsHost.html, "data-savings-drilldown-toggle", "true"), 1);
+assert.equal(countPressed(savingsExplicit.savingsHost.html, "data-savings-drilldown-toggle", "false"), 1);
+assertAverageLine(savingsExplicit.savingsHost.html, {
+  namespace: "savings",
+  kind: "expense",
+  key: "expense-0-0-401",
+  color: "#337",
+  value: 605.5
+});
+savingsExplicit.savingsHost.click("data-savings-drilldown-toggle", "expense-0-1-402");
+assert.equal(countSeries(savingsExplicit.savingsHost.html, "expense"), 2);
+assert.equal(countAverageLines(savingsExplicit.savingsHost.html, "savings"), 0);
+savingsExplicit.savingsHost.click("data-savings-drilldown-toggle", "expense-0-0-401");
+assertAverageLine(savingsExplicit.savingsHost.html, {
+  namespace: "savings",
+  kind: "expense",
+  key: "expense-0-1-402",
+  color: "#448",
+  value: 105.5
+});
+savingsExplicit.savingsHost.click("data-savings-saving-detail-toggle");
+assertCollapsedSavingToggle(savingsExplicit.savingsHost.html);
+savingsExplicit.savingsHost.click("data-savings-saving-detail-toggle");
+assert.match(savingsExplicit.savingsHost.html, /data-series-key='expense-0-0-401'/);
+assert.doesNotMatch(savingsExplicit.savingsHost.html, /data-series-key='expense-0-1-402'/);
+savingsExplicit.savingsHost.click("data-savings-saving-detail-toggle");
+savingsExplicit.savingsHost.click("data-savings-chart-toggle", "id-42");
+assert.equal(countSeries(savingsExplicit.savingsHost.html, "rubric"), 2);
+assert.equal(savingsExplicit.state.savingsChartDetailVisible, false);
+assert.equal(countAverageLines(savingsExplicit.savingsHost.html, "savings"), 0);
+savingsExplicit.savingsHost.click("data-savings-chart-toggle", "id-41");
+assert.match(savingsExplicit.savingsHost.html, /data-series-key='id-42'/);
+assertCollapsedSavingToggle(savingsExplicit.savingsHost.html);
+savingsExplicit.savingsHost.click("data-savings-saving-detail-toggle");
+assert.match(savingsExplicit.savingsHost.html, /data-series-key='expense-1-0-403'/);
+savingsExplicit.savingsHost.click("data-savings-chart-close-main");
+assert.equal(savingsExplicit.state.savingsChartVisible, false);
+assert.equal(savingsExplicit.state.savingsChartDetailVisible, false);
+assert.equal(savingsExplicit.state.savingsChartHiddenRubrics.size, 0);
+assert.equal(savingsExplicit.state.savingsDrilldownHiddenExpenses.size, 0);
+savingsExplicit.context.window.cgdToggleSavingsChart();
+assert.match(savingsExplicit.savingsHost.html, /data-series-key='id-41'/);
+assertCollapsedSavingToggle(savingsExplicit.savingsHost.html);
+assert.deepEqual({
+  incomeHidden: Array.from(savingsExplicit.state.incomeChartHiddenRubrics),
+  incomeDetail: savingsExplicit.state.incomeChartRevenueDetailVisible,
+  outcomeHidden: Array.from(savingsExplicit.state.outcomeChartHiddenRubrics),
+  outcomeDetail: savingsExplicit.state.outcomeChartExpenseDetailVisible
+}, incomeOutcomeStateBeforeSavings);
+
+const savingsFallback = makeContext({
+  explicitDetail: true,
+  savingsChartVisible: false,
+  data: { income: [], savings: [], outcome: [] }
+});
+const normalizedSavingsModel = savingsFallback.api.buildDataModel(
+  [{
+    rubrica_id: 97,
+    rubrica_desc: "Poupança mensal",
+    rubrica_tipo: "Aprovisionamento",
+    rubrica_seq: 1,
+    mes: 1
+  }],
+  [
+    ...normalizedRows.map((row, index) => ({
+      ...row,
+      ano: 2026,
+      mes: index + 1,
+      rubrica_id: 97,
+      despesa_id: 901,
+      despesa_desc: "Poupança mista",
+      despesa_seq: 1,
+      totalizador: true
+    })),
+    ...secondExpenseRows.map((row, index) => ({
+      ...row,
+      ano: 2026,
+      mes: index + 1,
+      rubrica_id: 97,
+      despesa_id: 902,
+      despesa_desc: "Objetivo agregado",
+      despesa_seq: 2,
+      totalizador: true
+    }))
+  ]
+);
+assert.deepEqual(Array.from(normalizedSavingsModel.savings[0].values), expectedRubricValues);
+savingsFallback.state.data = normalizedSavingsModel;
+savingsFallback.context.window.cgdToggleSavingsChart();
+assert.deepEqual(extractPointValues(savingsFallback.savingsHost.html), expectedRubricValues);
+assertAverageLine(savingsFallback.savingsHost.html, {
+  namespace: "savings",
+  kind: "rubric",
+  key: "id-97",
+  color: "#115",
+  value: 265 / 12
+});
+savingsFallback.savingsHost.click("data-savings-saving-detail-toggle");
+assert.deepEqual(extractPointValues(savingsFallback.savingsHost.html), expectedFirstExpenseValues);
+assertAverageLine(savingsFallback.savingsHost.html, {
+  namespace: "savings",
+  kind: "expense",
+  key: "expense-0-0-901",
+  color: "#337",
+  value: 20
+});
+
+const savingsSafety = makeContext({
+  explicitDetail: true,
+  savingsChartVisible: false,
+  data: {
+    income: [],
+    outcome: [],
+    savings: [{
+      id: 98,
+      name: "Reserva <img src=x onerror=alert(1)>",
+      values: monthValues(70),
+      expenses: [{ id: 903, name: "", values: monthValues(70) }]
+    }]
+  }
+});
+savingsSafety.context.window.cgdToggleSavingsChart();
+assert.match(savingsSafety.savingsHost.html, /Reserva &lt;img/);
+assert.doesNotMatch(savingsSafety.savingsHost.html, /<img/);
+savingsSafety.savingsHost.click("data-savings-saving-detail-toggle");
+assert.match(savingsSafety.savingsHost.html, />Poupança 1<\/button>/);
+assert.doesNotMatch(savingsSafety.savingsHost.html, />Despesa 1<\/button>|>Receita 1<\/button>/);
+
+const savingsEmptyItems = makeContext({
+  explicitDetail: true,
+  savingsChartVisible: false,
+  data: {
+    income: [],
+    outcome: [],
+    savings: [{
+      id: 99,
+      name: "Sem detalhe",
+      values: monthValues(50),
+      expenses: [{ id: 904, name: "Sem valores", values: zeroValues() }]
+    }]
+  }
+});
+savingsEmptyItems.context.window.cgdToggleSavingsChart();
+assert.equal(countSeries(savingsEmptyItems.savingsHost.html, "rubric"), 1);
+assert.doesNotMatch(savingsEmptyItems.savingsHost.html, /data-savings-saving-detail-toggle/);
+
 const sharedOpening = makeContext({
   explicitDetail: false,
   outcomeChartVisible: false
@@ -1062,37 +1302,33 @@ assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-series-name='Salarios'/)
 assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-income-revenue-detail-toggle/);
 assert.doesNotMatch(sharedLegacy.incomeHost.html, /data-outcome-average/);
 assert.equal(countAverageLines(sharedLegacy.incomeHost.html, "income"), 0);
+sharedLegacy.state.savingsDrilldownHiddenExpenses.add("legacy-rubric::legacy-item");
+sharedLegacy.context.window.cgdToggleSavingsChart();
+assert.deepEqual(
+  Array.from(sharedLegacy.state.savingsDrilldownHiddenExpenses),
+  ["legacy-rubric::legacy-item"]
+);
 
-assert.match(novoBancoHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL = true/);
-assert.match(novoBancoHtml, /DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL = true/);
-assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260812-7/);
-assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260812-3/);
-assert.doesNotMatch(cgdHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
-assert.doesNotMatch(coverflexHtml, /DASHBOARD_EXPLICIT_OUTCOME_EXPENSE_DETAIL/);
-assert.doesNotMatch(cgdHtml, /DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL/);
-assert.doesNotMatch(coverflexHtml, /DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL/);
-assert.doesNotMatch(cgdHtml, /20260812-1/);
-assert.doesNotMatch(coverflexHtml, /20260812-1/);
-assert.doesNotMatch(cgdHtml, /20260812-2/);
-assert.doesNotMatch(coverflexHtml, /20260812-2/);
-assert.doesNotMatch(cgdHtml, /20260812-3/);
-assert.doesNotMatch(coverflexHtml, /20260812-3/);
-assert.doesNotMatch(cgdHtml, /20260812-6/);
-assert.doesNotMatch(coverflexHtml, /20260812-6/);
-assert.doesNotMatch(cgdHtml, /20260812-7/);
-assert.doesNotMatch(coverflexHtml, /20260812-7/);
+assert.match(novoBancoHtml, /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "outcome"\]/);
+assert.match(cgdHtml, /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "savings", "outcome"\]/);
+assert.match(coverflexHtml, /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "outcome"\]/);
+for (const source of [novoBancoHtml, cgdHtml, coverflexHtml]) {
+  assert.match(source, /assets\/js\/cgd\.js\?v=20260812-8/);
+  assert.match(source, /assets\/css\/styles\.css\?v=20260812-4/);
+  assert.match(source, /<body class="[^"]*explicit-chart-detail[^"]*">/);
+}
 assert.match(styles, /\.outcome-evolution-tooltip-series\s*\{\s*font-size:\s*0\.73rem;/);
 const averageTextTag = cgd.match(/<span\s+[^>]*data-outcome-average-label[^>]*>/)?.[0] || "";
 assert.match(averageTextTag, /class='outcome-evolution-tooltip-series'/);
 assert.doesNotMatch(averageTextTag, /font-size=|font-weight=|font-style=|paint-order=|stroke=/);
 assert.match(cgd, /data-outcome-average-label-row aria-hidden='true'/);
-assert.match(styles, /\.nb-theme \.outcome-expense-detail-toggle,[\s\S]*min-height: 44px;/);
-assert.match(styles, /\.nb-theme \.outcome-expense-detail-toggle:focus-visible/);
+assert.match(styles, /\.explicit-chart-detail \.outcome-expense-detail-toggle,[\s\S]*min-height: 44px;/);
+assert.match(styles, /\.explicit-chart-detail \.outcome-expense-detail-toggle:focus-visible/);
 assert.doesNotMatch(explicit.outcomeHost.html, /outcome-comparison-toolbar/);
 assert.ok(
   (
     cgd.match(
-      /resetOutcomeRubricSelectionToFirst\(\);\s*resetOutcomeComparisonRubricSelectionToFirst\(\);\s*renderPanels\(\);/g
+      /resetSavingsRubricSelectionToFirst\(\);\s*resetSavingsComparisonRubricSelectionToFirst\(\);\s*resetOutcomeRubricSelectionToFirst\(\);\s*resetOutcomeComparisonRubricSelectionToFirst\(\);\s*renderPanels\(\);/g
     ) || []
   ).length >= 3,
   "Every year-load render path must reset to the first valid rubric"
@@ -1100,7 +1336,7 @@ assert.ok(
 assert.ok(
   (
     cgd.match(
-      /resetIncomeRubricSelectionToFirst\(\);\s*resetIncomeComparisonRubricSelectionToFirst\(\);\s*resetOutcomeRubricSelectionToFirst\(\);\s*resetOutcomeComparisonRubricSelectionToFirst\(\);\s*renderPanels\(\);/g
+      /resetIncomeRubricSelectionToFirst\(\);\s*resetIncomeComparisonRubricSelectionToFirst\(\);\s*resetSavingsRubricSelectionToFirst\(\);\s*resetSavingsComparisonRubricSelectionToFirst\(\);\s*resetOutcomeRubricSelectionToFirst\(\);\s*resetOutcomeComparisonRubricSelectionToFirst\(\);\s*renderPanels\(\);/g
     ) || []
   ).length >= 3,
   "Every year-load render path must independently reset both income charts"
