@@ -3371,6 +3371,15 @@ function resetOutcomeExpenseSelectionToFirst(rubricKey) {
   });
 }
 
+function computeOutcomeSeriesAverage(series) {
+  // Series values already contain the model's real-to-estimated monthly fallback.
+  const normalizedValues = months.map((_, monthIndex) => {
+    const numeric = Number(series?.values?.[monthIndex]);
+    return Number.isFinite(numeric) ? numeric : 0;
+  });
+  return normalizedValues.reduce((sum, value) => sum + value, 0) / months.length;
+}
+
 function focusOutcomeExpenseDetailToggle(host) {
   requestAnimationFrame(() => {
     host.querySelector("[data-outcome-expense-detail-toggle]")?.focus();
@@ -3618,6 +3627,10 @@ function renderOutcomeEvolutionChart() {
   const plottedSeries = isLegacySingleRubricMode || isExplicitExpenseDetailExpanded
     ? expensePlotSeries
     : rubricPlotSeries;
+  const averageSource = EXPLICIT_OUTCOME_EXPENSE_DETAIL && plottedSeries.length === 1
+    ? plottedSeries[0]
+    : null;
+  const averageValue = averageSource ? computeOutcomeSeriesAverage(averageSource) : null;
   if (isLegacySingleRubricMode && !expenseSeries.length) {
     host.innerHTML = `
       <div class='outcome-drilldown-toolbar'>
@@ -3708,6 +3721,55 @@ function renderOutcomeEvolutionChart() {
     })
     .join("");
 
+  const averageLine = averageSource && Number.isFinite(averageValue)
+    ? (() => {
+        const averageY = yFor(averageValue);
+        const formattedAverage = money(averageValue);
+        const averageAccessibleLabel = `Média - ${averageSource.name}: ${formattedAverage}. Usa valores estimados nos meses sem valor real.`;
+        const visibleLabelY = Math.min(Math.max(averageY - 6, padding.top + 11), plotBottom - 5);
+        return `
+          <g
+            class='outcome-evolution-average'
+            data-outcome-average
+            data-average-source-kind='${averageSource.seriesKind}'
+            data-average-source-key='${escapeHtml(averageSource.key)}'
+            data-average-value='${averageValue}'
+            role='img'
+            aria-label='${escapeHtml(averageAccessibleLabel)}'
+            pointer-events='none'
+          >
+            <title>${escapeHtml(averageAccessibleLabel)}</title>
+            <line
+              data-outcome-average-line
+              x1='${padding.left}'
+              y1='${averageY.toFixed(2)}'
+              x2='${chartWidth - padding.right}'
+              y2='${averageY.toFixed(2)}'
+              fill='none'
+              stroke='${averageSource.color}'
+              stroke-width='1.8'
+              stroke-dasharray='8 6'
+              stroke-linecap='butt'
+              vector-effect='non-scaling-stroke'
+            />
+            <text
+              data-outcome-average-label
+              x='${chartWidth - padding.right - 6}'
+              y='${visibleLabelY.toFixed(2)}'
+              text-anchor='end'
+              fill='${averageSource.color}'
+              font-size='10'
+              font-weight='700'
+              paint-order='stroke'
+              stroke='rgba(8, 20, 28, 0.88)'
+              stroke-width='3'
+              stroke-linejoin='round'
+            >${escapeHtml(`Média: ${formattedAverage}`)}</text>
+          </g>
+        `;
+      })()
+    : "";
+
   const expenseLegend = isLegacySingleRubricMode || isExplicitExpenseDetailExpanded
     ? expenseSeries
         .map((entry) => {
@@ -3745,11 +3807,14 @@ function renderOutcomeEvolutionChart() {
       </div>
     `
     : "";
-  const chartAriaLabel = isLegacySingleRubricMode
+  const chartAriaLabelBase = isLegacySingleRubricMode
     ? "Grafico de linhas com evolucao das despesas da rubrica selecionada"
     : isExplicitExpenseDetailExpanded
       ? "Grafico de linhas com evolucao das despesas da rubrica selecionada"
       : "Grafico de linhas com evolucao das rubricas de despesas";
+  const chartAriaLabel = averageSource && Number.isFinite(averageValue)
+    ? `${chartAriaLabelBase}. Média de ${averageSource.name}: ${money(averageValue)}, usando valores estimados nos meses sem valor real`
+    : chartAriaLabelBase;
 
   host.innerHTML = `
     <div class='outcome-drilldown-toolbar ${isExplicitExpenseDetailAvailable ? "has-expense-detail" : ""}'>
@@ -3760,10 +3825,11 @@ function renderOutcomeEvolutionChart() {
     ${singleRubricLegendMarkup}
     ${expenseDetailMarkup}
     <div class='outcome-evolution-svg-wrap'>
-      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${chartAriaLabel}'>
+      <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${escapeHtml(chartAriaLabel)}'>
         ${gridLines}
         ${monthGridLines}
         ${lines}
+        ${averageLine}
         ${monthLabels}
       </svg>
       <div class='outcome-evolution-tooltip' aria-hidden='true'></div>
