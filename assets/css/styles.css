@@ -2158,6 +2158,10 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   margin-top: 14px;
 }
 
+.nb-theme .panel-stack {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .outcome-evolution-card {
   margin-top: 2px;
 }

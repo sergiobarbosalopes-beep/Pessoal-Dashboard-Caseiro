@@ -34,6 +34,8 @@ const cgdState = {
   outcomeComparisonChartVisible: false,
   outcomeComparisonHiddenRubrics: new Set(),
   outcomeComparisonHiddenExpenses: new Set(),
+  outcomeComparisonExpenseDetailVisible: false,
+  outcomeComparisonExpenseDetailRubricKey: null,
   outcomeChartHiddenRubrics: new Set(),
   outcomeChartSelectedRubricKey: null,
   outcomeChartExpenseDetailVisible: false,
@@ -3344,6 +3346,20 @@ function resetOutcomeExpenseDetail() {
   cgdState.outcomeDrilldownHiddenExpenses.clear();
 }
 
+function resetHiddenSeriesSelectionToFirst(series, hiddenSet) {
+  hiddenSet.clear();
+  series.slice(1).forEach((entry) => {
+    hiddenSet.add(entry.key);
+  });
+}
+
+function resetHiddenExpenseSelectionToFirst(rubricKey, expenseSeries, hiddenSet) {
+  hiddenSet.clear();
+  expenseSeries.slice(1).forEach((entry) => {
+    hiddenSet.add(`${rubricKey}::${entry.key}`);
+  });
+}
+
 function resetOutcomeRubricSelectionToFirst() {
   if (!EXPLICIT_OUTCOME_EXPENSE_DETAIL) {
     return;
@@ -3351,10 +3367,7 @@ function resetOutcomeRubricSelectionToFirst() {
 
   const rubricSeries = buildOutcomeRubricSeries();
   cgdState.outcomeChartSelectedRubricKey = null;
-  cgdState.outcomeChartHiddenRubrics.clear();
-  rubricSeries.slice(1).forEach((entry) => {
-    cgdState.outcomeChartHiddenRubrics.add(entry.key);
-  });
+  resetHiddenSeriesSelectionToFirst(rubricSeries, cgdState.outcomeChartHiddenRubrics);
   resetOutcomeExpenseDetail();
 }
 
@@ -3365,10 +3378,7 @@ function resetOutcomeExpenseSelectionToFirst(rubricKey) {
 
   const activeRubric = buildOutcomeRubricSeries().find((entry) => entry.key === rubricKey);
   const expenseSeries = buildOutcomeExpenseSeriesForRubric(activeRubric);
-  cgdState.outcomeDrilldownHiddenExpenses.clear();
-  expenseSeries.slice(1).forEach((entry) => {
-    cgdState.outcomeDrilldownHiddenExpenses.add(`${rubricKey}::${entry.key}`);
-  });
+  resetHiddenExpenseSelectionToFirst(rubricKey, expenseSeries, cgdState.outcomeDrilldownHiddenExpenses);
 }
 
 function computeOutcomeSeriesAverage(series) {
@@ -4148,6 +4158,52 @@ function buildComparisonExpenseSeriesForRubric(rubric, kind) {
   }));
 }
 
+function resetOutcomeComparisonExpenseDetail() {
+  if (!EXPLICIT_OUTCOME_EXPENSE_DETAIL) {
+    return;
+  }
+
+  cgdState.outcomeComparisonExpenseDetailVisible = false;
+  cgdState.outcomeComparisonExpenseDetailRubricKey = null;
+  cgdState.outcomeComparisonHiddenExpenses.clear();
+}
+
+function resetOutcomeComparisonRubricSelectionToFirst() {
+  if (!EXPLICIT_OUTCOME_EXPENSE_DETAIL) {
+    return;
+  }
+
+  const rubricSeries = buildComparisonSeriesForKind("outcome");
+  resetHiddenSeriesSelectionToFirst(rubricSeries, cgdState.outcomeComparisonHiddenRubrics);
+  resetOutcomeComparisonExpenseDetail();
+}
+
+function resetOutcomeComparisonExpenseSelectionToFirst(rubricKey) {
+  if (!EXPLICIT_OUTCOME_EXPENSE_DETAIL) {
+    return;
+  }
+
+  const activeRubric = buildComparisonSeriesForKind("outcome").find((entry) => entry.key === rubricKey);
+  const expenseSeries = buildComparisonExpenseSeriesForRubric(activeRubric, "outcome");
+  resetHiddenExpenseSelectionToFirst(rubricKey, expenseSeries, cgdState.outcomeComparisonHiddenExpenses);
+}
+
+function focusOutcomeComparisonExpenseDetailToggle(host) {
+  requestAnimationFrame(() => {
+    host.querySelector("[data-outcome-comparison-expense-detail-toggle]")?.focus();
+  });
+}
+
+function renderComparisonChartByKind(kind) {
+  if (kind === "income") {
+    renderIncomeComparisonChart();
+  } else if (kind === "savings") {
+    renderSavingsComparisonChart();
+  } else {
+    renderOutcomeComparisonChart();
+  }
+}
+
 function bindComparisonChartHover(host) {
   if (!host) {
     return;
@@ -4237,6 +4293,7 @@ function bindComparisonChartInteractions(host, kind) {
         cgdState.savingsComparisonChartVisible = false;
       } else {
         cgdState.outcomeComparisonChartVisible = false;
+        resetOutcomeComparisonExpenseDetail();
       }
 
       renderPanels();
@@ -4244,6 +4301,27 @@ function bindComparisonChartInteractions(host, kind) {
       requestAnimationFrame(() => {
         ensurePanelHeadVisible(kind);
       });
+      return;
+    }
+
+    const expenseDetailToggle = event.target.closest("[data-outcome-comparison-expense-detail-toggle]");
+    if (expenseDetailToggle && kind === "outcome" && EXPLICIT_OUTCOME_EXPENSE_DETAIL) {
+      const activeRubricKey = String(host.dataset.singleComparisonRubricKey || "").trim();
+      if (!activeRubricKey) {
+        return;
+      }
+
+      const isExpanded = cgdState.outcomeComparisonExpenseDetailVisible
+        && cgdState.outcomeComparisonExpenseDetailRubricKey === activeRubricKey;
+      if (isExpanded) {
+        resetOutcomeComparisonExpenseDetail();
+      } else {
+        cgdState.outcomeComparisonExpenseDetailVisible = true;
+        cgdState.outcomeComparisonExpenseDetailRubricKey = activeRubricKey;
+        resetOutcomeComparisonExpenseSelectionToFirst(activeRubricKey);
+      }
+      renderOutcomeComparisonChart();
+      focusOutcomeComparisonExpenseDetailToggle(host);
       return;
     }
 
@@ -4262,13 +4340,7 @@ function bindComparisonChartInteractions(host, kind) {
         hiddenExpensesSet.add(stateKey);
       }
 
-      if (kind === "income") {
-        renderIncomeComparisonChart();
-      } else if (kind === "savings") {
-        renderSavingsComparisonChart();
-      } else {
-        renderOutcomeComparisonChart();
-      }
+      renderComparisonChartByKind(kind);
       return;
     }
 
@@ -4279,19 +4351,17 @@ function bindComparisonChartInteractions(host, kind) {
         return;
       }
 
+      if (kind === "outcome") {
+        resetOutcomeComparisonExpenseDetail();
+      }
+
       if (hiddenSet.has(key)) {
         hiddenSet.delete(key);
       } else {
         hiddenSet.add(key);
       }
 
-      if (kind === "income") {
-        renderIncomeComparisonChart();
-      } else if (kind === "savings") {
-        renderSavingsComparisonChart();
-      } else {
-        renderOutcomeComparisonChart();
-      }
+      renderComparisonChartByKind(kind);
       return;
     }
 
@@ -4330,8 +4400,13 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
       ? cgdState.savingsComparisonHiddenExpenses
       : cgdState.outcomeComparisonHiddenExpenses;
   const rubricSeries = buildComparisonSeriesForKind(kind);
+  const isExplicitOutcomeDetail = kind === "outcome" && EXPLICIT_OUTCOME_EXPENSE_DETAIL;
 
   if (!rubricSeries.length) {
+    host.dataset.singleComparisonRubricKey = "";
+    if (isExplicitOutcomeDetail) {
+      resetOutcomeComparisonExpenseDetail();
+    }
     host.innerHTML = `
       <div class='outcome-drilldown-toolbar'>
         <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
@@ -4344,15 +4419,47 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
   const visibleRubrics = rubricSeries.filter((entry) => !hiddenSet.has(entry.key));
   const singleVisibleRubric = visibleRubrics.length === 1 ? visibleRubrics[0] : null;
   host.dataset.singleComparisonRubricKey = singleVisibleRubric ? singleVisibleRubric.key : "";
+  if (
+    isExplicitOutcomeDetail
+    && (
+      !singleVisibleRubric
+      || (
+        cgdState.outcomeComparisonExpenseDetailVisible
+        && cgdState.outcomeComparisonExpenseDetailRubricKey !== singleVisibleRubric.key
+      )
+    )
+  ) {
+    resetOutcomeComparisonExpenseDetail();
+  }
 
   const expenseSeries = singleVisibleRubric ? buildComparisonExpenseSeriesForRubric(singleVisibleRubric, kind) : [];
-  const expenseStateKey = (expenseKey) => `${singleVisibleRubric.key}::${expenseKey}`;
-  const visibleExpenseSeries = singleVisibleRubric
+  const expenseStateKey = (expenseKey) => `${singleVisibleRubric?.key || ""}::${expenseKey}`;
+  const isExplicitOutcomeDetailAvailable = Boolean(
+    isExplicitOutcomeDetail
+    && singleVisibleRubric
+    && expenseSeries.length
+  );
+  if (
+    isExplicitOutcomeDetail
+    && !isExplicitOutcomeDetailAvailable
+    && cgdState.outcomeComparisonExpenseDetailVisible
+  ) {
+    resetOutcomeComparisonExpenseDetail();
+  }
+  const isExplicitOutcomeDetailExpanded = Boolean(
+    isExplicitOutcomeDetailAvailable
+    && cgdState.outcomeComparisonExpenseDetailVisible
+    && cgdState.outcomeComparisonExpenseDetailRubricKey === singleVisibleRubric.key
+  );
+  const isLegacySingleRubricMode = Boolean(singleVisibleRubric) && !isExplicitOutcomeDetail;
+  const showsExpenseSeries = isLegacySingleRubricMode || isExplicitOutcomeDetailExpanded;
+  const visibleExpenseSeries = showsExpenseSeries
     ? expenseSeries.filter((entry) => !hiddenExpensesSet.has(expenseStateKey(entry.key)))
     : [];
 
-  const isSingleRubricMode = Boolean(singleVisibleRubric);
-  const plottedSeries = isSingleRubricMode ? visibleExpenseSeries : visibleRubrics;
+  const rubricPlotSeries = visibleRubrics.map((entry) => ({ ...entry, seriesKind: "rubric" }));
+  const expensePlotSeries = visibleExpenseSeries.map((entry) => ({ ...entry, seriesKind: "expense" }));
+  const plottedSeries = showsExpenseSeries ? expensePlotSeries : rubricPlotSeries;
 
   const legend = rubricSeries
     .map((entry) => {
@@ -4362,7 +4469,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
     })
     .join("");
 
-  const expenseLegend = isSingleRubricMode
+  const expenseLegend = showsExpenseSeries
     ? expenseSeries
         .map((entry) => {
           const isVisibleExpense = !hiddenExpensesSet.has(expenseStateKey(entry.key));
@@ -4383,7 +4490,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
     return;
   }
 
-  if (isSingleRubricMode && !expenseSeries.length) {
+  if (isLegacySingleRubricMode && !expenseSeries.length) {
     host.innerHTML = `
       <div class='outcome-drilldown-toolbar'>
         <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
@@ -4394,7 +4501,7 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
     return;
   }
 
-  if (isSingleRubricMode && !visibleExpenseSeries.length) {
+  if (isLegacySingleRubricMode && !visibleExpenseSeries.length) {
     host.innerHTML = `
       <div class='outcome-drilldown-toolbar'>
         <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
@@ -4466,8 +4573,8 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
           const valueHeight = Math.max(Math.abs(valueY - zeroY), 1);
           const estimatedHeight = Math.max(Math.abs(estimatedY - zeroY), 1);
           return `
-            <rect class='outcome-comparison-bar' x='${baseX.toFixed(2)}' y='${valueTop.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${valueHeight.toFixed(2)}' fill='${entry.color}' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} ┬À Valor`)}' data-month-name='${escapeHtml(monthName)}' data-value='${value.toFixed(2)}' data-series-color='${entry.color}'></rect>
-            <rect class='outcome-comparison-bar outcome-comparison-bar-estimated' x='${(baseX + barWidth).toFixed(2)}' y='${estimatedTop.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${estimatedHeight.toFixed(2)}' fill='${entry.color}' fill-opacity='0.42' stroke='${entry.color}' stroke-width='0.8' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} ┬À Estimado`)}' data-month-name='${escapeHtml(monthName)}' data-value='${estimated.toFixed(2)}' data-series-color='${entry.color}'></rect>
+            <rect class='outcome-comparison-bar' x='${baseX.toFixed(2)}' y='${valueTop.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${valueHeight.toFixed(2)}' fill='${entry.color}' data-series-kind='${entry.seriesKind}' data-series-key='${escapeHtml(entry.key)}' data-bar-value-kind='value' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} ┬À Valor`)}' data-month-name='${escapeHtml(monthName)}' data-value='${value.toFixed(2)}' data-series-color='${entry.color}'></rect>
+            <rect class='outcome-comparison-bar outcome-comparison-bar-estimated' x='${(baseX + barWidth).toFixed(2)}' y='${estimatedTop.toFixed(2)}' width='${barWidth.toFixed(2)}' height='${estimatedHeight.toFixed(2)}' fill='${entry.color}' fill-opacity='0.42' stroke='${entry.color}' stroke-width='0.8' data-series-kind='${entry.seriesKind}' data-series-key='${escapeHtml(entry.key)}' data-bar-value-kind='estimated' data-comparison-point tabindex='0' data-series-name='${escapeHtml(`${entry.name} ┬À Estimado`)}' data-month-name='${escapeHtml(monthName)}' data-value='${estimated.toFixed(2)}' data-series-color='${entry.color}'></rect>
           `;
         })
         .join("");
@@ -4475,27 +4582,53 @@ function renderComparisonChart({ hostId, kind, isVisible, closeAttr }) {
     .join("");
 
   const chartLabel = kind === "income"
-    ? (isSingleRubricMode
+    ? (showsExpenseSeries
       ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de receitas selecionada"
       : "Grafico comparativo mensal de valor e valor estimado das receitas")
     : kind === "savings"
-      ? (isSingleRubricMode
+      ? (showsExpenseSeries
         ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de poupancas selecionada"
         : "Grafico comparativo mensal de valor e valor estimado das poupancas")
-      : (isSingleRubricMode
+      : (showsExpenseSeries
         ? "Grafico comparativo mensal de valor e valor estimado das despesas da rubrica de despesas selecionada"
         : "Grafico comparativo mensal de valor e valor estimado das despesas");
 
-  const singleRubricLegendMarkup = isSingleRubricMode && expenseSeries.length
+  const singleRubricLegendMarkup = isLegacySingleRubricMode && expenseSeries.length
     ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>`
+    : "";
+  const expenseDetailToggleMarkup = isExplicitOutcomeDetailAvailable
+    ? `
+      <button
+        type='button'
+        class='outcome-evolution-control-btn outcome-expense-detail-toggle'
+        data-outcome-comparison-expense-detail-toggle
+        aria-expanded='${isExplicitOutcomeDetailExpanded ? "true" : "false"}'
+        aria-controls='outcome-comparison-expense-detail-series'
+      >${isExplicitOutcomeDetailExpanded ? "Ocultar despesas" : "Mostrar despesas"}</button>
+    `
+    : "";
+  const expenseDetailMarkup = isExplicitOutcomeDetailAvailable
+    ? `
+      <div
+        id='outcome-comparison-expense-detail-series'
+        class='outcome-expense-detail'
+        role='group'
+        aria-label='Despesas da rubrica selecionada no grafico comparativo'
+        ${isExplicitOutcomeDetailExpanded ? "" : "hidden"}
+      >
+        ${isExplicitOutcomeDetailExpanded ? `<div class='outcome-evolution-top-series'>${expenseLegend}</div>` : ""}
+      </div>
+    `
     : "";
 
   host.innerHTML = `
-    <div class='outcome-drilldown-toolbar'>
+    <div class='outcome-drilldown-toolbar ${isExplicitOutcomeDetailAvailable ? "has-expense-detail" : ""}'>
+      ${expenseDetailToggleMarkup}
       <button type='button' class='outcome-drilldown-close-btn' ${closeAttr}>Fechar</button>
     </div>
     <div class='outcome-evolution-top-series'>${legend}</div>
     ${singleRubricLegendMarkup}
+    ${expenseDetailMarkup}
     <div class='outcome-evolution-svg-wrap'>
       <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${chartLabel}'>
         ${gridLines}
@@ -4642,9 +4775,12 @@ window.cgdToggleOutcomeChart = () => {
 
 window.cgdToggleOutcomeComparisonChart = () => {
   cgdState.outcomeComparisonChartVisible = !cgdState.outcomeComparisonChartVisible;
-  if (!cgdState.outcomeComparisonChartVisible) {
+  if (cgdState.outcomeComparisonChartVisible) {
+    resetOutcomeComparisonRubricSelectionToFirst();
+  } else {
     cgdState.outcomeComparisonHiddenRubrics.clear();
     cgdState.outcomeComparisonHiddenExpenses.clear();
+    resetOutcomeComparisonExpenseDetail();
   }
   renderPanels();
   document.dispatchEvent(new Event("cgd:rendered"));
@@ -4669,6 +4805,7 @@ async function loadYearData(year, options = {}) {
   }
   cgdState.selectedYear = normalizedYear;
   resetOutcomeExpenseDetail();
+  resetOutcomeComparisonExpenseDetail();
   delete cgdState.personTotalizerSeriesCache[normalizedYear];
   const yearLabel = document.querySelector("[data-year-label]");
   if (yearLabel) {
@@ -4692,6 +4829,7 @@ async function loadYearData(year, options = {}) {
     renderNbPieCharts();
     renderSoberTotalizer();
     resetOutcomeRubricSelectionToFirst();
+    resetOutcomeComparisonRubricSelectionToFirst();
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
     return;
@@ -4835,6 +4973,7 @@ async function loadYearData(year, options = {}) {
       }
     }
     resetOutcomeRubricSelectionToFirst();
+    resetOutcomeComparisonRubricSelectionToFirst();
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
   } catch (error) {
@@ -4884,6 +5023,7 @@ async function loadYearData(year, options = {}) {
       }
     }
     resetOutcomeRubricSelectionToFirst();
+    resetOutcomeComparisonRubricSelectionToFirst();
     renderPanels();
     document.dispatchEvent(new Event("cgd:rendered"));
   }
