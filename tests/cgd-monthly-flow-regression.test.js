@@ -71,6 +71,7 @@ class FakeHost {
     this.dataset = {};
     this.html = "";
     this.listeners = new Map();
+    this.queryElements = new Map();
     this.tooltipBound = false;
   }
 
@@ -84,6 +85,39 @@ class FakeHost {
 
   addEventListener(type, listener) {
     this.listeners.set(type, listener);
+  }
+
+  querySelector(selector) {
+    return this.queryElements.get(selector) || null;
+  }
+}
+
+class FakeElement {
+  constructor(attributes = {}, classes = []) {
+    this.attributes = new Map(Object.entries(attributes));
+    this.classNames = new Set(classes);
+    this.classList = {
+      toggle: (className, force) => {
+        if (force) {
+          this.classNames.add(className);
+        } else {
+          this.classNames.delete(className);
+        }
+      },
+      contains: (className) => this.classNames.has(className)
+    };
+  }
+
+  getAttribute(name) {
+    return this.attributes.get(name) ?? null;
+  }
+
+  setAttribute(name, value) {
+    this.attributes.set(name, String(value));
+  }
+
+  removeAttribute(name) {
+    this.attributes.delete(name);
   }
 }
 
@@ -149,7 +183,11 @@ const state = {
   data: { income: [], savings: [], outcome: [] },
   realComputationContexts: {},
   temporalSummaryHiddenSeries: new Set(),
-  temporalChartScrollLeft: 0
+  temporalChartScrollLeft: 0,
+  monthlyFlowSeriesVisibility: {
+    balance: false,
+    average: false
+  }
 };
 
 const context = vm.createContext({
@@ -178,7 +216,8 @@ const context = vm.createContext({
       outcome: "#f08b5f",
       positive: "#6fe29c",
       negative: "#ff8f75",
-      neutral: "#b8ced9"
+      neutral: "#b8ced9",
+      average: "#d7a6ff"
     }
   },
   TOTALIZER_PEOPLE: ["Sergio", "Carina"],
@@ -218,10 +257,17 @@ vm.runInContext(`
   flowApi = {
     buildDataModel,
     buildCgdMonthlyFlowModel,
+    computeCgdMonthlyFlowBalanceAverage,
+    formatCgdMonthlyFlowAverageValue,
     buildCgdMonthlyFlowStack,
     computeCgdMonthlyFlowVerticalScale,
     buildCgdMonthlyFlowBalanceSegments,
     createCgdMonthlyFlowChartMarkup,
+    normalizeCgdMonthlyFlowSeriesVisibility,
+    buildCgdMonthlyFlowSvgDescription,
+    resetCgdMonthlyFlowSeriesVisibility,
+    setCgdMonthlyFlowSeriesVisibility,
+    bindCgdMonthlyFlowVisibilityControls,
     getCgdTemporalChartGeometry,
     bindCgdTemporalChartScrollSync,
     renderCgdTemporalSummaryChart,
@@ -230,6 +276,7 @@ vm.runInContext(`
 `, context);
 
 const api = context.flowApi;
+const visibilityState = () => JSON.parse(JSON.stringify(state.monthlyFlowSeriesVisibility));
 
 const rubricRows = [
   { rubrica_id: 1, rubrica_desc: "Salarios <img src=x onerror=alert(1)>", rubrica_tipo: "Receita", rubrica_seq: 1, mes: 1 },
@@ -309,8 +356,25 @@ addExpense({ rubricaId: 3, expenseId: 31, name: "Renda", month: 9, valor: " ", v
 const model = api.buildDataModel(rubricRows, expenseRows, new Set());
 state.data = model;
 const flow = JSON.parse(JSON.stringify(api.buildCgdMonthlyFlowModel(model)));
+const expectedBalanceAverage = 1625 / 12;
 
 assert.equal(flow.length, 12);
+assert.equal(api.computeCgdMonthlyFlowBalanceAverage(flow), expectedBalanceAverage);
+assert.equal(api.formatCgdMonthlyFlowAverageValue(expectedBalanceAverage), "135.42");
+assert.equal(api.formatCgdMonthlyFlowAverageValue(1234.5), "1234.50");
+assert.equal(api.formatCgdMonthlyFlowAverageValue(-1234.5), "-1234.50");
+assert.equal(
+  api.computeCgdMonthlyFlowBalanceAverage(months.map(() => ({ balance: -12 }))),
+  -12
+);
+assert.equal(
+  api.computeCgdMonthlyFlowBalanceAverage([
+    { balance: 100 },
+    { balance: -100 }
+  ]),
+  0,
+  "The 12-month denominator must include missing months as zero"
+);
 assert.deepEqual(
   { income: flow[0].income, savings: flow[0].savings, outcome: flow[0].outcome, balance: flow[0].balance },
   { income: 1200, savings: 300, outcome: 700, balance: 800 }
@@ -375,6 +439,11 @@ assert.equal(geometry.monthX[11], 962);
 api.renderCgdTemporalSummaryChart();
 api.renderCgdMonthlyFlowChart();
 assert.equal(flowHost.tooltipBound, true);
+assert.deepEqual(
+  visibilityState(),
+  { balance: true, average: true },
+  "A full render must reset both flow overlays to visible"
+);
 const summaryCoordinates = summaryHost.html.match(/data-month-x='([^']+)'/)?.[1];
 const flowCoordinates = flowHost.html.match(/data-month-x='([^']+)'/)?.[1];
 assert.ok(summaryCoordinates);
@@ -431,6 +500,27 @@ assert.deepEqual(crossingSegments, [
 assert.match(rendered, /cgd-monthly-flow-balance-segment is-positive/);
 assert.match(rendered, /cgd-monthly-flow-balance-segment is-negative/);
 assert.match(rendered, /cgd-monthly-flow-balance-point is-neutral/);
+const averageLineMatch = rendered.match(
+  /data-cgd-flow-average-line[\s\S]*?y1='([^']+)'[\s\S]*?y2='([^']+)'/
+);
+assert.ok(averageLineMatch);
+assert.equal(averageLineMatch[1], averageLineMatch[2], "The balance average must be horizontal");
+assert.match(rendered, /data-cgd-flow-average-line[\s\S]*?stroke='#d7a6ff'/);
+assert.match(rendered, /data-cgd-flow-average-line[\s\S]*?stroke-width='1\.8'/);
+assert.match(rendered, /data-cgd-flow-average-line[\s\S]*?stroke-dasharray='8 6'/);
+assert.match(rendered, /data-cgd-flow-average-line[\s\S]*?stroke-linecap='butt'/);
+assert.match(rendered, /data-cgd-flow-average-line[\s\S]*?vector-effect='non-scaling-stroke'/);
+assert.match(rendered, /data-cgd-flow-series='average'[\s\S]*?role='img' aria-label='Média do saldo mensal: 135\.42'/);
+assert.match(rendered, /<title>Média do saldo mensal: 135\.42<\/title>/);
+assert.doesNotMatch(
+  rendered.match(/<g[^>]*data-cgd-flow-series='average'[\s\S]*?<\/g>/)?.[0] || "",
+  /<circle|tabindex=/
+);
+assert.match(rendered, /data-cgd-flow-toggle='balance'[\s\S]*?aria-pressed='true'/);
+assert.match(rendered, /data-cgd-flow-toggle='average'[\s\S]*?aria-pressed='true'[\s\S]*?aria-label='Média do saldo mensal: 135\.42'/);
+assert.match(rendered, /data-scale-min='-2000'/);
+assert.match(rendered, /data-scale-max='2000'/);
+assert.match(rendered, new RegExp(`data-balance-average='${expectedBalanceAverage}'`));
 assert.equal((rendered.match(/data-cgd-flow-month='/g) || []).length, 12);
 assert.equal((rendered.match(/class='cgd-temporal-month-highlight is-active'/g) || []).length, 1);
 assert.match(rendered, /data-cgd-flow-month='7'[\s\S]*aria-current='date'[\s\S]*aria-label='Ago\./);
@@ -441,14 +531,144 @@ assert.match(rendered, /tabindex='0'/);
 assert.match(rendered, /role='group'[\s\S]*aria-labelledby='cgd-monthly-flow-svg-title cgd-monthly-flow-svg-description'/);
 assert.match(rendered, /class='outcome-evolution-tooltip cgd-monthly-flow-tooltip' aria-hidden='true' role='tooltip'/);
 assert.match(rendered, /Os valores incluem estimativas quando nao existe valor real/);
+assert.match(rendered, /O detalhe mensal mantem o saldo calculado mesmo quando a linha esta oculta/);
 assert.doesNotMatch(rendered, /<img|onerror|alert\(1\)/);
 
+const visibilityCombinations = [
+  { balance: true, average: true },
+  { balance: false, average: true },
+  { balance: true, average: false },
+  { balance: false, average: false }
+];
+const geometrySnapshot = (markup) => ({
+  monthX: markup.match(/data-month-x='([^']+)'/)?.[1],
+  plotLeft: markup.match(/data-plot-left='([^']+)'/)?.[1],
+  plotRight: markup.match(/data-plot-right='([^']+)'/)?.[1],
+  scaleMin: markup.match(/data-scale-min='([^']+)'/)?.[1],
+  scaleMax: markup.match(/data-scale-max='([^']+)'/)?.[1],
+  zeroY: markup.match(/data-scale-zero-y='([^']+)'/)?.[1],
+  bars: Array.from(markup.matchAll(/<rect[\s\S]*?data-cgd-flow-bar='[^']+'[\s\S]*?<\/rect>/g), (match) => match[0]),
+  grid: Array.from(markup.matchAll(/<line x1='54'[\s\S]*?cgd-monthly-flow-grid-line'[\s\S]*?<\/line>/g), (match) => match[0])
+});
+const combinationMarkups = visibilityCombinations.map((visibility) => ({
+  visibility,
+  markup: api.createCgdMonthlyFlowChartMarkup(flow, 2026, visibility)
+}));
+const stableGeometry = geometrySnapshot(combinationMarkups[0].markup);
+assert.ok(stableGeometry.bars.length > 0);
+assert.ok(stableGeometry.grid.length > 0);
+combinationMarkups.forEach(({ visibility, markup }) => {
+  assert.deepEqual(
+    geometrySnapshot(markup),
+    stableGeometry,
+    "Toggling overlays must not change scale, ticks, bars, or temporal geometry"
+  );
+  const balanceGroup = markup.match(/<g[^>]*data-cgd-flow-series='balance'[^>]*>/)?.[0] || "";
+  const averageGroup = markup.match(/<g[^>]*data-cgd-flow-series='average'[^>]*>/)?.[0] || "";
+  assert.equal(balanceGroup.includes("is-hidden"), !visibility.balance);
+  assert.equal(balanceGroup.includes("aria-hidden='true'"), !visibility.balance);
+  assert.equal(balanceGroup.includes("role='img'"), visibility.balance);
+  assert.equal(averageGroup.includes("is-hidden"), !visibility.average);
+  assert.equal(averageGroup.includes("aria-hidden='true'"), !visibility.average);
+  assert.equal(averageGroup.includes("role='img'"), visibility.average);
+  assert.match(
+    markup,
+    new RegExp(`data-cgd-flow-toggle='balance'[\\s\\S]*?aria-pressed='${visibility.balance}'`)
+  );
+  assert.match(
+    markup,
+    new RegExp(`data-cgd-flow-toggle='average'[\\s\\S]*?aria-pressed='${visibility.average}'`)
+  );
+  assert.match(
+    markup,
+    /data-cgd-flow-month='1'[\s\S]*?data-balance-value='400'/,
+    "Monthly tooltip targets keep the calculated balance when its visual line is hidden"
+  );
+  assert.equal(
+    markup.match(/<desc[^>]*data-cgd-flow-description[^>]*>([^<]*)<\/desc>/)?.[1],
+    api.buildCgdMonthlyFlowSvgDescription(visibility),
+    "The parent SVG description must match the visible overlay combination"
+  );
+});
+
+const balanceToggle = new FakeElement(
+  { "data-cgd-flow-toggle": "balance", "aria-pressed": "true" },
+  ["cgd-monthly-flow-legend-toggle", "is-active"]
+);
+const averageToggle = new FakeElement(
+  { "data-cgd-flow-toggle": "average", "aria-pressed": "true" },
+  ["cgd-monthly-flow-legend-toggle", "is-active"]
+);
+const balanceGroup = new FakeElement(
+  {
+    "data-cgd-flow-series": "balance",
+    "data-cgd-flow-series-label": "Saldo mensal: linha continua com marcadores",
+    role: "img",
+    "aria-label": "Saldo mensal: linha continua com marcadores"
+  },
+  ["cgd-monthly-flow-series"]
+);
+const averageGroup = new FakeElement(
+  {
+    "data-cgd-flow-series": "average",
+    "data-cgd-flow-series-label": "Média do saldo mensal: 135.42",
+    role: "img",
+    "aria-label": "Média do saldo mensal: 135.42"
+  },
+  ["cgd-monthly-flow-series"]
+);
+const flowDescription = new FakeElement();
+flowHost.queryElements.set("[data-cgd-flow-toggle='balance']", balanceToggle);
+flowHost.queryElements.set("[data-cgd-flow-toggle='average']", averageToggle);
+flowHost.queryElements.set("[data-cgd-flow-series='balance']", balanceGroup);
+flowHost.queryElements.set("[data-cgd-flow-series='average']", averageGroup);
+flowHost.queryElements.set("[data-cgd-flow-description]", flowDescription);
+
+flowHost.listeners.get("click")?.({
+  target: { closest: () => balanceToggle }
+});
+assert.deepEqual(visibilityState(), { balance: false, average: true });
+assert.equal(balanceToggle.getAttribute("aria-pressed"), "false");
+assert.equal(balanceToggle.classList.contains("is-inactive"), true);
+assert.equal(balanceGroup.classList.contains("is-hidden"), true);
+assert.equal(balanceGroup.getAttribute("aria-hidden"), "true");
+assert.equal(balanceGroup.getAttribute("role"), null);
+assert.equal(balanceGroup.getAttribute("aria-label"), null);
+assert.match(flowDescription.textContent, /média horizontal tracejada esta visivel e a linha do saldo mensal esta oculta/);
+
+assert.equal(api.setCgdMonthlyFlowSeriesVisibility(flowHost, "average", false), true);
+assert.deepEqual(visibilityState(), { balance: false, average: false });
+assert.equal(averageToggle.getAttribute("aria-pressed"), "false");
+assert.equal(averageGroup.classList.contains("is-hidden"), true);
+assert.match(flowDescription.textContent, /As linhas do saldo mensal e da média estao ocultas/);
+assert.equal(api.setCgdMonthlyFlowSeriesVisibility(flowHost, "balance", true), true);
+assert.deepEqual(visibilityState(), { balance: true, average: false });
+assert.equal(balanceGroup.getAttribute("role"), "img");
+assert.equal(balanceGroup.getAttribute("aria-label"), "Saldo mensal: linha continua com marcadores");
+assert.equal(api.setCgdMonthlyFlowSeriesVisibility(flowHost, "average", true), true);
+assert.deepEqual(visibilityState(), { balance: true, average: true });
+assert.equal(api.setCgdMonthlyFlowSeriesVisibility(flowHost, "unknown", false), false);
+
+api.setCgdMonthlyFlowSeriesVisibility(flowHost, "average", false);
 fakeDocument.selectedMonth = 4;
+const monthChangeMarkup = api.createCgdMonthlyFlowChartMarkup(flow, 2026);
+assert.match(monthChangeMarkup, /data-cgd-flow-series='average'[\s\S]*?aria-hidden='true'/);
+assert.match(monthChangeMarkup, /data-cgd-flow-month='4'[\s\S]*?aria-current='date'/);
+assert.deepEqual(
+  visibilityState(),
+  { balance: true, average: false },
+  "Changing month must preserve flow overlay visibility"
+);
 state.selectedYear = 2027;
 api.renderCgdTemporalSummaryChart();
 api.renderCgdMonthlyFlowChart();
 assert.match(flowHost.html, /Fluxo mensal 2027/);
 assert.match(flowHost.html, /class='cgd-temporal-month-highlight is-active'[\s\S]*data-cgd-chart-month='4'/);
+assert.deepEqual(
+  visibilityState(),
+  { balance: true, average: true },
+  "Changing year or fully rerendering must restore both overlays"
+);
 
 const safeMarkup = api.createCgdMonthlyFlowChartMarkup(flow, "<img src=x onerror=alert(9)>");
 assert.doesNotMatch(safeMarkup, /<img|onerror|alert\(9\)/);
@@ -469,6 +689,11 @@ const emptyMarkup = api.createCgdMonthlyFlowChartMarkup(
 assert.match(emptyMarkup, /Sem movimentos no ano selecionado/);
 assert.doesNotMatch(emptyMarkup, /data-cgd-flow-bar=/);
 assert.equal((emptyMarkup.match(/data-cgd-flow-month='/g) || []).length, 12);
+assert.match(emptyMarkup, /data-cgd-flow-average-value='0'/);
+assert.match(emptyMarkup, /Média do saldo mensal: 0\.00/);
+assert.match(emptyMarkup, /data-cgd-flow-average-line[\s\S]*?y1='151\.00'[\s\S]*?y2='151\.00'/);
+assert.match(emptyMarkup, /data-cgd-flow-toggle='balance'[\s\S]*?aria-pressed='true'/);
+assert.match(emptyMarkup, /data-cgd-flow-toggle='average'[\s\S]*?aria-pressed='true'/);
 assert.doesNotMatch(emptyMarkup, /NaN|Infinity/);
 
 const upperWrapper = new FakeScrollWrapper();
@@ -490,8 +715,8 @@ assert.equal(lowerWrapper.listeners.size, 1);
 
 assert.match(cgdHtml, /window\.DASHBOARD_ENABLE_MONTHLY_FLOW_CHART = true/);
 assert.match(cgdHtml, /id="cgd-temporal-summary-chart"[\s\S]*id="cgd-monthly-flow-chart"[\s\S]*id="month-timeline"/);
-assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260812-9/);
-assert.match(cgdHtml, /assets\/css\/styles\.css\?v=20260812-5/);
+assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260812-10/);
+assert.match(cgdHtml, /assets\/css\/styles\.css\?v=20260812-6/);
 assert.doesNotMatch(novoBancoHtml, /DASHBOARD_ENABLE_MONTHLY_FLOW_CHART|cgd-monthly-flow-chart/);
 assert.doesNotMatch(coverflexHtml, /DASHBOARD_ENABLE_MONTHLY_FLOW_CHART|cgd-monthly-flow-chart/);
 assert.match(cgd, /const ENABLE_MONTHLY_FLOW_CHART = TABLE_PREFIX === "cgd"/);
@@ -506,5 +731,12 @@ assert.match(styles, /\.cgd-monthly-flow-zero-line[\s\S]*stroke-width: 1\.4/);
 assert.match(styles, /\.cgd-monthly-flow-month-target:focus/);
 assert.match(styles, /\.cgd-temporal-month-highlight\.is-active/);
 assert.match(styles, /\.cgd-monthly-flow-bar-savings[\s\S]*opacity: 0\.72/);
+assert.match(styles, /\.cgd-monthly-flow-legend-toggle:focus-visible/);
+assert.match(styles, /\.cgd-monthly-flow-legend-toggle\[aria-pressed="false"\]::after/);
+assert.match(styles, /\.cgd-monthly-flow-series\.is-hidden\s*\{\s*display:\s*none;/);
+assert.match(
+  styles,
+  /@media \(pointer: coarse\), \(max-width: 1024px\)[\s\S]*?\.cgd-monthly-flow-legend-toggle\s*\{[\s\S]*?min-height:\s*44px;/
+);
 
 console.log("CGD monthly flow regression checks passed.");

@@ -1644,7 +1644,8 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   gap: 7px;
 }
 
-.cgd-monthly-flow-legend > span {
+.cgd-monthly-flow-legend-item,
+.cgd-monthly-flow-legend-toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1656,6 +1657,57 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   color: #d8e8f2;
   font-size: 0.74rem;
   font-weight: 700;
+}
+
+.cgd-monthly-flow-legend-control {
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.cgd-monthly-flow-legend-toggle {
+  min-height: 34px;
+  margin: 0;
+  font-family: inherit;
+  line-height: 1.15;
+  text-align: left;
+  white-space: normal;
+  cursor: pointer;
+  transition: opacity 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.cgd-monthly-flow-legend-toggle:hover {
+  border-color: rgba(176, 210, 226, 0.42);
+  background: rgba(21, 49, 63, 0.82);
+}
+
+.cgd-monthly-flow-legend-toggle:focus-visible {
+  outline: 2px solid rgba(154, 217, 255, 0.94);
+  outline-offset: 2px;
+}
+
+.cgd-monthly-flow-legend-toggle::after {
+  content: "Ativo";
+  margin-left: 2px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: rgba(111, 226, 156, 0.14);
+  color: #a9ebc2;
+  font-size: 0.61rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.cgd-monthly-flow-legend-toggle.is-inactive,
+.cgd-monthly-flow-legend-toggle[aria-pressed="false"] {
+  opacity: 0.58;
+  border-style: dashed;
+}
+
+.cgd-monthly-flow-legend-toggle[aria-pressed="false"]::after {
+  content: "Oculto";
+  background: rgba(184, 206, 217, 0.1);
+  color: #c2d5de;
 }
 
 .cgd-monthly-flow-legend-swatch {
@@ -1711,6 +1763,22 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   border-radius: 50%;
   background: #6fe29c;
   box-shadow: 0 0 0 1px rgba(7, 23, 31, 0.9);
+}
+
+.cgd-monthly-flow-legend-swatch.is-average {
+  position: relative;
+  width: 20px;
+  height: 10px;
+  flex-basis: 20px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.cgd-monthly-flow-legend-swatch.is-average::before {
+  content: "";
+  position: absolute;
+  inset: 4px 0 auto;
+  border-top: 2px dashed #d7a6ff;
 }
 
 .cgd-monthly-flow-grid-line {
@@ -1785,6 +1853,18 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   vector-effect: non-scaling-stroke;
 }
 
+.cgd-monthly-flow-average {
+  pointer-events: none;
+}
+
+.cgd-monthly-flow-average line {
+  filter: drop-shadow(0 1px 2px rgba(4, 18, 25, 0.84));
+}
+
+.cgd-monthly-flow-series.is-hidden {
+  display: none;
+}
+
 .cgd-monthly-flow-month-target {
   fill: transparent;
   stroke: transparent;
@@ -1821,6 +1901,13 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
   color: #9fc1d2;
   font-size: 0.66rem;
   font-weight: 700;
+}
+
+@media (pointer: coarse), (max-width: 1024px) {
+  .cgd-monthly-flow-legend-toggle {
+    min-height: 44px;
+    padding-block: 7px;
+  }
 }
 
 .cgd-summary-outcome-evolution .outcome-evolution-area {

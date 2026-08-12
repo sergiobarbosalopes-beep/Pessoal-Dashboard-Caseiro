@@ -1317,8 +1317,8 @@ for (const source of [novoBancoHtml, coverflexHtml]) {
   assert.match(source, /assets\/css\/styles\.css\?v=20260812-4/);
   assert.match(source, /<body class="[^"]*explicit-chart-detail[^"]*">/);
 }
-assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260812-9/);
-assert.match(cgdHtml, /assets\/css\/styles\.css\?v=20260812-5/);
+assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260812-10/);
+assert.match(cgdHtml, /assets\/css\/styles\.css\?v=20260812-6/);
 assert.match(cgdHtml, /<body class="[^"]*explicit-chart-detail[^"]*">/);
 assert.match(styles, /\.outcome-evolution-tooltip-series\s*\{\s*font-size:\s*0\.73rem;/);
 const averageTextTag = cgd.match(/<span\s+[^>]*data-outcome-average-label[^>]*>/)?.[0] || "";

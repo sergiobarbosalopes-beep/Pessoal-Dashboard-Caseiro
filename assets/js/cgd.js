@@ -39,6 +39,10 @@ const cgdState = {
   savingsDrilldownHiddenExpenses: new Set(),
   temporalSummaryHiddenSeries: new Set(),
   temporalChartScrollLeft: 0,
+  monthlyFlowSeriesVisibility: {
+    balance: true,
+    average: true
+  },
   outcomeChartVisible: false,
   outcomeComparisonChartVisible: false,
   outcomeComparisonHiddenRubrics: new Set(),
@@ -135,7 +139,8 @@ const THEME_COLORS = {
     outcome: "#f08b5f",
     positive: "#6fe29c",
     negative: "#ff8f75",
-    neutral: "#b8ced9"
+    neutral: "#b8ced9",
+    average: "#d7a6ff"
   },
   outcomeRubrics: ["#f2c46a", "#f08b5f", "#5fc8b6", "#7cb7ff", "#84d56b", "#f29db1", "#a9e46f", "#9ad9ff", "#e6b86d", "#8bd3a0"],
   incomeRubrics: ["#6ecf9a", "#7cc4ff", "#9ed86b", "#58d2c3", "#8bcf7a", "#5fb3de", "#9edfb7", "#71d0ff", "#77c87f", "#79bdf0"],
@@ -1405,6 +1410,33 @@ const CGD_TEMPORAL_CHART_GEOMETRY = Object.freeze({
   chartHeight: 320,
   padding: Object.freeze({ top: 20, right: 18, bottom: 38, left: 54 })
 });
+const CGD_MONTHLY_FLOW_SERIES_KEYS = new Set(["balance", "average"]);
+
+function normalizeCgdMonthlyFlowSeriesVisibility(visibility = cgdState.monthlyFlowSeriesVisibility) {
+  return {
+    balance: visibility?.balance !== false,
+    average: visibility?.average !== false
+  };
+}
+
+function buildCgdMonthlyFlowSvgDescription(seriesVisibility) {
+  const visibility = normalizeCgdMonthlyFlowSeriesVisibility(seriesVisibility);
+  const visibleOverlayDescription = visibility.balance && visibility.average
+    ? "A linha do saldo mensal e a média horizontal tracejada estao visiveis."
+    : visibility.balance
+      ? "A linha do saldo mensal esta visivel e a média horizontal esta oculta."
+      : visibility.average
+        ? "A média horizontal tracejada esta visivel e a linha do saldo mensal esta oculta."
+        : "As linhas do saldo mensal e da média estao ocultas.";
+  return `Receitas e poupancas empilhadas por sinal e despesas apresentadas como contribuicao negativa. ${visibleOverlayDescription} Os valores incluem estimativas quando nao existe valor real. O detalhe mensal mantem o saldo calculado mesmo quando a linha esta oculta.`;
+}
+
+function resetCgdMonthlyFlowSeriesVisibility() {
+  cgdState.monthlyFlowSeriesVisibility = {
+    balance: true,
+    average: true
+  };
+}
 
 function getCgdTemporalChartGeometry() {
   const chartWidth = CGD_TEMPORAL_CHART_GEOMETRY.chartWidth;
@@ -1595,6 +1627,19 @@ function buildCgdMonthlyFlowModel(model = cgdState.data) {
       )
     };
   });
+}
+
+function computeCgdMonthlyFlowBalanceAverage(flowEntries) {
+  const total = months.reduce((sum, _, monthIndex) => {
+    const balance = Number(flowEntries?.[monthIndex]?.balance);
+    return sum + (Number.isFinite(balance) ? balance : 0);
+  }, 0);
+  return total / months.length;
+}
+
+function formatCgdMonthlyFlowAverageValue(value) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue.toFixed(2) : "0.00";
 }
 
 function buildCgdMonthlyFlowStack(monthEntry) {
@@ -1890,12 +1935,17 @@ function renderCgdTemporalSummaryChart() {
   bindCgdTemporalChartScrollSync();
 }
 
-function createCgdMonthlyFlowChartMarkup(flowEntries, year) {
+function createCgdMonthlyFlowChartMarkup(
+  flowEntries,
+  year,
+  seriesVisibility = cgdState.monthlyFlowSeriesVisibility
+) {
   const geometry = getCgdTemporalChartGeometry();
   const { chartWidth, chartHeight, plotHeight, xFor } = geometry;
   const numericYear = Number(year);
   const safeYear = Number.isFinite(numericYear) ? Math.trunc(numericYear) : "";
   const selectedMonth = getSelectedTimelineMonthIndex();
+  const visibility = normalizeCgdMonthlyFlowSeriesVisibility(seriesVisibility);
   const entries = months.map((monthName, monthIndex) => {
     const source = flowEntries?.[monthIndex] || {};
     return {
@@ -1909,10 +1959,15 @@ function createCgdMonthlyFlowChartMarkup(flowEntries, year) {
       hasEstimated: Boolean(source.hasEstimated)
     };
   });
+  const balanceAverage = computeCgdMonthlyFlowBalanceAverage(entries);
+  const formattedBalanceAverage = formatCgdMonthlyFlowAverageValue(balanceAverage);
+  const balanceAverageLabel = `Média do saldo mensal: ${formattedBalanceAverage}`;
+  const svgDescription = buildCgdMonthlyFlowSvgDescription(visibility);
   const stacks = entries.map(buildCgdMonthlyFlowStack);
   const scaleValues = [
     ...stacks.flatMap((stack) => [stack.positiveTotal, stack.negativeTotal]),
-    ...entries.map((entry) => entry.balance)
+    ...entries.map((entry) => entry.balance),
+    balanceAverage
   ];
   const verticalScale = computeCgdMonthlyFlowVerticalScale(scaleValues, {
     top: geometry.plotTop,
@@ -1996,6 +2051,49 @@ function createCgdMonthlyFlowChartMarkup(flowEntries, year) {
       return `<circle class='outcome-evolution-point cgd-monthly-flow-balance-point is-${sign}' data-point-month='${point.monthIndex}' cx='${point.x.toFixed(2)}' cy='${point.y.toFixed(2)}' r='3.2' fill='${color}' aria-hidden='true'></circle>`;
     })
     .join("");
+  const balanceSeriesLabel = "Saldo mensal: linha continua com marcadores";
+  const balanceSeries = `
+    <g
+      class='cgd-monthly-flow-balance-line cgd-monthly-flow-series${visibility.balance ? "" : " is-hidden"}'
+      data-cgd-flow-series='balance'
+      data-cgd-flow-series-label='${escapeHtml(balanceSeriesLabel)}'
+      ${visibility.balance
+        ? `role='img' aria-label='${escapeHtml(balanceSeriesLabel)}'`
+        : "aria-hidden='true'"}
+    >
+      ${balanceSegments}
+      ${balanceMarkers}
+    </g>
+  `;
+  const averageY = yFor(balanceAverage);
+  const averageSeries = `
+    <g
+      class='cgd-monthly-flow-average cgd-monthly-flow-series${visibility.average ? "" : " is-hidden"}'
+      data-cgd-flow-series='average'
+      data-cgd-flow-series-label='${escapeHtml(balanceAverageLabel)}'
+      data-cgd-flow-average-value='${balanceAverage}'
+      ${visibility.average
+        ? `role='img' aria-label='${escapeHtml(balanceAverageLabel)}'`
+        : "aria-hidden='true'"}
+    >
+      <title>${escapeHtml(balanceAverageLabel)}</title>
+      <line
+        data-cgd-flow-average-line
+        data-value='${balanceAverage}'
+        x1='${geometry.plotLeft}'
+        y1='${averageY.toFixed(2)}'
+        x2='${geometry.plotRight}'
+        y2='${averageY.toFixed(2)}'
+        fill='none'
+        stroke='${THEME_COLORS.monthlyFlow.average}'
+        stroke-width='1.8'
+        stroke-dasharray='8 6'
+        stroke-linecap='butt'
+        vector-effect='non-scaling-stroke'
+        aria-hidden='true'
+      ></line>
+    </g>
+  `;
 
   const monthTargets = entries
     .map((entry, monthIndex) => {
@@ -2042,10 +2140,29 @@ function createCgdMonthlyFlowChartMarkup(flowEntries, year) {
         </div>
       </div>
       <div class='cgd-monthly-flow-legend' role='list' aria-label='Legenda do fluxo mensal'>
-        <span role='listitem'><span class='cgd-monthly-flow-legend-swatch is-income' aria-hidden='true'></span>Receitas</span>
-        <span role='listitem'><span class='cgd-monthly-flow-legend-swatch is-savings' aria-hidden='true'></span>Poupancas</span>
-        <span role='listitem'><span class='cgd-monthly-flow-legend-swatch is-outcome' aria-hidden='true'></span>Despesas</span>
-        <span role='listitem'><span class='cgd-monthly-flow-legend-swatch is-balance' aria-hidden='true'></span>Saldo mensal</span>
+        <span role='listitem' class='cgd-monthly-flow-legend-item'><span class='cgd-monthly-flow-legend-swatch is-income' aria-hidden='true'></span>Receitas</span>
+        <span role='listitem' class='cgd-monthly-flow-legend-item'><span class='cgd-monthly-flow-legend-swatch is-savings' aria-hidden='true'></span>Poupancas</span>
+        <span role='listitem' class='cgd-monthly-flow-legend-item'><span class='cgd-monthly-flow-legend-swatch is-outcome' aria-hidden='true'></span>Despesas</span>
+        <span role='listitem' class='cgd-monthly-flow-legend-control'>
+          <button
+            type='button'
+            class='cgd-monthly-flow-legend-toggle ${visibility.balance ? "is-active" : "is-inactive"}'
+            data-cgd-flow-toggle='balance'
+            aria-pressed='${visibility.balance ? "true" : "false"}'
+            aria-label='Saldo mensal'
+            title='Saldo mensal'
+          ><span class='cgd-monthly-flow-legend-swatch is-balance' aria-hidden='true'></span><span>Saldo mensal</span></button>
+        </span>
+        <span role='listitem' class='cgd-monthly-flow-legend-control'>
+          <button
+            type='button'
+            class='cgd-monthly-flow-legend-toggle ${visibility.average ? "is-active" : "is-inactive"}'
+            data-cgd-flow-toggle='average'
+            aria-pressed='${visibility.average ? "true" : "false"}'
+            aria-label='${escapeHtml(balanceAverageLabel)}'
+            title='${escapeHtml(balanceAverageLabel)}'
+          ><span class='cgd-monthly-flow-legend-swatch is-average' aria-hidden='true'></span><span>Média do saldo mensal</span></button>
+        </span>
       </div>
       <div class='outcome-evolution-svg-wrap cgd-summary-svg-wrap cgd-monthly-flow-svg-wrap' data-cgd-temporal-scroll='flow'>
         <svg
@@ -2056,21 +2173,23 @@ function createCgdMonthlyFlowChartMarkup(flowEntries, year) {
           data-plot-left='${geometry.plotLeft}'
           data-plot-right='${geometry.plotRight}'
           data-month-x='${geometry.monthX.map((value) => value.toFixed(2)).join(",")}'
+          data-scale-min='${verticalScale.minValue}'
+          data-scale-max='${verticalScale.maxValue}'
+          data-scale-zero-y='${zeroY.toFixed(2)}'
+          data-balance-average='${balanceAverage}'
           role='group'
           aria-labelledby='cgd-monthly-flow-svg-title cgd-monthly-flow-svg-description'
         >
           <title id='cgd-monthly-flow-svg-title'>Fluxo mensal ${safeYear}</title>
-          <desc id='cgd-monthly-flow-svg-description'>Receitas e poupancas empilhadas por sinal, despesas apresentadas como contribuicao negativa e linha do saldo mensal. Os valores incluem estimativas quando nao existe valor real.</desc>
+          <desc id='cgd-monthly-flow-svg-description' data-cgd-flow-description>${escapeHtml(svgDescription)}</desc>
           ${gridLines}
           ${monthGridLines}
           ${createCgdTemporalMonthHighlights(geometry)}
           <line data-cgd-flow-zero-line x1='${geometry.plotLeft}' y1='${zeroY.toFixed(2)}' x2='${geometry.plotRight}' y2='${zeroY.toFixed(2)}' class='cgd-monthly-flow-zero-line' aria-hidden='true'></line>
           <text x='${(geometry.plotLeft - 8).toFixed(2)}' y='${(zeroY + 4).toFixed(2)}' text-anchor='end' class='cgd-monthly-flow-axis-label is-zero'>0</text>
           ${bars}
-          <g class='cgd-monthly-flow-balance-line' aria-hidden='true'>
-            ${balanceSegments}
-            ${balanceMarkers}
-          </g>
+          ${averageSeries}
+          ${balanceSeries}
           ${emptyState}
           ${monthTargets}
           ${monthLabels}
@@ -2102,6 +2221,67 @@ function createCgdMonthlyFlowChartMarkup(flowEntries, year) {
       </div>
     </div>
   `;
+}
+
+function setCgdMonthlyFlowSeriesVisibility(host, seriesKey, isVisible) {
+  const normalizedKey = String(seriesKey || "").trim().toLowerCase();
+  if (!CGD_MONTHLY_FLOW_SERIES_KEYS.has(normalizedKey)) {
+    return false;
+  }
+
+  const nextVisibility = Boolean(isVisible);
+  cgdState.monthlyFlowSeriesVisibility = {
+    ...normalizeCgdMonthlyFlowSeriesVisibility(),
+    [normalizedKey]: nextVisibility
+  };
+
+  const toggle = host?.querySelector?.(`[data-cgd-flow-toggle='${normalizedKey}']`);
+  if (toggle) {
+    toggle.setAttribute("aria-pressed", nextVisibility ? "true" : "false");
+    toggle.classList.toggle("is-active", nextVisibility);
+    toggle.classList.toggle("is-inactive", !nextVisibility);
+  }
+
+  const series = host?.querySelector?.(`[data-cgd-flow-series='${normalizedKey}']`);
+  if (series) {
+    series.classList.toggle("is-hidden", !nextVisibility);
+    if (nextVisibility) {
+      series.removeAttribute("aria-hidden");
+      series.setAttribute("role", "img");
+      series.setAttribute("aria-label", series.getAttribute("data-cgd-flow-series-label") || "");
+    } else {
+      series.setAttribute("aria-hidden", "true");
+      series.removeAttribute("role");
+      series.removeAttribute("aria-label");
+    }
+  }
+
+  const description = host?.querySelector?.("[data-cgd-flow-description]");
+  if (description) {
+    description.textContent = buildCgdMonthlyFlowSvgDescription(
+      cgdState.monthlyFlowSeriesVisibility
+    );
+  }
+
+  return true;
+}
+
+function bindCgdMonthlyFlowVisibilityControls(host) {
+  if (!host || host.dataset.cgdMonthlyFlowVisibilityBound === "1") {
+    return;
+  }
+
+  host.dataset.cgdMonthlyFlowVisibilityBound = "1";
+  host.addEventListener("click", (event) => {
+    const toggle = event.target.closest?.("[data-cgd-flow-toggle]");
+    if (!toggle) {
+      return;
+    }
+
+    const seriesKey = toggle.getAttribute("data-cgd-flow-toggle");
+    const isVisible = toggle.getAttribute("aria-pressed") !== "true";
+    setCgdMonthlyFlowSeriesVisibility(host, seriesKey, isVisible);
+  });
 }
 
 function positionCgdMonthlyFlowTooltip(tooltip, wrap, event) {
@@ -2222,10 +2402,16 @@ function renderCgdMonthlyFlowChart() {
     return;
   }
 
+  resetCgdMonthlyFlowSeriesVisibility();
   const year = Number(cgdState.selectedYear);
   const flowModel = buildCgdMonthlyFlowModel(cgdState.data);
-  host.innerHTML = createCgdMonthlyFlowChartMarkup(flowModel, year);
+  host.innerHTML = createCgdMonthlyFlowChartMarkup(
+    flowModel,
+    year,
+    cgdState.monthlyFlowSeriesVisibility
+  );
   bindCgdMonthlyFlowTooltip(host);
+  bindCgdMonthlyFlowVisibilityControls(host);
   bindCgdTemporalMonthSelectionSync();
   syncCgdTemporalChartSelectedMonth(getSelectedTimelineMonthIndex());
   bindCgdTemporalChartScrollSync();
