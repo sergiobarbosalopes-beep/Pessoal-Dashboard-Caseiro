@@ -1193,7 +1193,7 @@ for (const source of html.filter((value) => value.includes("assets/js/main.js"))
   assert.match(source, /assets\/js\/main\.js\?v=20260806-1/);
 }
 for (const relativePath of ["caixa-geral-depositos.html", "novobanco.html"]) {
-  assert.match(read(relativePath), /assets\/js\/cgd\.js\?v=20260813-2/);
+  assert.match(read(relativePath), /assets\/js\/cgd\.js\?v=20260813-3/);
 }
 assert.match(read("coverflex.html"), /assets\/js\/cgd\.js\?v=20260812-8/);
 assert.match(read("novobanco.html"), /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "outcome"\]/);

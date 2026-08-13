@@ -1437,6 +1437,22 @@ function averageOfSeries(values) {
   return total / source.length;
 }
 
+function buildIncomeSummaryMetrics(rubrics, tablePrefix = TABLE_PREFIX) {
+  const source = Array.isArray(rubrics) ? rubrics : [];
+  const includeMovements = tablePrefix === "cgd" || tablePrefix === "nb";
+  const summaryRubrics = includeMovements
+    ? source
+    : source.filter((rubric) => !rubricNameMatchesAny(rubric?.name, ["movimentos"]));
+  const monthlyTotals = sumAllIncomeRubricsByMonth(summaryRubrics);
+  const totalYear = monthlyTotals.reduce((total, value) => total + (Number(value) || 0), 0);
+  return {
+    monthlyTotals,
+    totalYear,
+    average: averageOfSeries(monthlyTotals),
+    includeMovements
+  };
+}
+
 function formatTileMoney(value) {
   const numeric = Number(value);
   const safeValue = Number.isFinite(numeric) ? numeric : 0;
@@ -2805,14 +2821,11 @@ function renderNbPieCharts() {
 
   function buildReceitasSlices() {
     const incomeRubrics = Array.isArray(cgdState.data?.income) ? cgdState.data.income : [];
-    const savingsRubrics = Array.isArray(cgdState.data?.savings) ? cgdState.data.savings : [];
-    const allRubrics = [...incomeRubrics, ...savingsRubrics];
-
     const aggregated = {};
 
     if (IS_COVERFLEX) {
       // Coverflex: aggregate by rubric name, no exclusions, income only
-      for (const rubric of allRubrics) {
+      for (const rubric of incomeRubrics) {
         const rubricName = (rubric?.name || "").trim();
         if (!rubricName) continue;
         const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
@@ -2833,18 +2846,21 @@ function renderNbPieCharts() {
         aggregated[key].value += rubricTotal;
       }
     } else {
-      // CGD / NB: aggregate by expense name, exclude movimentos
-      for (const rubric of allRubrics) {
-        if (rubricNameMatchesAny(rubric?.name, ["movimentos"])) continue;
+      // CGD / NB: aggregate every income rubric by expense name.
+      for (const rubric of incomeRubrics) {
         const expenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
         if (expenses.length) {
           for (const expense of expenses) {
             const name = (expense?.name || "").trim();
             if (!name) continue;
-            if (rubricNameMatchesAny(name, ["movimentos receitas"])) continue;
             const yearTotal = (Array.isArray(expense?.values) ? expense.values : [])
               .slice(0, 12)
-              .reduce((sum, v) => sum + (Number(v) || 0), 0);
+              .reduce((sum, value, monthIndex) => {
+                if (expense?.monthData?.[monthIndex]?.totalizador === false) {
+                  return sum;
+                }
+                return sum + (Number(value) || 0);
+              }, 0);
             const key = name.toLowerCase();
             aggregated[key] = aggregated[key] || { label: name, value: 0 };
             aggregated[key].value += yearTotal;
@@ -2868,6 +2884,7 @@ function renderNbPieCharts() {
       .map((entry, i) => ({
         label: entry.label,
         value: Math.abs(entry.value),
+        ...(IS_COVERFLEX ? {} : { displayValue: entry.value }),
         color: PIE_COLORS_RECEITAS[i % PIE_COLORS_RECEITAS.length]
       }));
   }
@@ -2961,10 +2978,14 @@ function renderNbPieCharts() {
     return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
   }
 
-  function buildPie(host, title, slices) {
+  function buildPie(host, title, slices, displayTotal) {
     if (!host) return;
     const total = slices.reduce((s, entry) => s + entry.value, 0);
     if (!total) { host.innerHTML = ""; return; }
+    const numericDisplayTotal = Number(displayTotal);
+    const safeDisplayTotal = displayTotal != null && Number.isFinite(numericDisplayTotal)
+      ? numericDisplayTotal
+      : total;
 
     const cx = 50, cy = 50, outerR = 40, innerR = 20;
     let currentAngle = 0;
@@ -2990,7 +3011,10 @@ function renderNbPieCharts() {
       ].join(" ");
 
       const pct = ((slice.value / total) * 100).toFixed(1);
-      return `<path class='nb-pie-slice' d='${d}' fill='${slice.color}' stroke='rgba(0,0,0,0.3)' stroke-width='0.5' data-pie-label='${escapeHtml(slice.label)}' data-pie-value='${money(slice.value)}' data-pie-pct='${pct}%' data-pie-color='${slice.color}'/>`;
+      const displayValue = Number.isFinite(Number(slice.displayValue))
+        ? Number(slice.displayValue)
+        : slice.value;
+      return `<path class='nb-pie-slice' d='${d}' fill='${slice.color}' stroke='rgba(0,0,0,0.3)' stroke-width='0.5' data-pie-label='${escapeHtml(slice.label)}' data-pie-value='${money(displayValue)}' data-pie-pct='${pct}%' data-pie-color='${slice.color}'/>`;
     }).join("");
 
     const legend = slices.map((slice) => {
@@ -3006,7 +3030,7 @@ function renderNbPieCharts() {
             ${paths}
           </svg>
           <div class='nb-pie-center-label'>
-            <span class='nb-pie-center-value'>${money(total)}</span>
+            <span class='nb-pie-center-value'>${money(safeDisplayTotal)}</span>
             <span class='nb-pie-center-sub'>EUR</span>
           </div>
         </div>
@@ -3054,7 +3078,10 @@ function renderNbPieCharts() {
   const year = Number(cgdState.selectedYear) || new Date().getFullYear();
   const receitasSlices = buildReceitasSlices();
   const despesasSlices = buildDespesasSlices();
-  buildPie(receitasHost, `Total receitas ${year}`, receitasSlices);
+  const incomeTotalYear = TABLE_PREFIX === "cgd" || TABLE_PREFIX === "nb"
+    ? buildIncomeSummaryMetrics(cgdState.data?.income).totalYear
+    : null;
+  buildPie(receitasHost, `Total receitas ${year}`, receitasSlices, incomeTotalYear);
   buildPie(despesasHost, `Total despesas ${year}`, despesasSlices);
 }
 
@@ -3146,21 +3173,20 @@ function renderCgdTopTiles() {
   );
   const outcomeAverage = averageOfSeries(sumRubricsValuesByMonth(outcomeFilteredRubrics));
 
-  const incomeFilteredRubrics = incomeRubrics.filter((rubric) => !rubricNameMatchesAny(rubric?.name, ["movimentos"]));
-  const incomeAverage = averageOfSeries(sumRubricsValuesByMonth(incomeFilteredRubrics));
-  const incomeAverageSubtitle = IS_COVERFLEX ? "" : "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos</span>";
+  const incomeSummary = buildIncomeSummaryMetrics(incomeRubrics);
+  const incomeAverageSubtitle = incomeSummary.includeMovements
+    ? "<span class='stat-tile-meta stat-tile-meta--right'>Inclui movimentos</span>"
+    : "";
   const outcomeAverageSubtitle = IS_COVERFLEX ? "" : (TABLE_PREFIX === "cgd" ? "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos</span>" : "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos e impostos</span>");
 
-  const incomeTotalYear = sumRubricsValuesByMonth(incomeFilteredRubrics).reduce((acc, v) => acc + (Number(v) || 0), 0);
   const outcomeTotalYear = sumRubricsValuesByMonth(outcomeFilteredRubrics).reduce((acc, v) => acc + (Number(v) || 0), 0);
-  const incomeTotalSubtitle = IS_COVERFLEX ? "" : "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos</span>";
   const outcomeTotalSubtitle = IS_COVERFLEX ? "" : "<span class='stat-tile-meta stat-tile-meta--right'>Exclui movimentos e impostos</span>";
 
   if (averagesHost) {
     averagesHost.innerHTML = `
       <article class='stat-tile stat-tile--green'>
         <h4>Media de receitas</h4>
-        <p>${formatTileMoney(incomeAverage)}</p>
+        <p>${formatTileMoney(incomeSummary.average)}</p>
         ${incomeAverageSubtitle}
       </article>
       ${HIDE_SAVINGS
