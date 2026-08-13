@@ -132,7 +132,7 @@ a {
   color: #fff;
 }
 
-.menu-link[href="caixa-geral-depositos.html"] {
+.menu-link[href="caixa-geral-depositos.html"].active {
   position: relative;
   isolation: isolate;
   overflow: hidden;
@@ -144,7 +144,7 @@ a {
   animation: cgdNavGradientShift 7.5s ease-in-out infinite;
 }
 
-.menu-link[href="caixa-geral-depositos.html"]::before {
+.menu-link[href="caixa-geral-depositos.html"].active::before {
   content: "";
   position: absolute;
   inset: -1px;
@@ -156,8 +156,8 @@ a {
   transition: opacity 220ms ease;
 }
 
-.menu-link[href="caixa-geral-depositos.html"]:hover,
-.menu-link[href="caixa-geral-depositos.html"]:focus-visible {
+.menu-link[href="caixa-geral-depositos.html"].active:hover,
+.menu-link[href="caixa-geral-depositos.html"].active:focus-visible {
   transform: translateY(-2px);
   background: linear-gradient(135deg, rgba(0, 89, 155, 0.48), rgba(0, 102, 179, 0.42) 54%, rgba(47, 154, 212, 0.34));
   background-size: 170% 170%;
@@ -167,8 +167,8 @@ a {
   animation-duration: 4.2s;
 }
 
-.menu-link[href="caixa-geral-depositos.html"]:hover::before,
-.menu-link[href="caixa-geral-depositos.html"]:focus-visible::before {
+.menu-link[href="caixa-geral-depositos.html"].active:hover::before,
+.menu-link[href="caixa-geral-depositos.html"].active:focus-visible::before {
   opacity: 0.9;
   animation: cgdNavShimmer 1.25s ease-out;
 }
@@ -553,22 +553,7 @@ a {
   color: #10273b;
 }
 
-.coverflex-theme .menu-link[href="caixa-geral-depositos.html"],
-.coverflex-theme .menu-link[href="caixa-geral-depositos.html"]:hover,
-.coverflex-theme .menu-link[href="caixa-geral-depositos.html"]:focus-visible,
-.coverflex-theme .menu-link[href="caixa-geral-depositos.html"].active {
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  color: inherit;
-  animation: none;
-}
-
-.coverflex-theme .menu-link[href="caixa-geral-depositos.html"]::before {
-  content: none;
-}
-
-.coverflex-theme .menu-link[href="coverflex.html"] {
+.coverflex-theme .menu-link[href="coverflex.html"].active {
   position: relative;
   isolation: isolate;
   overflow: hidden;
@@ -580,7 +565,7 @@ a {
   animation: cgdNavGradientShift 6.2s ease-in-out infinite;
 }
 
-.coverflex-theme .menu-link[href="coverflex.html"]::before {
+.coverflex-theme .menu-link[href="coverflex.html"].active::before {
   content: "";
   position: absolute;
   inset: -1px;
@@ -591,8 +576,8 @@ a {
   pointer-events: none;
 }
 
-.coverflex-theme .menu-link[href="coverflex.html"]:hover,
-.coverflex-theme .menu-link[href="coverflex.html"]:focus-visible,
+.coverflex-theme .menu-link[href="coverflex.html"].active:hover,
+.coverflex-theme .menu-link[href="coverflex.html"].active:focus-visible,
 .coverflex-theme .menu-link[href="coverflex.html"].active {
   background: linear-gradient(135deg, rgba(228, 105, 39, 0.5), rgba(255, 122, 47, 0.44) 54%, rgba(255, 181, 116, 0.34));
   background-size: 170% 170%;
@@ -601,8 +586,8 @@ a {
   box-shadow: 0 0 0 1px rgba(255, 198, 156, 0.34), 0 10px 20px rgba(120, 51, 19, 0.32);
 }
 
-.coverflex-theme .menu-link[href="coverflex.html"]:hover::before,
-.coverflex-theme .menu-link[href="coverflex.html"]:focus-visible::before,
+.coverflex-theme .menu-link[href="coverflex.html"].active:hover::before,
+.coverflex-theme .menu-link[href="coverflex.html"].active:focus-visible::before,
 .coverflex-theme .menu-link[href="coverflex.html"].active::before {
   opacity: 0.95;
   animation: cgdNavShimmer 1.25s ease-out;
@@ -704,22 +689,7 @@ a {
 
 /* ─── Novo Banco Theme ─── */
 
-.nb-theme .menu-link[href="caixa-geral-depositos.html"],
-.nb-theme .menu-link[href="caixa-geral-depositos.html"]:hover,
-.nb-theme .menu-link[href="caixa-geral-depositos.html"]:focus-visible,
-.nb-theme .menu-link[href="caixa-geral-depositos.html"].active {
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  color: inherit;
-  animation: none;
-}
-
-.nb-theme .menu-link[href="caixa-geral-depositos.html"]::before {
-  content: none;
-}
-
-.nb-theme .menu-link[href="novobanco.html"] {
+.nb-theme .menu-link[href="novobanco.html"].active {
   position: relative;
   isolation: isolate;
   overflow: hidden;
@@ -731,7 +701,7 @@ a {
   animation: cgdNavGradientShift 6.2s ease-in-out infinite;
 }
 
-.nb-theme .menu-link[href="novobanco.html"]::before {
+.nb-theme .menu-link[href="novobanco.html"].active::before {
   content: "";
   position: absolute;
   inset: -1px;
@@ -742,8 +712,8 @@ a {
   pointer-events: none;
 }
 
-.nb-theme .menu-link[href="novobanco.html"]:hover,
-.nb-theme .menu-link[href="novobanco.html"]:focus-visible,
+.nb-theme .menu-link[href="novobanco.html"].active:hover,
+.nb-theme .menu-link[href="novobanco.html"].active:focus-visible,
 .nb-theme .menu-link[href="novobanco.html"].active {
   background: linear-gradient(135deg, rgba(0, 120, 60, 0.5), rgba(0, 154, 68, 0.44) 54%, rgba(0, 200, 100, 0.34));
   background-size: 170% 170%;
@@ -752,8 +722,8 @@ a {
   box-shadow: 0 0 0 1px rgba(0, 220, 110, 0.34), 0 10px 20px rgba(0, 60, 30, 0.32);
 }
 
-.nb-theme .menu-link[href="novobanco.html"]:hover::before,
-.nb-theme .menu-link[href="novobanco.html"]:focus-visible::before,
+.nb-theme .menu-link[href="novobanco.html"].active:hover::before,
+.nb-theme .menu-link[href="novobanco.html"].active:focus-visible::before,
 .nb-theme .menu-link[href="novobanco.html"].active::before {
   opacity: 0.95;
   animation: cgdNavShimmer 1.25s ease-out;
@@ -2675,6 +2645,16 @@ body.coverflex-theme .cgd-top-tiles-card .stat-tile .stat-tile-meta {
 
 .outcome-evolution-legend-item.is-active {
   opacity: 1;
+}
+
+#home-temporal-chart .outcome-evolution-legend-item {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+#home-temporal-chart .outcome-evolution-legend-item:focus-visible {
+  outline: 2px solid rgba(154, 217, 255, 0.9);
+  outline-offset: 2px;
 }
 
 .outcome-evolution-legend-dot {
@@ -5129,6 +5109,10 @@ body {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
+  }
+
+  .menu-link {
+    min-height: 44px;
   }
 
   .nav-enhanced .menu-link {

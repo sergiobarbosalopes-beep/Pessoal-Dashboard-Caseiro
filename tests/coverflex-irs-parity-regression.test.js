@@ -449,7 +449,7 @@ const assertScriptOrder = (relativePath, helperPattern, consumerPattern) => {
 assertScriptOrder(
   "index.html",
   /dashboard-financial-calculations\.js\?v=20260813-1/,
-  /home\.js\?v=20260813-1/
+  /home\.js\?v=20260813-2/
 );
 for (const relativePath of [
   "caixa-geral-depositos.html",

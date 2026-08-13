@@ -1204,16 +1204,12 @@ const htmlFiles = [...authenticatedHtmlFiles, "login.html"];
 const html = htmlFiles.map(read);
 for (const relativePath of htmlFiles) {
   const source = read(relativePath);
-  const stylesVersion = ["caixa-geral-depositos.html", "novobanco.html"].includes(relativePath)
-    ? "20260812-6"
-    : relativePath === "coverflex.html"
-      ? "20260812-4"
-      : "20260806-1";
+  const stylesVersion = relativePath === "login.html" ? "20260806-1" : "20260813-2";
   assert.match(source, /viewport-fit=cover/);
   assert.match(source, new RegExp(`assets/css/styles\\.css\\?v=${stylesVersion}`));
 }
 for (const source of html.filter((value) => value.includes("assets/js/main.js"))) {
-  assert.match(source, /assets\/js\/main\.js\?v=20260806-1/);
+  assert.match(source, /assets\/js\/main\.js\?v=20260813-2/);
 }
 for (const relativePath of ["caixa-geral-depositos.html", "novobanco.html", "coverflex.html"]) {
   const source = read(relativePath);
@@ -1280,18 +1276,25 @@ for (const relativePath of authenticatedHtmlFiles) {
   const source = read(relativePath);
   const menu = source.match(/<nav class="menu" aria-label="Navegacao principal">([\s\S]*?)<\/nav>/);
   assert.ok(menu, `Missing no-JS primary navigation in ${relativePath}`);
-  const hrefs = [...menu[1].matchAll(/<a class="menu-link" href="([^"]+)">/g)]
+  const hrefs = [...menu[1].matchAll(/<a class="menu-link(?: active)?" href="([^"]+)"/g)]
     .map((match) => match[1]);
   assert.deepEqual(hrefs, expectedMenuHrefs, `Unexpected primary navigation in ${relativePath}`);
+  const currentLinks = [...menu[1].matchAll(/<a class="menu-link active" href="([^"]+)" aria-current="page">/g)]
+    .map((match) => match[1]);
+  assert.deepEqual(currentLinks, [relativePath], `Unexpected active navigation in ${relativePath}`);
+  assert.equal((menu[1].match(/aria-current="page"/g) || []).length, 1);
 }
 for (const href of expectedMenuHrefs) {
   assert.ok(fs.existsSync(path.join(root, href)), `Primary navigation target does not exist: ${href}`);
 }
 assert.match(main, /const menu = topbar\?\.querySelector\("nav\.menu"\)/);
 assert.match(main, /topbar\.classList\.add\("nav-enhanced"\)/);
+assert.match(main, /classList\.toggle\("active", isCurrent\)/);
+assert.match(main, /setAttribute\("aria-current", "page"\)/);
+assert.match(main, /removeAttribute\("aria-current"\)/);
 assert.match(read("admin.html"), /assets\/js\/admin\.js\?v=20260802-1/);
 assert.match(read("index.html"), /assets\/js\/dashboard-financial-calculations\.js\?v=20260813-1/);
-assert.match(read("index.html"), /assets\/js\/home\.js\?v=20260813-1/);
+assert.match(read("index.html"), /assets\/js\/home\.js\?v=20260813-2/);
 assert.ok(
   read("index.html").indexOf("assets/js/dashboard-financial-calculations.js")
     < read("index.html").indexOf("assets/js/home.js"),

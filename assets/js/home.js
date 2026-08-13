@@ -28,6 +28,45 @@ function isMissingColumnError(error) {
   return code === "42703" || code === "PGRST204" || /column .* does not exist/i.test(message);
 }
 
+const HOME_TEMPORAL_TOTAL_SERIES_KEY = "total";
+
+function createHomeTemporalChartVisibilityState(series) {
+  const seriesKeys = new Set(
+    (Array.isArray(series) ? series : [])
+      .map((entry) => String(entry?.key || "").trim())
+      .filter(Boolean)
+  );
+  const hiddenKeys = new Set(
+    Array.from(seriesKeys).filter((key) => key !== HOME_TEMPORAL_TOTAL_SERIES_KEY)
+  );
+
+  return {
+    hiddenKeys,
+    has(key) {
+      return seriesKeys.has(String(key || ""));
+    },
+    isVisible(key) {
+      const normalizedKey = String(key || "");
+      return seriesKeys.has(normalizedKey) && !hiddenKeys.has(normalizedKey);
+    },
+    toggle(key) {
+      const normalizedKey = String(key || "");
+      if (!seriesKeys.has(normalizedKey)) {
+        return null;
+      }
+      if (hiddenKeys.has(normalizedKey)) {
+        hiddenKeys.delete(normalizedKey);
+      } else {
+        hiddenKeys.add(normalizedKey);
+      }
+      return !hiddenKeys.has(normalizedKey);
+    },
+    visibleKeys() {
+      return Array.from(seriesKeys).filter((key) => !hiddenKeys.has(key));
+    }
+  };
+}
+
 (async function homeInit() {
   const SUPABASE_URL = window.CGD_SUPABASE_URL || "";
   const SUPABASE_KEY = window.CGD_SUPABASE_ANON_KEY || "";
@@ -522,18 +561,29 @@ function isMissingColumnError(error) {
         { key: "audi", label: "Poupanca Audi", color: CHART_COLORS.audi, values: audiSeries }
       ];
 
-      const hiddenKeys = new Set();
+      host.__homeTemporalChartController?.destroy();
+      const visibilityState = createHomeTemporalChartVisibilityState(allSeries);
+      const hiddenKeys = visibilityState.hiddenKeys;
+      const chartTitle = `Saldo Total ${year}`;
 
-      function render() {
+      const restoreLegendFocus = (key) => {
+        if (!key) return;
+        const toggle = host.querySelector(`[data-home-chart-toggle='${key}']`);
+        toggle?.focus({ preventScroll: true });
+      };
+
+      function render(focusKey = "") {
         const visibleSeries = allSeries.filter(s => !hiddenKeys.has(s.key));
 
         const legend = allSeries.map(s => {
           const active = !hiddenKeys.has(s.key);
-          return `<button type='button' class='outcome-evolution-legend-item ${active ? "is-active" : "is-inactive"}' data-home-chart-toggle='${s.key}'><span class='outcome-evolution-legend-dot' style='background:${s.color}'></span>${s.label}</button>`;
+          return `<button type='button' class='outcome-evolution-legend-item ${active ? "is-active" : "is-inactive"}' data-home-chart-toggle='${s.key}' aria-pressed='${active}'><span class='outcome-evolution-legend-dot' style='background:${s.color}'></span>${escapeHtml(s.label)}</button>`;
         }).join("");
+        const legendMarkup = `<div class='outcome-evolution-legend' role='group' aria-label='Series de ${escapeHtml(chartTitle)}'>${legend}</div>`;
 
         if (!visibleSeries.length) {
-          host.innerHTML = `<div class='cgd-summary-map'><div class='outcome-evolution-head'><h3>Saldo ${year}</h3></div><p class='outcome-evolution-empty'>Nenhuma serie selecionada.</p><div class='outcome-evolution-legend'>${legend}</div></div>`;
+          host.innerHTML = `<div class='cgd-summary-map' role='region' aria-labelledby='home-temporal-chart-title'><div class='outcome-evolution-head'><h3 id='home-temporal-chart-title'>${escapeHtml(chartTitle)}</h3></div><p class='outcome-evolution-empty'>Nenhuma serie selecionada.</p>${legendMarkup}</div>`;
+          restoreLegendFocus(focusKey);
           return;
         }
 
@@ -585,16 +635,20 @@ function isMissingColumnError(error) {
           const points = s.values.map((v, m) => ({ x: xFor(m), y: yFor(v), value: Number(v) || 0, month: MONTHS_PT[m] }));
           const pathData = buildSmoothPath(points);
           const areaPath = `${pathData} L ${points[11].x.toFixed(2)} ${zeroY.toFixed(2)} L ${points[0].x.toFixed(2)} ${zeroY.toFixed(2)} Z`;
-          const dots = points.map((p, m) => `<circle class='outcome-evolution-point${m === currentMonth ? " is-active-month" : ""}' cx='${p.x.toFixed(2)}' cy='${p.y.toFixed(2)}' r='${m === currentMonth ? "4.5" : "2.2"}' fill='${s.color}' data-month-name='${p.month}' data-series-name='${s.label}' data-value='${money(p.value)}' data-series-color='${s.color}'/>`).join("");
+          const dots = points.map((p, m) => {
+            const displayValue = money(p.value);
+            return `<circle class='outcome-evolution-point${m === currentMonth ? " is-active-month" : ""}' cx='${p.x.toFixed(2)}' cy='${p.y.toFixed(2)}' r='${m === currentMonth ? "4.5" : "2.2"}' fill='${s.color}' tabindex='0' aria-label='${escapeHtml(`${p.month}, ${s.label}: ${displayValue}`)}' data-month-name='${escapeHtml(p.month)}' data-series-name='${escapeHtml(s.label)}' data-value='${displayValue}' data-series-color='${s.color}'/>`;
+          }).join("");
           return `<g class='outcome-evolution-series'><path d='${areaPath}' fill='${s.color}' fill-opacity='0.08'/><path d='${pathData}' fill='none' stroke='${s.color}' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/>${dots}</g>`;
         }).join("");
+        const visibleLabels = visibleSeries.map((series) => series.label).join(", ");
 
         host.innerHTML = `
-          <div class='cgd-summary-map'>
-            <div class='outcome-evolution-head'><h3>Saldo ${year}</h3></div>
-            <div class='outcome-evolution-legend'>${legend}</div>
+          <div class='cgd-summary-map' role='region' aria-labelledby='home-temporal-chart-title'>
+            <div class='outcome-evolution-head'><h3 id='home-temporal-chart-title'>${escapeHtml(chartTitle)}</h3></div>
+            ${legendMarkup}
             <div class='outcome-evolution-svg-wrap cgd-summary-svg-wrap'>
-              <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}'>
+              <svg class='outcome-evolution-svg' viewBox='0 0 ${chartWidth} ${chartHeight}' role='img' aria-label='${escapeHtml(`${chartTitle}. Series visiveis: ${visibleLabels}.`)}'>
                 ${gridLines}
                 ${seriesMarkup}
                 ${monthLabels}
@@ -608,11 +662,20 @@ function isMissingColumnError(error) {
         const wrap = host.querySelector(".outcome-evolution-svg-wrap");
         const tooltip = host.querySelector(".outcome-evolution-tooltip");
         if (wrap && tooltip) {
-          const hideTooltip = () => tooltip.classList.remove("is-visible");
+          const hideTooltip = () => {
+            tooltip.classList.remove("is-visible");
+            tooltip.setAttribute("aria-hidden", "true");
+          };
           let positionFrame = 0;
           let pointerPosition = null;
           const schedulePosition = (event) => {
-            pointerPosition = { clientX: event.clientX, clientY: event.clientY };
+            const targetRect = event.currentTarget?.getBoundingClientRect();
+            const clientX = Number(event.clientX);
+            const clientY = Number(event.clientY);
+            pointerPosition = {
+              clientX: Number.isFinite(clientX) ? clientX : (targetRect?.left || 0) + (targetRect?.width || 0) / 2,
+              clientY: Number.isFinite(clientY) ? clientY : (targetRect?.top || 0) + (targetRect?.height || 0) / 2
+            };
             if (positionFrame) return;
             positionFrame = requestAnimationFrame(() => {
               positionFrame = 0;
@@ -637,34 +700,71 @@ function isMissingColumnError(error) {
               const seriesName = dot.dataset.seriesName || "";
               const value = dot.dataset.value || "0";
               const color = dot.dataset.seriesColor || "#fff";
-              tooltip.innerHTML = `
-                <div class='outcome-evolution-tooltip-month'>${monthName}</div>
-                <div class='outcome-evolution-tooltip-row'>
-                  <span class='outcome-evolution-tooltip-dot' style='background:${color};'></span>
-                  <span class='outcome-evolution-tooltip-series'>${seriesName}</span>
-                  <strong class='outcome-evolution-tooltip-value'>${value}</strong>
-                </div>
-              `;
+              const monthEl = document.createElement("div");
+              monthEl.className = "outcome-evolution-tooltip-month";
+              monthEl.textContent = monthName;
+              const row = document.createElement("div");
+              row.className = "outcome-evolution-tooltip-row";
+              const dotEl = document.createElement("span");
+              dotEl.className = "outcome-evolution-tooltip-dot";
+              dotEl.style.backgroundColor = color;
+              const seriesEl = document.createElement("span");
+              seriesEl.className = "outcome-evolution-tooltip-series";
+              seriesEl.textContent = seriesName;
+              const valueEl = document.createElement("strong");
+              valueEl.className = "outcome-evolution-tooltip-value";
+              valueEl.textContent = value;
+              row.append(dotEl, seriesEl, valueEl);
+              tooltip.replaceChildren(monthEl, row);
               tooltip.classList.add("is-visible");
+              tooltip.setAttribute("aria-hidden", "false");
               schedulePosition(event);
             };
             dot.addEventListener("pointerenter", showTooltip);
             dot.addEventListener("pointermove", schedulePosition);
             dot.addEventListener("pointerleave", hideTooltip);
+            dot.addEventListener("focus", showTooltip);
+            dot.addEventListener("blur", hideTooltip);
           });
         }
+
+        restoreLegendFocus(focusKey);
       }
 
-      render();
-
-      // Legend toggle
-      host.addEventListener("click", (e) => {
+      const handleLegendClick = (e) => {
         const btn = e.target.closest("[data-home-chart-toggle]");
         if (!btn) return;
         const key = btn.dataset.homeChartToggle;
-        if (hiddenKeys.has(key)) hiddenKeys.delete(key); else hiddenKeys.add(key);
-        render();
-      });
+        controller.toggle(key, { restoreFocus: true });
+      };
+      const controller = {
+        destroy() {
+          host.removeEventListener("click", handleLegendClick);
+          if (host.__homeTemporalChartController === controller) {
+            delete host.__homeTemporalChartController;
+          }
+        },
+        getHiddenKeys() {
+          return new Set(hiddenKeys);
+        },
+        getSeries() {
+          return allSeries.map((series) => ({ ...series, values: series.values.slice() }));
+        },
+        getVisibleKeys() {
+          return visibilityState.visibleKeys();
+        },
+        render,
+        toggle(key, { restoreFocus = false } = {}) {
+          const visible = visibilityState.toggle(key);
+          if (visible === null) return null;
+          render(restoreFocus ? key : "");
+          return visible;
+        }
+      };
+
+      host.__homeTemporalChartController = controller;
+      host.addEventListener("click", handleLegendClick);
+      render();
     });
   })();
 

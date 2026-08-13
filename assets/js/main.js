@@ -219,8 +219,12 @@ function setActiveMenu() {
   const current = window.location.pathname.split("/").pop() || "index.html";
   document.querySelectorAll(".menu-link").forEach((link) => {
     const href = link.getAttribute("href");
-    if (href === current) {
-      link.classList.add("active");
+    const isCurrent = href === current;
+    link.classList.toggle("active", isCurrent);
+    if (isCurrent) {
+      link.setAttribute("aria-current", "page");
+    } else {
+      link.removeAttribute("aria-current");
     }
   });
 }

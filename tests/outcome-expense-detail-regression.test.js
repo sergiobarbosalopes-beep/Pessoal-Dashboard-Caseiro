@@ -1313,14 +1313,14 @@ assert.match(novoBancoHtml, /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income",
 assert.match(cgdHtml, /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "savings", "outcome"\]/);
 assert.match(coverflexHtml, /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "outcome"\]/);
 assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260813-4/);
-assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260812-6/);
+assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260813-2/);
 assert.match(coverflexHtml, /assets\/js\/cgd\.js\?v=20260813-4/);
-assert.match(coverflexHtml, /assets\/css\/styles\.css\?v=20260812-4/);
+assert.match(coverflexHtml, /assets\/css\/styles\.css\?v=20260813-2/);
 for (const source of [novoBancoHtml, coverflexHtml]) {
   assert.match(source, /<body class="[^"]*explicit-chart-detail[^"]*">/);
 }
 assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260813-4/);
-assert.match(cgdHtml, /assets\/css\/styles\.css\?v=20260812-6/);
+assert.match(cgdHtml, /assets\/css\/styles\.css\?v=20260813-2/);
 assert.match(cgdHtml, /<body class="[^"]*explicit-chart-detail[^"]*">/);
 assert.match(styles, /\.outcome-evolution-tooltip-series\s*\{\s*font-size:\s*0\.73rem;/);
 const averageTextTag = cgd.match(/<span\s+[^>]*data-outcome-average-label[^>]*>/)?.[0] || "";

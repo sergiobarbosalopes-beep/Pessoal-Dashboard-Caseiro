@@ -1840,11 +1840,11 @@ assert.match(novoBancoHtml, /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income",
 assert.match(cgdHtml, /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "savings", "outcome"\]/);
 assert.match(coverflexHtml, /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "outcome"\]/);
 assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260813-4/);
-assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260812-6/);
+assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260813-2/);
 assert.match(coverflexHtml, /assets\/js\/cgd\.js\?v=20260813-4/);
-assert.match(coverflexHtml, /assets\/css\/styles\.css\?v=20260812-4/);
+assert.match(coverflexHtml, /assets\/css\/styles\.css\?v=20260813-2/);
 assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260813-4/);
-assert.match(cgdHtml, /assets\/css\/styles\.css\?v=20260812-6/);
+assert.match(cgdHtml, /assets\/css\/styles\.css\?v=20260813-2/);
 assert.match(styles, /\.explicit-chart-detail \.panel-stack\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
 const comparisonControlRule = styles.match(
   /\.explicit-chart-detail \.outcome-drilldown-toolbar\.outcome-comparison-toolbar > \.outcome-expense-detail-toggle,\s*\.explicit-chart-detail \.outcome-drilldown-toolbar\.outcome-comparison-toolbar > \.outcome-drilldown-close-btn \{([^}]*)\}/
