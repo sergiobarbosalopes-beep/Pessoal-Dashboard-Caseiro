@@ -261,6 +261,7 @@ vm.runInContext(`
     formatCgdMonthlyFlowAverageValue,
     buildCgdMonthlyFlowStack,
     computeCgdMonthlyFlowVerticalScale,
+    formatCgdMonthlyFlowAxisTick,
     buildCgdMonthlyFlowBalanceSegments,
     createCgdMonthlyFlowChartMarkup,
     normalizeCgdMonthlyFlowSeriesVisibility,
@@ -476,18 +477,103 @@ assert.equal(barFor("outcome", 4).value, 25);
 
 const zeroY = Number(rendered.match(/data-cgd-flow-zero-line[^>]*y1='([^']+)'/)?.[1]);
 assert.ok(Number.isFinite(zeroY));
-assert.ok(Math.abs(zeroY - 151) < 0.01, "Symmetric scale must place zero at the vertical center");
+assert.ok(Math.abs(zeroY - 194.67) < 0.02, "Asymmetric scale must place zero from independent bounds");
 assert.ok(barFor("income", 1).y < zeroY);
 assert.ok(barFor("outcome", 1).y >= zeroY - 0.01);
 assert.ok(barFor("savings", 1).y < barFor("income", 1).y, "Savings must stack above income");
 assert.ok(Math.abs((barFor("savings", 1).y + barFor("savings", 1).height) - barFor("income", 1).y) < 0.02);
+bars.forEach((bar) => {
+  assert.ok(bar.y >= 20 - 0.01);
+  assert.ok(bar.y + bar.height <= 282 + 0.01);
+});
 
-const symmetricScale = JSON.parse(JSON.stringify(api.computeCgdMonthlyFlowVerticalScale(
-  [januaryStack.positiveTotal, januaryStack.negativeTotal, flow[0].balance],
+const asymmetricScaleRuntime = api.computeCgdMonthlyFlowVerticalScale(
+  [10000, -16000],
+  { top: 20, height: 262 }
+);
+const asymmetricScale = JSON.parse(JSON.stringify(asymmetricScaleRuntime));
+assert.equal(asymmetricScale.maxValue, 12000);
+assert.equal(asymmetricScale.minValue, -18000);
+assert.notEqual(asymmetricScale.maxValue, Math.abs(asymmetricScale.minValue));
+assert.deepEqual(asymmetricScale.ticks, [12000, 8000, 4000, 0, -6000, -12000, -18000]);
+assert.equal(asymmetricScale.ticks.filter((value) => value === 0).length, 1);
+assert.ok(asymmetricScale.ticks.length >= 5 && asymmetricScale.ticks.length <= 7);
+const positiveHeadroom = asymmetricScaleRuntime.yFor(10000) - 20;
+const negativeHeadroom = 282 - asymmetricScaleRuntime.yFor(-16000);
+assert.ok(positiveHeadroom > 0 && positiveHeadroom < 30);
+assert.ok(negativeHeadroom > 0 && negativeHeadroom < 30);
+assert.ok(asymmetricScaleRuntime.yFor(10000) > 20);
+assert.ok(asymmetricScaleRuntime.yFor(-16000) < 282);
+
+const positiveOnlyScale = JSON.parse(JSON.stringify(api.computeCgdMonthlyFlowVerticalScale(
+  [100, 1000],
   { top: 20, height: 262 }
 )));
-assert.equal(symmetricScale.minValue, -symmetricScale.maxValue);
-assert.ok(symmetricScale.maxValue >= 1500);
+assert.equal(positiveOnlyScale.maxValue, 1200);
+assert.equal(positiveOnlyScale.minValue, -120);
+assert.ok(Math.abs(positiveOnlyScale.minValue) < positiveOnlyScale.maxValue * 0.2);
+assert.deepEqual(positiveOnlyScale.ticks, [1200, 900, 600, 300, 0, -120]);
+
+const negativeOnlyScale = JSON.parse(JSON.stringify(api.computeCgdMonthlyFlowVerticalScale(
+  [-100, -1000],
+  { top: 20, height: 262 }
+)));
+assert.equal(negativeOnlyScale.maxValue, 120);
+assert.equal(negativeOnlyScale.minValue, -1200);
+assert.ok(negativeOnlyScale.maxValue < Math.abs(negativeOnlyScale.minValue) * 0.2);
+assert.deepEqual(negativeOnlyScale.ticks, [120, 0, -300, -600, -900, -1200]);
+
+const zeroScale = JSON.parse(JSON.stringify(api.computeCgdMonthlyFlowVerticalScale(
+  [0, 0, Number.NaN],
+  { top: 20, height: 262 }
+)));
+assert.deepEqual(
+  {
+    minValue: zeroScale.minValue,
+    maxValue: zeroScale.maxValue,
+    ticks: zeroScale.ticks
+  },
+  { minValue: -10, maxValue: 10, ticks: [10, 5, 0, -5, -10] }
+);
+
+const outlierScaleRuntime = api.computeCgdMonthlyFlowVerticalScale(
+  [1e9, -1, 12],
+  { top: 20, height: 262 }
+);
+const outlierScale = JSON.parse(JSON.stringify(outlierScaleRuntime));
+assert.ok(outlierScale.maxValue >= 1e9);
+assert.ok(outlierScale.minValue < 0);
+assert.ok(outlierScaleRuntime.yFor(1e9) > 20);
+assert.ok(outlierScaleRuntime.yFor(-1) < 282);
+assert.equal(api.formatCgdMonthlyFlowAxisTick(1.2e9, 4e8), "1.2B");
+assert.equal(api.formatCgdMonthlyFlowAxisTick(-18000, 6000), "-18000");
+assert.equal(api.formatCgdMonthlyFlowAxisTick(-0, 5), "0");
+assert.equal(api.formatCgdMonthlyFlowAxisTick(50000, 50000, 150000), "50k");
+assert.equal(api.formatCgdMonthlyFlowAxisTick(100000, 50000, 150000), "100k");
+assert.equal(api.formatCgdMonthlyFlowAxisTick(150000, 50000, 150000), "150k");
+
+const floatingResidueScale = JSON.parse(JSON.stringify(api.computeCgdMonthlyFlowVerticalScale(
+  [1500.10 + 300.05 - 1800.15, 0.1 + 0.2 - 0.3],
+  { top: 20, height: 262 }
+)));
+assert.deepEqual(
+  {
+    minValue: floatingResidueScale.minValue,
+    maxValue: floatingResidueScale.maxValue,
+    ticks: floatingResidueScale.ticks
+  },
+  { minValue: -10, maxValue: 10, ticks: [10, 5, 0, -5, -10] },
+  "Sub-cent floating-point residues must use the stable empty scale"
+);
+assert.doesNotMatch(JSON.stringify(floatingResidueScale), /NaN|Infinity/);
+
+const residueWithPositiveScale = JSON.parse(JSON.stringify(api.computeCgdMonthlyFlowVerticalScale(
+  [100, -1e-13],
+  { top: 20, height: 262 }
+)));
+assert.equal(residueWithPositiveScale.maxValue, 120);
+assert.equal(residueWithPositiveScale.minValue, -12);
+assert.deepEqual(residueWithPositiveScale.ticks, [120, 90, 60, 30, 0, -12]);
 
 const crossingSegments = JSON.parse(JSON.stringify(api.buildCgdMonthlyFlowBalanceSegments([
   { x: 0, y: 10, value: 100 },
@@ -518,9 +604,17 @@ assert.doesNotMatch(
 );
 assert.match(rendered, /data-cgd-flow-toggle='balance'[\s\S]*?aria-pressed='true'/);
 assert.match(rendered, /data-cgd-flow-toggle='average'[\s\S]*?aria-pressed='true'[\s\S]*?aria-label='Média do saldo mensal: 135\.42'/);
-assert.match(rendered, /data-scale-min='-2000'/);
-assert.match(rendered, /data-scale-max='2000'/);
+assert.match(rendered, /data-scale-min='-900'/);
+assert.match(rendered, /data-scale-max='1800'/);
+assert.match(rendered, /data-scale-ticks='1800,1200,600,0,-300,-600,-900'/);
 assert.match(rendered, new RegExp(`data-balance-average='${expectedBalanceAverage}'`));
+const renderedTickValues = Array.from(
+  rendered.matchAll(/data-cgd-flow-tick-value='([^']+)'/g),
+  (match) => Number(match[1])
+);
+assert.deepEqual(renderedTickValues, [1800, 1200, 600, -300, -600, -900]);
+assert.equal((rendered.match(/data-scale-ticks='[^']*\b0\b[^']*'/g) || []).length, 1);
+assert.doesNotMatch(rendered, />-0(?:\.0+)?</);
 assert.equal((rendered.match(/data-cgd-flow-month='/g) || []).length, 12);
 assert.equal((rendered.match(/class='cgd-temporal-month-highlight is-active'/g) || []).length, 1);
 assert.match(rendered, /data-cgd-flow-month='7'[\s\S]*aria-current='date'[\s\S]*aria-label='Ago\./);
@@ -533,6 +627,48 @@ assert.match(rendered, /class='outcome-evolution-tooltip cgd-monthly-flow-toolti
 assert.match(rendered, /Os valores incluem estimativas quando nao existe valor real/);
 assert.match(rendered, /O detalhe mensal mantem o saldo calculado mesmo quando a linha esta oculta/);
 assert.doesNotMatch(rendered, /<img|onerror|alert\(1\)/);
+
+const extremeFlow = months.map((monthName, monthIndex) => ({
+  monthName,
+  monthIndex,
+  income: monthIndex === 0 ? 6000 : 0,
+  savings: monthIndex === 0 ? 4000 : 0,
+  outcome: monthIndex === 0 ? 16000 : 0,
+  outcomeContribution: monthIndex === 0 ? -16000 : 0,
+  balance: monthIndex === 0 ? -6000 : 0,
+  hasEstimated: false
+}));
+const extremeMarkup = api.createCgdMonthlyFlowChartMarkup(
+  extremeFlow,
+  2026,
+  { balance: false, average: false }
+);
+assert.match(extremeMarkup, /data-scale-min='-18000'/);
+assert.match(extremeMarkup, /data-scale-max='12000'/);
+assert.match(extremeMarkup, /data-scale-ticks='12000,8000,4000,0,-6000,-12000,-18000'/);
+assert.match(extremeMarkup, /data-cgd-flow-bar='income'[\s\S]*?data-value='6000'/);
+assert.match(extremeMarkup, /data-cgd-flow-bar='savings'[\s\S]*?data-value='4000'/);
+assert.match(extremeMarkup, /data-cgd-flow-bar='outcome'[\s\S]*?data-value='-16000'/);
+assert.match(extremeMarkup, /data-cgd-flow-series='balance'[\s\S]*?aria-hidden='true'/);
+assert.match(extremeMarkup, /data-cgd-flow-series='average'[\s\S]*?aria-hidden='true'/);
+
+const hiddenOverlayFlow = months.map((monthName, monthIndex) => ({
+  monthName,
+  monthIndex,
+  income: 0,
+  savings: 0,
+  outcome: 0,
+  outcomeContribution: 0,
+  balance: monthIndex === 0 ? 25000 : 0,
+  hasEstimated: false
+}));
+const hiddenOverlayMarkup = api.createCgdMonthlyFlowChartMarkup(
+  hiddenOverlayFlow,
+  2026,
+  { balance: false, average: false }
+);
+assert.match(hiddenOverlayMarkup, /data-scale-max='30000'/);
+assert.match(hiddenOverlayMarkup, /data-scale-min='-3000'/);
 
 const visibilityCombinations = [
   { balance: true, average: true },
@@ -547,8 +683,9 @@ const geometrySnapshot = (markup) => ({
   scaleMin: markup.match(/data-scale-min='([^']+)'/)?.[1],
   scaleMax: markup.match(/data-scale-max='([^']+)'/)?.[1],
   zeroY: markup.match(/data-scale-zero-y='([^']+)'/)?.[1],
+  ticks: markup.match(/data-scale-ticks='([^']+)'/)?.[1],
   bars: Array.from(markup.matchAll(/<rect[\s\S]*?data-cgd-flow-bar='[^']+'[\s\S]*?<\/rect>/g), (match) => match[0]),
-  grid: Array.from(markup.matchAll(/<line x1='54'[\s\S]*?cgd-monthly-flow-grid-line'[\s\S]*?<\/line>/g), (match) => match[0])
+  grid: Array.from(markup.matchAll(/<line data-cgd-flow-tick-value='[^']+'[\s\S]*?cgd-monthly-flow-grid-line'[\s\S]*?<\/line>/g), (match) => match[0])
 });
 const combinationMarkups = visibilityCombinations.map((visibility) => ({
   visibility,
@@ -715,7 +852,7 @@ assert.equal(lowerWrapper.listeners.size, 1);
 
 assert.match(cgdHtml, /window\.DASHBOARD_ENABLE_MONTHLY_FLOW_CHART = true/);
 assert.match(cgdHtml, /id="cgd-temporal-summary-chart"[\s\S]*id="cgd-monthly-flow-chart"[\s\S]*id="month-timeline"/);
-assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260812-10/);
+assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260813-1/);
 assert.match(cgdHtml, /assets\/css\/styles\.css\?v=20260812-6/);
 assert.doesNotMatch(novoBancoHtml, /DASHBOARD_ENABLE_MONTHLY_FLOW_CHART|cgd-monthly-flow-chart/);
 assert.doesNotMatch(coverflexHtml, /DASHBOARD_ENABLE_MONTHLY_FLOW_CHART|cgd-monthly-flow-chart/);

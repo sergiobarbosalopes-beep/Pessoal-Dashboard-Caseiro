@@ -1664,38 +1664,192 @@ function buildCgdMonthlyFlowStack(monthEntry) {
   return { segments, positiveTotal, negativeTotal };
 }
 
+const CGD_MONTHLY_FLOW_SCALE_HEADROOM = 0.1;
+const CGD_MONTHLY_FLOW_SCALE_ZERO_THRESHOLD = 0.005;
+const CGD_MONTHLY_FLOW_NICE_FACTORS = Object.freeze([
+  1,
+  1.2,
+  1.5,
+  2,
+  2.5,
+  3,
+  4,
+  5,
+  6,
+  7.5,
+  10
+]);
+
+function normalizeCgdMonthlyFlowScaleValue(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return 0;
+  }
+  const normalizedValue = Number(numericValue.toPrecision(12));
+  return normalizedValue === 0 ? 0 : normalizedValue;
+}
+
+function getCgdMonthlyFlowNiceStep(rawStep) {
+  const numericStep = Math.abs(Number(rawStep));
+  if (!Number.isFinite(numericStep) || numericStep <= 0) {
+    return 1;
+  }
+
+  const magnitude = 10 ** Math.floor(Math.log10(numericStep));
+  const normalizedStep = numericStep / magnitude;
+  const factor = CGD_MONTHLY_FLOW_NICE_FACTORS.find(
+    (candidate) => normalizedStep <= candidate + 1e-12
+  ) || 10;
+  const niceStep = normalizeCgdMonthlyFlowScaleValue(factor * magnitude);
+  return niceStep > 0 ? niceStep : numericStep;
+}
+
+function computeCgdMonthlyFlowScaleSide(extreme, targetIntervals, headroomRatio) {
+  const safeExtreme = Math.max(0, Number(extreme) || 0);
+  if (safeExtreme <= 0) {
+    return { limit: 0, step: 0, tickCount: 0 };
+  }
+
+  const intervalCount = Math.max(1, Math.trunc(Number(targetIntervals)) || 1);
+  const safeHeadroom = Math.max(0, Number(headroomRatio) || 0);
+  const paddedExtreme = safeExtreme * (1 + safeHeadroom);
+  const step = getCgdMonthlyFlowNiceStep(paddedExtreme / intervalCount);
+  const tickCount = Math.max(
+    1,
+    Math.ceil((paddedExtreme - step * 1e-10) / step)
+  );
+  return {
+    limit: normalizeCgdMonthlyFlowScaleValue(step * tickCount),
+    step,
+    tickCount
+  };
+}
+
+function getCgdMonthlyFlowTickDecimals(step) {
+  const safeStep = Math.abs(Number(step));
+  if (!Number.isFinite(safeStep) || safeStep === 0) {
+    return 0;
+  }
+
+  for (let decimals = 0; decimals <= 4; decimals += 1) {
+    const scaledStep = safeStep * (10 ** decimals);
+    if (Math.abs(scaledStep - Math.round(scaledStep)) < 1e-8) {
+      return decimals;
+    }
+  }
+  return 4;
+}
+
+function formatCgdMonthlyFlowAxisTick(value, step, sideLimit = value) {
+  const safeValue = normalizeCgdMonthlyFlowScaleValue(value);
+  if (safeValue === 0) {
+    return "0";
+  }
+
+  const absoluteLimit = Math.abs(Number(sideLimit) || 0);
+  const compactUnit = absoluteLimit >= 1e9
+    ? { divisor: 1e9, suffix: "B" }
+    : absoluteLimit >= 1e6
+      ? { divisor: 1e6, suffix: "M" }
+      : absoluteLimit >= 1e5
+        ? { divisor: 1e3, suffix: "k" }
+        : null;
+  if (compactUnit) {
+    const scaledValue = safeValue / compactUnit.divisor;
+    const scaledStep = Math.abs(Number(step) || 0) / compactUnit.divisor;
+    const decimals = Math.min(2, getCgdMonthlyFlowTickDecimals(scaledStep));
+    return `${scaledValue.toFixed(decimals)}${compactUnit.suffix}`;
+  }
+
+  return safeValue.toFixed(getCgdMonthlyFlowTickDecimals(step));
+}
+
 function computeCgdMonthlyFlowVerticalScale(values, { top, height }) {
   const numericValues = (Array.isArray(values) ? values : [])
     .map((value) => Number(value))
     .filter((value) => Number.isFinite(value));
-  const maxAbsoluteRaw = numericValues.length
-    ? Math.max(...numericValues.map((value) => Math.abs(value)))
+  const rawMaxValue = numericValues.length ? Math.max(0, ...numericValues) : 0;
+  const rawMinValue = numericValues.length ? Math.min(0, ...numericValues) : 0;
+  const positiveExtreme = rawMaxValue >= CGD_MONTHLY_FLOW_SCALE_ZERO_THRESHOLD
+    ? rawMaxValue
     : 0;
+  const negativeExtreme = rawMinValue <= -CGD_MONTHLY_FLOW_SCALE_ZERO_THRESHOLD
+    ? rawMinValue
+    : 0;
+  const hasPositiveValues = positiveExtreme > 0;
+  const hasNegativeValues = negativeExtreme < 0;
 
-  let maxAbsolute = 1;
-  if (maxAbsoluteRaw > 0) {
-    const target = maxAbsoluteRaw * 1.04;
-    const magnitude = 10 ** Math.floor(Math.log10(target));
-    const normalized = target / magnitude;
-    const niceFactors = [1, 1.25, 1.5, 2, 2.5, 5, 7.5, 10];
-    const factor = niceFactors.find((candidate) => normalized <= candidate) || 10;
-    maxAbsolute = factor * magnitude;
+  let positiveSide;
+  let negativeSide;
+  if (!hasPositiveValues && !hasNegativeValues) {
+    positiveSide = { limit: 10, step: 5, tickCount: 2 };
+    negativeSide = { limit: 10, step: 5, tickCount: 2 };
+  } else if (hasPositiveValues && hasNegativeValues) {
+    positiveSide = computeCgdMonthlyFlowScaleSide(
+      positiveExtreme,
+      3,
+      CGD_MONTHLY_FLOW_SCALE_HEADROOM
+    );
+    negativeSide = computeCgdMonthlyFlowScaleSide(
+      Math.abs(negativeExtreme),
+      3,
+      CGD_MONTHLY_FLOW_SCALE_HEADROOM
+    );
+  } else if (hasPositiveValues) {
+    positiveSide = computeCgdMonthlyFlowScaleSide(
+      positiveExtreme,
+      4,
+      CGD_MONTHLY_FLOW_SCALE_HEADROOM
+    );
+    negativeSide = computeCgdMonthlyFlowScaleSide(
+      positiveSide.limit * 0.1,
+      1,
+      0
+    );
+  } else {
+    negativeSide = computeCgdMonthlyFlowScaleSide(
+      Math.abs(negativeExtreme),
+      4,
+      CGD_MONTHLY_FLOW_SCALE_HEADROOM
+    );
+    positiveSide = computeCgdMonthlyFlowScaleSide(
+      negativeSide.limit * 0.1,
+      1,
+      0
+    );
   }
 
-  const minValue = -maxAbsolute;
-  const maxValue = maxAbsolute;
+  const minValue = -negativeSide.limit;
+  const maxValue = positiveSide.limit;
   const range = maxValue - minValue;
+  const safeTop = Number.isFinite(Number(top)) ? Number(top) : 0;
+  const safeHeight = Number.isFinite(Number(height)) && Number(height) > 0
+    ? Number(height)
+    : 1;
   const yFor = (value) => {
     const numericValue = Number(value);
     const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
-    return top + ((maxValue - safeValue) / range) * height;
+    return safeTop + ((maxValue - safeValue) / range) * safeHeight;
   };
+  const positiveTicks = Array.from(
+    { length: positiveSide.tickCount },
+    (_, index) => normalizeCgdMonthlyFlowScaleValue((index + 1) * positiveSide.step)
+  ).reverse();
+  const negativeTicks = Array.from(
+    { length: negativeSide.tickCount },
+    (_, index) => normalizeCgdMonthlyFlowScaleValue(-(index + 1) * negativeSide.step)
+  );
+  const ticks = [...positiveTicks, 0, ...negativeTicks];
 
   return {
     minValue,
     maxValue,
-    maxAbsolute,
+    rawMinValue,
+    rawMaxValue,
+    positiveStep: positiveSide.step,
+    negativeStep: negativeSide.step,
     range,
+    ticks,
     yFor,
     zeroY: yFor(0)
   };
@@ -1977,17 +2131,21 @@ function createCgdMonthlyFlowChartMarkup(
   const zeroY = verticalScale.zeroY;
   const isEmpty = scaleValues.every((value) => Math.abs(Number(value) || 0) < 0.005);
 
-  const horizontalGridCount = 6;
-  const gridLines = Array.from({ length: horizontalGridCount + 1 }, (_, index) => {
-    const ratio = index / horizontalGridCount;
-    const value = verticalScale.maxValue - ratio * verticalScale.range;
+  const gridLines = verticalScale.ticks.map((value) => {
     const y = yFor(value);
-    if (Math.abs(value) < 0.000001) {
+    if (value === 0) {
       return "";
     }
+    const tickStep = value > 0
+      ? verticalScale.positiveStep
+      : verticalScale.negativeStep;
+    const tickSideLimit = value > 0
+      ? verticalScale.maxValue
+      : Math.abs(verticalScale.minValue);
+    const tickLabel = formatCgdMonthlyFlowAxisTick(value, tickStep, tickSideLimit);
     return `
-      <line x1='${geometry.plotLeft}' y1='${y.toFixed(2)}' x2='${geometry.plotRight}' y2='${y.toFixed(2)}' class='cgd-monthly-flow-grid-line' aria-hidden='true'></line>
-      <text x='${(geometry.plotLeft - 8).toFixed(2)}' y='${(y + 4).toFixed(2)}' text-anchor='end' class='cgd-monthly-flow-axis-label'>${value.toFixed(0)}</text>
+      <line data-cgd-flow-tick-value='${value}' x1='${geometry.plotLeft}' y1='${y.toFixed(2)}' x2='${geometry.plotRight}' y2='${y.toFixed(2)}' class='cgd-monthly-flow-grid-line' aria-hidden='true'></line>
+      <text data-cgd-flow-axis-value='${value}' x='${(geometry.plotLeft - 8).toFixed(2)}' y='${(y + 4).toFixed(2)}' text-anchor='end' class='cgd-monthly-flow-axis-label'>${escapeHtml(tickLabel)}</text>
     `;
   }).join("");
 
@@ -2176,6 +2334,7 @@ function createCgdMonthlyFlowChartMarkup(
           data-scale-min='${verticalScale.minValue}'
           data-scale-max='${verticalScale.maxValue}'
           data-scale-zero-y='${zeroY.toFixed(2)}'
+          data-scale-ticks='${verticalScale.ticks.join(",")}'
           data-balance-average='${balanceAverage}'
           role='group'
           aria-labelledby='cgd-monthly-flow-svg-title cgd-monthly-flow-svg-description'

@@ -1192,7 +1192,7 @@ for (const relativePath of htmlFiles) {
 for (const source of html.filter((value) => value.includes("assets/js/main.js"))) {
   assert.match(source, /assets\/js\/main\.js\?v=20260806-1/);
 }
-assert.match(read("caixa-geral-depositos.html"), /assets\/js\/cgd\.js\?v=20260812-10/);
+assert.match(read("caixa-geral-depositos.html"), /assets\/js\/cgd\.js\?v=20260813-1/);
 for (const relativePath of ["novobanco.html", "coverflex.html"]) {
   assert.match(read(relativePath), /assets\/js\/cgd\.js\?v=20260812-8/);
 }

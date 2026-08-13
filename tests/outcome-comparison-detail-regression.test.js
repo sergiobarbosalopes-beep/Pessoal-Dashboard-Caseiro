@@ -1843,7 +1843,7 @@ for (const source of [novoBancoHtml, coverflexHtml]) {
   assert.match(source, /assets\/js\/cgd\.js\?v=20260812-8/);
   assert.match(source, /assets\/css\/styles\.css\?v=20260812-4/);
 }
-assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260812-10/);
+assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260813-1/);
 assert.match(cgdHtml, /assets\/css\/styles\.css\?v=20260812-6/);
 assert.match(styles, /\.explicit-chart-detail \.panel-stack\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
 const comparisonControlRule = styles.match(
