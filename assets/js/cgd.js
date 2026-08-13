@@ -66,7 +66,45 @@ const tableName = (suffix) => `${TABLE_PREFIX}_${suffix}`;
 const HIDE_SAVINGS = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_SAVINGS);
 const HIDE_BALANCE = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_BALANCE);
 const HIDE_AVAILABLE_ROW = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_AVAILABLE_ROW);
-const ENABLE_MONTHLY_FLOW_CHART = TABLE_PREFIX === "cgd" && Boolean(window.DASHBOARD_ENABLE_MONTHLY_FLOW_CHART);
+const MONTHLY_FLOW_COMPONENT_DEFINITIONS = Object.freeze({
+  income: Object.freeze({
+    key: "income",
+    label: "Receitas",
+    stackValueKey: "income",
+    balanceFactor: 1,
+    colorKey: "income"
+  }),
+  savings: Object.freeze({
+    key: "savings",
+    label: "Poupancas",
+    stackValueKey: "savings",
+    balanceFactor: 1,
+    colorKey: "savings"
+  }),
+  outcome: Object.freeze({
+    key: "outcome",
+    label: "Despesas",
+    stackValueKey: "outcomeContribution",
+    balanceFactor: -1,
+    colorKey: "outcome"
+  })
+});
+const MONTHLY_FLOW_CHART_CONFIGS = Object.freeze({
+  cgd: Object.freeze({
+    componentKeys: Object.freeze(["income", "savings", "outcome"]),
+    subtitle: "Receitas + Poupancas - Despesas",
+    compositionDescription: "Receitas e poupancas empilhadas por sinal e despesas apresentadas como contribuicao negativa."
+  }),
+  nb: Object.freeze({
+    componentKeys: Object.freeze(["income", "outcome"]),
+    subtitle: "Receitas \u2212 Despesas",
+    compositionDescription: "Receitas apresentadas por sinal e despesas como contribuicao negativa."
+  })
+});
+const MONTHLY_FLOW_CHART_CONFIG = Boolean(window.DASHBOARD_ENABLE_MONTHLY_FLOW_CHART)
+  ? MONTHLY_FLOW_CHART_CONFIGS[TABLE_PREFIX] || null
+  : null;
+const ENABLE_MONTHLY_FLOW_CHART = Boolean(MONTHLY_FLOW_CHART_CONFIG);
 const SUPPORTED_CHART_DETAIL_KINDS = new Set(["income", "savings", "outcome"]);
 const EXPLICIT_CHART_DETAIL_KINDS = new Set(
   (Array.isArray(window.DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS)
@@ -1412,6 +1450,23 @@ const CGD_TEMPORAL_CHART_GEOMETRY = Object.freeze({
 });
 const CGD_MONTHLY_FLOW_SERIES_KEYS = new Set(["balance", "average"]);
 
+function resolveCgdMonthlyFlowChartConfig(flowConfig = MONTHLY_FLOW_CHART_CONFIG) {
+  const sourceConfig = flowConfig || MONTHLY_FLOW_CHART_CONFIGS.cgd;
+  const componentKeys = (Array.isArray(sourceConfig?.componentKeys) ? sourceConfig.componentKeys : [])
+    .map((key) => String(key || "").trim().toLowerCase())
+    .filter((key) => Boolean(MONTHLY_FLOW_COMPONENT_DEFINITIONS[key]));
+  return {
+    componentKeys,
+    subtitle: String(sourceConfig?.subtitle || ""),
+    compositionDescription: String(sourceConfig?.compositionDescription || "")
+  };
+}
+
+function getCgdMonthlyFlowComponentDefinitions(flowConfig = MONTHLY_FLOW_CHART_CONFIG) {
+  return resolveCgdMonthlyFlowChartConfig(flowConfig).componentKeys
+    .map((key) => MONTHLY_FLOW_COMPONENT_DEFINITIONS[key]);
+}
+
 function normalizeCgdMonthlyFlowSeriesVisibility(visibility = cgdState.monthlyFlowSeriesVisibility) {
   return {
     balance: visibility?.balance !== false,
@@ -1419,7 +1474,11 @@ function normalizeCgdMonthlyFlowSeriesVisibility(visibility = cgdState.monthlyFl
   };
 }
 
-function buildCgdMonthlyFlowSvgDescription(seriesVisibility) {
+function buildCgdMonthlyFlowSvgDescription(
+  seriesVisibility,
+  flowConfig = MONTHLY_FLOW_CHART_CONFIG
+) {
+  const config = resolveCgdMonthlyFlowChartConfig(flowConfig);
   const visibility = normalizeCgdMonthlyFlowSeriesVisibility(seriesVisibility);
   const visibleOverlayDescription = visibility.balance && visibility.average
     ? "A linha do saldo mensal e a média horizontal tracejada estao visiveis."
@@ -1428,7 +1487,7 @@ function buildCgdMonthlyFlowSvgDescription(seriesVisibility) {
       : visibility.average
         ? "A média horizontal tracejada esta visivel e a linha do saldo mensal esta oculta."
         : "As linhas do saldo mensal e da média estao ocultas.";
-  return `Receitas e poupancas empilhadas por sinal e despesas apresentadas como contribuicao negativa. ${visibleOverlayDescription} Os valores incluem estimativas quando nao existe valor real. O detalhe mensal mantem o saldo calculado mesmo quando a linha esta oculta.`;
+  return `${config.compositionDescription} ${visibleOverlayDescription} Os valores incluem estimativas quando nao existe valor real. O detalhe mensal mantem o saldo calculado mesmo quando a linha esta oculta.`;
 }
 
 function resetCgdMonthlyFlowSeriesVisibility() {
@@ -1595,37 +1654,41 @@ function buildCgdMonthlyFlowEstimatedFlags(rubrics) {
   );
 }
 
-function buildCgdMonthlyFlowModel(model = cgdState.data) {
+function buildCgdMonthlyFlowModel(
+  model = cgdState.data,
+  flowConfig = MONTHLY_FLOW_CHART_CONFIG
+) {
+  const componentDefinitions = getCgdMonthlyFlowComponentDefinitions(flowConfig);
   const totals = buildTotalsForModel(model || fallbackMock);
-  const estimatedFlags = {
-    income: buildCgdMonthlyFlowEstimatedFlags(model?.income),
-    savings: buildCgdMonthlyFlowEstimatedFlags(model?.savings),
-    outcome: buildCgdMonthlyFlowEstimatedFlags(model?.outcome)
-  };
+  const estimatedFlags = Object.fromEntries(
+    componentDefinitions.map((definition) => [
+      definition.key,
+      buildCgdMonthlyFlowEstimatedFlags(model?.[definition.key])
+    ])
+  );
   const safeMonthlyValue = (values, monthIndex) => {
     const numericValue = Number(values?.[monthIndex]);
     return Number.isFinite(numericValue) ? numericValue : 0;
   };
 
   return months.map((monthName, monthIndex) => {
-    const income = safeMonthlyValue(totals.income, monthIndex);
-    const savings = safeMonthlyValue(totals.savings, monthIndex);
-    const outcome = safeMonthlyValue(totals.outcome, monthIndex);
-    const outcomeContribution = -outcome;
-    return {
+    let balance = 0;
+    let hasEstimated = false;
+    const entry = {
       monthIndex,
-      monthName,
-      income,
-      savings,
-      outcome,
-      outcomeContribution,
-      balance: income + savings - outcome,
-      hasEstimated: Boolean(
-        estimatedFlags.income[monthIndex]
-        || estimatedFlags.savings[monthIndex]
-        || estimatedFlags.outcome[monthIndex]
-      )
+      monthName
     };
+    componentDefinitions.forEach((definition) => {
+      const value = safeMonthlyValue(totals[definition.key], monthIndex);
+      const contribution = value * definition.balanceFactor;
+      entry[definition.key] = value;
+      entry[definition.stackValueKey] = contribution;
+      balance += contribution;
+      hasEstimated = hasEstimated || Boolean(estimatedFlags[definition.key]?.[monthIndex]);
+    });
+    entry.balance = balance;
+    entry.hasEstimated = hasEstimated;
+    return entry;
   });
 }
 
@@ -1642,12 +1705,17 @@ function formatCgdMonthlyFlowAverageValue(value) {
   return Number.isFinite(numericValue) ? numericValue.toFixed(2) : "0.00";
 }
 
-function buildCgdMonthlyFlowStack(monthEntry) {
-  const definitions = [
-    { key: "income", label: "Receitas", value: Number(monthEntry?.income) || 0, color: THEME_COLORS.monthlyFlow.income },
-    { key: "savings", label: "Poupancas", value: Number(monthEntry?.savings) || 0, color: THEME_COLORS.monthlyFlow.savings },
-    { key: "outcome", label: "Despesas", value: Number(monthEntry?.outcomeContribution) || 0, color: THEME_COLORS.monthlyFlow.outcome }
-  ];
+function buildCgdMonthlyFlowStack(
+  monthEntry,
+  flowConfig = MONTHLY_FLOW_CHART_CONFIG
+) {
+  const definitions = getCgdMonthlyFlowComponentDefinitions(flowConfig)
+    .map((definition) => ({
+      key: definition.key,
+      label: definition.label,
+      value: Number(monthEntry?.[definition.stackValueKey]) || 0,
+      color: THEME_COLORS.monthlyFlow[definition.colorKey]
+    }));
   let positiveTotal = 0;
   let negativeTotal = 0;
   const segments = definitions.map((definition) => {
@@ -1903,9 +1971,16 @@ function formatSignedCgdMonthlyFlowMoney(value) {
   return `${sign}${money(Math.abs(safeValue))} EUR`;
 }
 
-function buildCgdMonthlyFlowMonthAriaLabel(monthEntry) {
+function buildCgdMonthlyFlowMonthAriaLabel(
+  monthEntry,
+  flowConfig = MONTHLY_FLOW_CHART_CONFIG
+) {
+  const componentLabels = getCgdMonthlyFlowComponentDefinitions(flowConfig)
+    .map((definition) => (
+      `${definition.label} ${formatSignedCgdMonthlyFlowMoney(monthEntry?.[definition.stackValueKey])}`
+    ));
   const estimatedNote = monthEntry.hasEstimated ? " Inclui valores estimados." : "";
-  return `${monthEntry.monthName}. Receitas ${formatSignedCgdMonthlyFlowMoney(monthEntry.income)}; Poupancas ${formatSignedCgdMonthlyFlowMoney(monthEntry.savings)}; Despesas ${formatSignedCgdMonthlyFlowMoney(monthEntry.outcomeContribution)}; Saldo mensal ${formatSignedCgdMonthlyFlowMoney(monthEntry.balance)}.${estimatedNote}`;
+  return `${monthEntry.monthName}. ${componentLabels.join("; ")}; Saldo mensal ${formatSignedCgdMonthlyFlowMoney(monthEntry.balance)}.${estimatedNote}`;
 }
 
 function renderCgdTemporalSummaryChart() {
@@ -2092,8 +2167,11 @@ function renderCgdTemporalSummaryChart() {
 function createCgdMonthlyFlowChartMarkup(
   flowEntries,
   year,
-  seriesVisibility = cgdState.monthlyFlowSeriesVisibility
+  seriesVisibility = cgdState.monthlyFlowSeriesVisibility,
+  flowConfig = MONTHLY_FLOW_CHART_CONFIG
 ) {
+  const config = resolveCgdMonthlyFlowChartConfig(flowConfig);
+  const componentDefinitions = getCgdMonthlyFlowComponentDefinitions(config);
   const geometry = getCgdTemporalChartGeometry();
   const { chartWidth, chartHeight, plotHeight, xFor } = geometry;
   const numericYear = Number(year);
@@ -2102,22 +2180,25 @@ function createCgdMonthlyFlowChartMarkup(
   const visibility = normalizeCgdMonthlyFlowSeriesVisibility(seriesVisibility);
   const entries = months.map((monthName, monthIndex) => {
     const source = flowEntries?.[monthIndex] || {};
-    return {
+    const entry = {
       monthIndex,
       monthName,
-      income: Number.isFinite(Number(source.income)) ? Number(source.income) : 0,
-      savings: Number.isFinite(Number(source.savings)) ? Number(source.savings) : 0,
-      outcome: Number.isFinite(Number(source.outcome)) ? Number(source.outcome) : 0,
-      outcomeContribution: Number.isFinite(Number(source.outcomeContribution)) ? Number(source.outcomeContribution) : 0,
       balance: Number.isFinite(Number(source.balance)) ? Number(source.balance) : 0,
       hasEstimated: Boolean(source.hasEstimated)
     };
+    componentDefinitions.forEach((definition) => {
+      const rawValue = Number(source[definition.key]);
+      const stackValue = Number(source[definition.stackValueKey]);
+      entry[definition.key] = Number.isFinite(rawValue) ? rawValue : 0;
+      entry[definition.stackValueKey] = Number.isFinite(stackValue) ? stackValue : 0;
+    });
+    return entry;
   });
   const balanceAverage = computeCgdMonthlyFlowBalanceAverage(entries);
   const formattedBalanceAverage = formatCgdMonthlyFlowAverageValue(balanceAverage);
   const balanceAverageLabel = `Média do saldo mensal: ${formattedBalanceAverage}`;
-  const svgDescription = buildCgdMonthlyFlowSvgDescription(visibility);
-  const stacks = entries.map(buildCgdMonthlyFlowStack);
+  const svgDescription = buildCgdMonthlyFlowSvgDescription(visibility, config);
+  const stacks = entries.map((entry) => buildCgdMonthlyFlowStack(entry, config));
   const scaleValues = [
     ...stacks.flatMap((stack) => [stack.positiveTotal, stack.negativeTotal]),
     ...entries.map((entry) => entry.balance),
@@ -2261,15 +2342,16 @@ function createCgdMonthlyFlowChartMarkup(
       const rightBoundary = monthIndex === months.length - 1
         ? chartWidth
         : (geometry.monthX[monthIndex] + geometry.monthX[monthIndex + 1]) / 2;
-      const ariaLabel = buildCgdMonthlyFlowMonthAriaLabel(entry);
+      const ariaLabel = buildCgdMonthlyFlowMonthAriaLabel(entry, config);
+      const componentDataAttributes = componentDefinitions
+        .map((definition) => `data-${definition.key}-value='${entry[definition.stackValueKey]}'`)
+        .join("\n          ");
       return `
         <rect
           class='cgd-monthly-flow-month-target'
           data-cgd-flow-month='${monthIndex}'
           data-month-name='${escapeHtml(entry.monthName)}'
-          data-income-value='${entry.income}'
-          data-savings-value='${entry.savings}'
-          data-outcome-value='${entry.outcomeContribution}'
+          ${componentDataAttributes}
           data-balance-value='${entry.balance}'
           data-has-estimated='${entry.hasEstimated ? "true" : "false"}'
           x='${leftBoundary.toFixed(2)}'
@@ -2288,19 +2370,31 @@ function createCgdMonthlyFlowChartMarkup(
   const emptyState = isEmpty
     ? `<text x='${(geometry.plotLeft + geometry.plotRight) / 2}' y='${(zeroY - 18).toFixed(2)}' text-anchor='middle' class='cgd-monthly-flow-empty'>Sem movimentos no ano selecionado.</text>`
     : "";
+  const componentLegend = componentDefinitions
+    .map((definition) => `
+      <span role='listitem' class='cgd-monthly-flow-legend-item'><span class='cgd-monthly-flow-legend-swatch is-${definition.key}' aria-hidden='true'></span>${escapeHtml(definition.label)}</span>
+    `)
+    .join("");
+  const componentTooltipRows = componentDefinitions
+    .map((definition) => `
+      <div class='outcome-evolution-tooltip-row'>
+        <span class='outcome-evolution-tooltip-dot is-${definition.key}' aria-hidden='true'></span>
+        <span class='outcome-evolution-tooltip-series'>${escapeHtml(definition.label)}</span>
+        <strong class='outcome-evolution-tooltip-value' data-cgd-flow-tooltip-value='${definition.key}'></strong>
+      </div>
+    `)
+    .join("");
 
   return `
     <div class='cgd-summary-map cgd-monthly-flow-map'>
       <div class='outcome-evolution-head cgd-monthly-flow-head'>
         <div>
           <h3>Fluxo mensal ${safeYear}</h3>
-          <p>Receitas + Poupancas - Despesas</p>
+          <p>${escapeHtml(config.subtitle)}</p>
         </div>
       </div>
       <div class='cgd-monthly-flow-legend' role='list' aria-label='Legenda do fluxo mensal'>
-        <span role='listitem' class='cgd-monthly-flow-legend-item'><span class='cgd-monthly-flow-legend-swatch is-income' aria-hidden='true'></span>Receitas</span>
-        <span role='listitem' class='cgd-monthly-flow-legend-item'><span class='cgd-monthly-flow-legend-swatch is-savings' aria-hidden='true'></span>Poupancas</span>
-        <span role='listitem' class='cgd-monthly-flow-legend-item'><span class='cgd-monthly-flow-legend-swatch is-outcome' aria-hidden='true'></span>Despesas</span>
+        ${componentLegend}
         <span role='listitem' class='cgd-monthly-flow-legend-control'>
           <button
             type='button'
@@ -2355,21 +2449,7 @@ function createCgdMonthlyFlowChartMarkup(
         </svg>
         <div class='outcome-evolution-tooltip cgd-monthly-flow-tooltip' aria-hidden='true' role='tooltip'>
           <div class='outcome-evolution-tooltip-month' data-cgd-flow-tooltip-month></div>
-          <div class='outcome-evolution-tooltip-row'>
-            <span class='outcome-evolution-tooltip-dot is-income' aria-hidden='true'></span>
-            <span class='outcome-evolution-tooltip-series'>Receitas</span>
-            <strong class='outcome-evolution-tooltip-value' data-cgd-flow-tooltip-value='income'></strong>
-          </div>
-          <div class='outcome-evolution-tooltip-row'>
-            <span class='outcome-evolution-tooltip-dot is-savings' aria-hidden='true'></span>
-            <span class='outcome-evolution-tooltip-series'>Poupancas</span>
-            <strong class='outcome-evolution-tooltip-value' data-cgd-flow-tooltip-value='savings'></strong>
-          </div>
-          <div class='outcome-evolution-tooltip-row'>
-            <span class='outcome-evolution-tooltip-dot is-outcome' aria-hidden='true'></span>
-            <span class='outcome-evolution-tooltip-series'>Despesas</span>
-            <strong class='outcome-evolution-tooltip-value' data-cgd-flow-tooltip-value='outcome'></strong>
-          </div>
+          ${componentTooltipRows}
           <div class='outcome-evolution-tooltip-row is-balance'>
             <span class='outcome-evolution-tooltip-dot is-balance' aria-hidden='true'></span>
             <span class='outcome-evolution-tooltip-series'>Saldo mensal</span>
@@ -2382,7 +2462,12 @@ function createCgdMonthlyFlowChartMarkup(
   `;
 }
 
-function setCgdMonthlyFlowSeriesVisibility(host, seriesKey, isVisible) {
+function setCgdMonthlyFlowSeriesVisibility(
+  host,
+  seriesKey,
+  isVisible,
+  flowConfig = host?.cgdMonthlyFlowChartConfig || MONTHLY_FLOW_CHART_CONFIG
+) {
   const normalizedKey = String(seriesKey || "").trim().toLowerCase();
   if (!CGD_MONTHLY_FLOW_SERIES_KEYS.has(normalizedKey)) {
     return false;
@@ -2418,15 +2503,21 @@ function setCgdMonthlyFlowSeriesVisibility(host, seriesKey, isVisible) {
   const description = host?.querySelector?.("[data-cgd-flow-description]");
   if (description) {
     description.textContent = buildCgdMonthlyFlowSvgDescription(
-      cgdState.monthlyFlowSeriesVisibility
+      cgdState.monthlyFlowSeriesVisibility,
+      flowConfig
     );
   }
 
   return true;
 }
 
-function bindCgdMonthlyFlowVisibilityControls(host) {
-  if (!host || host.dataset.cgdMonthlyFlowVisibilityBound === "1") {
+function bindCgdMonthlyFlowVisibilityControls(host, flowConfig = MONTHLY_FLOW_CHART_CONFIG) {
+  if (!host) {
+    return;
+  }
+
+  host.cgdMonthlyFlowChartConfig = resolveCgdMonthlyFlowChartConfig(flowConfig);
+  if (host.dataset.cgdMonthlyFlowVisibilityBound === "1") {
     return;
   }
 
@@ -2439,7 +2530,12 @@ function bindCgdMonthlyFlowVisibilityControls(host) {
 
     const seriesKey = toggle.getAttribute("data-cgd-flow-toggle");
     const isVisible = toggle.getAttribute("aria-pressed") !== "true";
-    setCgdMonthlyFlowSeriesVisibility(host, seriesKey, isVisible);
+    setCgdMonthlyFlowSeriesVisibility(
+      host,
+      seriesKey,
+      isVisible,
+      host.cgdMonthlyFlowChartConfig
+    );
   });
 }
 
@@ -2495,10 +2591,10 @@ function bindCgdMonthlyFlowTooltip(host) {
 
     const valueFor = (name) => formatSignedCgdMonthlyFlowMoney(target.getAttribute(`data-${name}-value`));
     tooltip.querySelector("[data-cgd-flow-tooltip-month]").textContent = target.getAttribute("data-month-name") || "";
-    tooltip.querySelector("[data-cgd-flow-tooltip-value='income']").textContent = valueFor("income");
-    tooltip.querySelector("[data-cgd-flow-tooltip-value='savings']").textContent = valueFor("savings");
-    tooltip.querySelector("[data-cgd-flow-tooltip-value='outcome']").textContent = valueFor("outcome");
-    tooltip.querySelector("[data-cgd-flow-tooltip-value='balance']").textContent = valueFor("balance");
+    tooltip.querySelectorAll("[data-cgd-flow-tooltip-value]").forEach((valueNode) => {
+      const valueKey = valueNode.getAttribute("data-cgd-flow-tooltip-value");
+      valueNode.textContent = valueFor(valueKey);
+    });
     const estimatedNote = tooltip.querySelector("[data-cgd-flow-tooltip-estimated]");
     if (estimatedNote) {
       estimatedNote.hidden = target.getAttribute("data-has-estimated") !== "true";
@@ -2551,7 +2647,7 @@ function bindCgdMonthlyFlowTooltip(host) {
   });
 }
 
-function renderCgdMonthlyFlowChart() {
+function renderCgdMonthlyFlowChart(flowConfig = MONTHLY_FLOW_CHART_CONFIG) {
   if (!ENABLE_MONTHLY_FLOW_CHART) {
     return;
   }
@@ -2563,14 +2659,15 @@ function renderCgdMonthlyFlowChart() {
 
   resetCgdMonthlyFlowSeriesVisibility();
   const year = Number(cgdState.selectedYear);
-  const flowModel = buildCgdMonthlyFlowModel(cgdState.data);
+  const flowModel = buildCgdMonthlyFlowModel(cgdState.data, flowConfig);
   host.innerHTML = createCgdMonthlyFlowChartMarkup(
     flowModel,
     year,
-    cgdState.monthlyFlowSeriesVisibility
+    cgdState.monthlyFlowSeriesVisibility,
+    flowConfig
   );
   bindCgdMonthlyFlowTooltip(host);
-  bindCgdMonthlyFlowVisibilityControls(host);
+  bindCgdMonthlyFlowVisibilityControls(host, flowConfig);
   bindCgdTemporalMonthSelectionSync();
   syncCgdTemporalChartSelectedMonth(getSelectedTimelineMonthIndex());
   bindCgdTemporalChartScrollSync();

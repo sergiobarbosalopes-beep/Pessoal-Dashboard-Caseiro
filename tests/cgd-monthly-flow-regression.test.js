@@ -42,6 +42,11 @@ const verticalScaleSource = sliceBetween(
   "function computeChartVerticalScale(",
   "\nfunction ensureChartBottomVisible"
 );
+const monthlyFlowConfigurationSource = sliceBetween(
+  cgd,
+  "const MONTHLY_FLOW_COMPONENT_DEFINITIONS",
+  "\nconst SUPPORTED_CHART_DETAIL_KINDS"
+);
 const monthlyFlowHelpersSource = sliceBetween(
   cgd,
   "const CGD_TEMPORAL_CHART_GEOMETRY",
@@ -199,7 +204,7 @@ const context = vm.createContext({
   Object,
   Set,
   String,
-  ENABLE_MONTHLY_FLOW_CHART: true,
+  TABLE_PREFIX: "cgd",
   EXPENSE_SEQ_COLUMN: "despesa_seq",
   HIDE_AVAILABLE_ROW: false,
   HIDE_SAVINGS: false,
@@ -237,7 +242,7 @@ const context = vm.createContext({
   months,
   normalizeComparableText: (value) => String(value || "").toLowerCase(),
   requestAnimationFrame,
-  window: {},
+  window: { DASHBOARD_ENABLE_MONTHLY_FLOW_CHART: true },
   flowApi: null
 });
 
@@ -250,6 +255,7 @@ vm.runInContext(`
   ${escapeHtmlSource}
   ${smoothPathSource}
   ${verticalScaleSource}
+  ${monthlyFlowConfigurationSource}
   ${monthlyFlowHelpersSource}
   ${temporalSummarySource}
   ${monthlyFlowMarkupSource}
@@ -272,12 +278,23 @@ vm.runInContext(`
     getCgdTemporalChartGeometry,
     bindCgdTemporalChartScrollSync,
     renderCgdTemporalSummaryChart,
-    renderCgdMonthlyFlowChart
+    renderCgdMonthlyFlowChart,
+    monthlyFlowChartConfigs: MONTHLY_FLOW_CHART_CONFIGS,
+    monthlyFlowChartConfig: MONTHLY_FLOW_CHART_CONFIG,
+    monthlyFlowChartEnabled: ENABLE_MONTHLY_FLOW_CHART
   };
 `, context);
 
 const api = context.flowApi;
+const cgdFlowConfig = api.monthlyFlowChartConfigs.cgd;
+const nbFlowConfig = api.monthlyFlowChartConfigs.nb;
 const visibilityState = () => JSON.parse(JSON.stringify(state.monthlyFlowSeriesVisibility));
+
+assert.equal(api.monthlyFlowChartEnabled, true);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(api.monthlyFlowChartConfig.componentKeys)),
+  ["income", "savings", "outcome"]
+);
 
 const rubricRows = [
   { rubrica_id: 1, rubrica_desc: "Salarios <img src=x onerror=alert(1)>", rubrica_tipo: "Receita", rubrica_seq: 1, mes: 1 },
@@ -427,6 +444,91 @@ assert.deepEqual(
     { key: "outcome", start: 0, end: 25 }
   ]
 );
+
+const nbFlow = JSON.parse(JSON.stringify(api.buildCgdMonthlyFlowModel(model, nbFlowConfig)));
+const expectedNbBalanceAverage = 955 / 12;
+assert.equal(nbFlow.length, 12);
+assert.equal(api.computeCgdMonthlyFlowBalanceAverage(nbFlow), expectedNbBalanceAverage);
+assert.equal(api.formatCgdMonthlyFlowAverageValue(expectedNbBalanceAverage), "79.58");
+assert.deepEqual(
+  { income: nbFlow[0].income, outcome: nbFlow[0].outcome, balance: nbFlow[0].balance },
+  { income: 1200, outcome: 700, balance: 500 }
+);
+assert.deepEqual(
+  { income: nbFlow[1].income, outcome: nbFlow[1].outcome, balance: nbFlow[1].balance },
+  { income: 1000, outcome: 800, balance: 200 },
+  "Novo Banco future estimates must feed both bars and income minus outcome"
+);
+assert.deepEqual(
+  { income: nbFlow[2].income, outcome: nbFlow[2].outcome, balance: nbFlow[2].balance },
+  { income: 900, outcome: 600, balance: 300 },
+  "Novo Banco mixed real and estimated items must resolve before aggregation"
+);
+assert.deepEqual(
+  { income: nbFlow[3].income, outcome: nbFlow[3].outcome, balance: nbFlow[3].balance },
+  { income: 100, outcome: 0, balance: 100 },
+  "Novo Banco zerado=true must block estimate fallback"
+);
+assert.deepEqual(
+  {
+    income: nbFlow[4].income,
+    outcome: nbFlow[4].outcome,
+    outcomeContribution: nbFlow[4].outcomeContribution,
+    balance: nbFlow[4].balance
+  },
+  { income: -100, outcome: -25, outcomeContribution: 25, balance: -75 }
+);
+assert.equal(nbFlow[5].balance, -50);
+assert.equal(nbFlow[8].balance, -20);
+assert.equal(Object.hasOwn(nbFlow[0], "savings"), false);
+assert.equal(Object.hasOwn(nbFlow[0], "savingsContribution"), false);
+
+const nbJanuaryStack = JSON.parse(JSON.stringify(
+  api.buildCgdMonthlyFlowStack(nbFlow[0], nbFlowConfig)
+));
+assert.deepEqual(
+  nbJanuaryStack.segments.map(({ key, start, end }) => ({ key, start, end })),
+  [
+    { key: "income", start: 0, end: 1200 },
+    { key: "outcome", start: 0, end: -700 }
+  ]
+);
+const nbReversalStack = JSON.parse(JSON.stringify(
+  api.buildCgdMonthlyFlowStack(nbFlow[4], nbFlowConfig)
+));
+assert.deepEqual(
+  nbReversalStack.segments.map(({ key, start, end }) => ({ key, start, end })),
+  [
+    { key: "income", start: 0, end: -100 },
+    { key: "outcome", start: 0, end: 25 }
+  ]
+);
+
+const nbRendered = api.createCgdMonthlyFlowChartMarkup(
+  nbFlow,
+  2026,
+  { balance: true, average: true },
+  nbFlowConfig
+);
+assert.match(nbRendered, /<h3>Fluxo mensal 2026<\/h3>/);
+assert.match(nbRendered, /<p>Receitas \u2212 Despesas<\/p>/);
+assert.match(nbRendered, /data-cgd-flow-bar='income'/);
+assert.match(nbRendered, /data-cgd-flow-bar='outcome'/);
+assert.doesNotMatch(nbRendered, /Poupancas|Poupanças|savings/i);
+assert.doesNotMatch(nbRendered, /data-savings-value|data-cgd-flow-bar='savings'/);
+assert.match(
+  nbRendered,
+  /data-cgd-flow-month='1'[\s\S]*data-income-value='1000'[\s\S]*data-outcome-value='-800'[\s\S]*data-balance-value='200'[\s\S]*data-has-estimated='true'/
+);
+assert.match(
+  nbRendered,
+  /aria-label='Fev\. Receitas \+1,000\.00 EUR; Despesas -800\.00 EUR; Saldo mensal \+200\.00 EUR\. Inclui valores estimados\.'/
+);
+assert.match(nbRendered, /data-balance-average='79\.58333333333333'/);
+assert.match(nbRendered, /aria-label='Média do saldo mensal: 79\.58'/);
+assert.match(nbRendered, /data-scale-min='-900'/);
+assert.match(nbRendered, /data-scale-max='1500'/);
+assert.match(nbRendered, /data-scale-ticks='1500,1000,500,0,-300,-600,-900'/);
 
 const geometry = JSON.parse(JSON.stringify(api.getCgdTemporalChartGeometry()));
 assert.equal(geometry.chartWidth, 980);
@@ -728,6 +830,39 @@ combinationMarkups.forEach(({ visibility, markup }) => {
   );
 });
 
+const nbCombinationMarkups = visibilityCombinations.map((visibility) => ({
+  visibility,
+  markup: api.createCgdMonthlyFlowChartMarkup(nbFlow, 2026, visibility, nbFlowConfig)
+}));
+const stableNbGeometry = geometrySnapshot(nbCombinationMarkups[0].markup);
+assert.ok(stableNbGeometry.bars.length > 0);
+nbCombinationMarkups.forEach(({ visibility, markup }) => {
+  assert.deepEqual(
+    geometrySnapshot(markup),
+    stableNbGeometry,
+    "Novo Banco overlay toggles must not change scale, ticks, bars, or geometry"
+  );
+  assert.equal(stableNbGeometry.monthX, geometry.monthX.map((value) => value.toFixed(2)).join(","));
+  assert.doesNotMatch(markup, /Poupancas|Poupanças|savings/i);
+  assert.match(
+    markup,
+    new RegExp(`data-cgd-flow-toggle='balance'[\\s\\S]*?aria-pressed='${visibility.balance}'`)
+  );
+  assert.match(
+    markup,
+    new RegExp(`data-cgd-flow-toggle='average'[\\s\\S]*?aria-pressed='${visibility.average}'`)
+  );
+  assert.match(
+    markup,
+    /data-cgd-flow-month='1'[\s\S]*?data-balance-value='200'/,
+    "Novo Banco tooltip targets keep balance data while the line is hidden"
+  );
+  assert.equal(
+    markup.match(/<desc[^>]*data-cgd-flow-description[^>]*>([^<]*)<\/desc>/)?.[1],
+    api.buildCgdMonthlyFlowSvgDescription(visibility, nbFlowConfig)
+  );
+});
+
 const balanceToggle = new FakeElement(
   { "data-cgd-flow-toggle": "balance", "aria-pressed": "true" },
   ["cgd-monthly-flow-legend-toggle", "is-active"]
@@ -833,6 +968,25 @@ assert.match(emptyMarkup, /data-cgd-flow-toggle='balance'[\s\S]*?aria-pressed='t
 assert.match(emptyMarkup, /data-cgd-flow-toggle='average'[\s\S]*?aria-pressed='true'/);
 assert.doesNotMatch(emptyMarkup, /NaN|Infinity/);
 
+const nbEmptyMarkup = api.createCgdMonthlyFlowChartMarkup(
+  months.map((monthName, monthIndex) => ({
+    monthName,
+    monthIndex,
+    income: 0,
+    outcome: 0,
+    outcomeContribution: 0,
+    balance: 0,
+    hasEstimated: false
+  })),
+  2028,
+  { balance: true, average: true },
+  nbFlowConfig
+);
+assert.match(nbEmptyMarkup, /Sem movimentos no ano selecionado/);
+assert.match(nbEmptyMarkup, /data-scale-min='-10'/);
+assert.match(nbEmptyMarkup, /data-scale-max='10'/);
+assert.doesNotMatch(nbEmptyMarkup, /Poupancas|Poupanças|savings|NaN|Infinity/i);
+
 const upperWrapper = new FakeScrollWrapper();
 const lowerWrapper = new FakeScrollWrapper();
 fakeDocument.scrollWrappers = [upperWrapper, lowerWrapper];
@@ -850,13 +1004,76 @@ assert.equal(state.temporalChartScrollLeft, 47);
 assert.equal(upperWrapper.listeners.size, 1);
 assert.equal(lowerWrapper.listeners.size, 1);
 
+state.selectedYear = 2026;
+state.data = model;
+api.renderCgdMonthlyFlowChart(nbFlowConfig);
+assert.match(flowHost.html, /Fluxo mensal 2026/);
+assert.match(flowHost.html, /Receitas \u2212 Despesas/);
+assert.match(flowHost.html, /data-balance-average='79\.58333333333333'/);
+assert.doesNotMatch(flowHost.html, /Poupancas|Poupanças|savings/i);
+assert.deepEqual(visibilityState(), { balance: true, average: true });
+assert.equal(api.setCgdMonthlyFlowSeriesVisibility(flowHost, "average", false), true);
+assert.match(flowDescription.textContent, /Receitas apresentadas por sinal e despesas como contribuicao negativa/);
+assert.doesNotMatch(flowDescription.textContent, /Poupancas|Poupanças|savings/i);
+assert.equal(api.setCgdMonthlyFlowSeriesVisibility(flowHost, "average", true), true);
+
+const evaluateMonthlyFlowCapability = (prefix, enabled) => {
+  const capabilityContext = vm.createContext({
+    Array,
+    Boolean,
+    Object,
+    String,
+    TABLE_PREFIX: prefix,
+    window: { DASHBOARD_ENABLE_MONTHLY_FLOW_CHART: enabled },
+    result: null
+  });
+  vm.runInContext(`
+    ${monthlyFlowConfigurationSource}
+    result = {
+      enabled: ENABLE_MONTHLY_FLOW_CHART,
+      components: MONTHLY_FLOW_CHART_CONFIG?.componentKeys || [],
+      subtitle: MONTHLY_FLOW_CHART_CONFIG?.subtitle || ""
+    };
+  `, capabilityContext);
+  return JSON.parse(JSON.stringify(capabilityContext.result));
+};
+assert.deepEqual(
+  evaluateMonthlyFlowCapability("cgd", true),
+  {
+    enabled: true,
+    components: ["income", "savings", "outcome"],
+    subtitle: "Receitas + Poupancas - Despesas"
+  }
+);
+assert.deepEqual(
+  evaluateMonthlyFlowCapability("nb", true),
+  {
+    enabled: true,
+    components: ["income", "outcome"],
+    subtitle: "Receitas \u2212 Despesas"
+  }
+);
+assert.deepEqual(
+  evaluateMonthlyFlowCapability("coverflex", true),
+  { enabled: false, components: [], subtitle: "" }
+);
+assert.deepEqual(
+  evaluateMonthlyFlowCapability("nb", false),
+  { enabled: false, components: [], subtitle: "" }
+);
+
 assert.match(cgdHtml, /window\.DASHBOARD_ENABLE_MONTHLY_FLOW_CHART = true/);
 assert.match(cgdHtml, /id="cgd-temporal-summary-chart"[\s\S]*id="cgd-monthly-flow-chart"[\s\S]*id="month-timeline"/);
-assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260813-1/);
+assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260813-2/);
 assert.match(cgdHtml, /assets\/css\/styles\.css\?v=20260812-6/);
-assert.doesNotMatch(novoBancoHtml, /DASHBOARD_ENABLE_MONTHLY_FLOW_CHART|cgd-monthly-flow-chart/);
+assert.match(novoBancoHtml, /window\.DASHBOARD_ENABLE_MONTHLY_FLOW_CHART = true/);
+assert.match(novoBancoHtml, /id="cgd-temporal-summary-chart"[\s\S]*id="cgd-monthly-flow-chart"[\s\S]*id="month-timeline"/);
+assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260813-2/);
+assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260812-6/);
 assert.doesNotMatch(coverflexHtml, /DASHBOARD_ENABLE_MONTHLY_FLOW_CHART|cgd-monthly-flow-chart/);
-assert.match(cgd, /const ENABLE_MONTHLY_FLOW_CHART = TABLE_PREFIX === "cgd"/);
+assert.match(cgd, /cgd:\s*Object\.freeze\(\{[\s\S]*?componentKeys:\s*Object\.freeze\(\["income", "savings", "outcome"\]\)/);
+assert.match(cgd, /nb:\s*Object\.freeze\(\{[\s\S]*?componentKeys:\s*Object\.freeze\(\["income", "outcome"\]\)/);
+assert.match(cgd, /const ENABLE_MONTHLY_FLOW_CHART = Boolean\(MONTHLY_FLOW_CHART_CONFIG\)/);
 assert.match(cgd, /function renderCgdTemporalCharts\(\) \{\s*renderCgdTemporalSummaryChart\(\);\s*renderCgdMonthlyFlowChart\(\);/);
 assert.match(cgd, /let touchTooltipLatched = false/);
 assert.match(cgd, /month-tile\[data-month\], \[data-cgd-flow-month\]/);
@@ -876,4 +1093,4 @@ assert.match(
   /@media \(pointer: coarse\), \(max-width: 1024px\)[\s\S]*?\.cgd-monthly-flow-legend-toggle\s*\{[\s\S]*?min-height:\s*44px;/
 );
 
-console.log("CGD monthly flow regression checks passed.");
+console.log("CGD and Novo Banco monthly flow regression checks passed.");
