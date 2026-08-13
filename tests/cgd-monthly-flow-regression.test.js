@@ -1064,11 +1064,11 @@ assert.deepEqual(
 
 assert.match(cgdHtml, /window\.DASHBOARD_ENABLE_MONTHLY_FLOW_CHART = true/);
 assert.match(cgdHtml, /id="cgd-temporal-summary-chart"[\s\S]*id="cgd-monthly-flow-chart"[\s\S]*id="month-timeline"/);
-assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260813-3/);
+assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260813-4/);
 assert.match(cgdHtml, /assets\/css\/styles\.css\?v=20260812-6/);
 assert.match(novoBancoHtml, /window\.DASHBOARD_ENABLE_MONTHLY_FLOW_CHART = true/);
 assert.match(novoBancoHtml, /id="cgd-temporal-summary-chart"[\s\S]*id="cgd-monthly-flow-chart"[\s\S]*id="month-timeline"/);
-assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260813-3/);
+assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260813-4/);
 assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260812-6/);
 assert.doesNotMatch(coverflexHtml, /DASHBOARD_ENABLE_MONTHLY_FLOW_CHART|cgd-monthly-flow-chart/);
 assert.match(cgd, /cgd:\s*Object\.freeze\(\{[\s\S]*?componentKeys:\s*Object\.freeze\(\["income", "savings", "outcome"\]\)/);

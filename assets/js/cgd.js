@@ -843,39 +843,12 @@ function sumAllOutcomeRubricsByMonth(rubrics) {
   );
 }
 
-function computeEstimatedIrsMonthlyTotals(outcomeRubrics, rate = 0.45) {
-  const sourceRubrics = Array.isArray(outcomeRubrics) ? outcomeRubrics : [];
-  const excludedTerms = ["chica beni"];
-
-  return months.map((_, monthIndex) => {
-    const monthlyBase = sourceRubrics.reduce((total, rubric) => {
-      if (rubricNameMatchesAny(rubric?.name, excludedTerms)) {
-        return total;
-      }
-
-      const rubricExpenses = Array.isArray(rubric?.expenses) ? rubric.expenses : [];
-      if (!rubricExpenses.length) {
-        const rubricValue = Number(rubric?.values?.[monthIndex]);
-        return total + (Number.isFinite(rubricValue) ? rubricValue : 0);
-      }
-
-      const rubricMonthTotal = rubricExpenses.reduce((acc, expense) => {
-        if (rubricNameMatchesAny(expense?.name, excludedTerms)) {
-          return acc;
-        }
-        const includeInTotalizer = expense?.monthData?.[monthIndex]?.totalizador;
-        if (includeInTotalizer === false) {
-          return acc;
-        }
-        const value = Number(expense?.values?.[monthIndex]);
-        return acc + (Number.isFinite(value) ? value : 0);
-      }, 0);
-
-      return total + rubricMonthTotal;
-    }, 0);
-
-    return monthlyBase * rate;
-  });
+function computeEstimatedIrsMonthlyTotals(outcomeRubrics) {
+  const calculator = window.DashboardFinancialCalculations;
+  if (!calculator?.calculateCoverflexIrsFromModel) {
+    throw new Error("Dashboard financial calculations are unavailable.");
+  }
+  return calculator.calculateCoverflexIrsFromModel(outcomeRubrics).amountByMonth;
 }
 
 function parseRealDatabaseValue(value) {
@@ -3333,7 +3306,7 @@ function buildBalancePanel() {
 
 function buildEstimatedIrsPanel() {
   const outcomeRubrics = Array.isArray(cgdState.data?.outcome) ? cgdState.data.outcome : [];
-  const estimatedTotals = computeEstimatedIrsMonthlyTotals(outcomeRubrics, 0.45);
+  const estimatedTotals = computeEstimatedIrsMonthlyTotals(outcomeRubrics);
 
   return `
   <section class='panel balance panel-estimated-irs'>

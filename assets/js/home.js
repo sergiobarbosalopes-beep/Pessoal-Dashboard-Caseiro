@@ -10,6 +10,24 @@ function escapeHtml(str) {
   return el.innerHTML;
 }
 
+function getDashboardFinancialCalculations() {
+  const calculator = window.DashboardFinancialCalculations;
+  if (!calculator?.calculateCoverflexIrsFromRows) {
+    throw new Error("Dashboard financial calculations are unavailable.");
+  }
+  return calculator;
+}
+
+function calculateHomeCoverflexIrs(rubricRows, expenseRows) {
+  return getDashboardFinancialCalculations().calculateCoverflexIrsFromRows(rubricRows, expenseRows);
+}
+
+function isMissingColumnError(error) {
+  const code = String(error?.code || "").trim();
+  const message = String(error?.message || "");
+  return code === "42703" || code === "PGRST204" || /column .* does not exist/i.test(message);
+}
+
 (async function homeInit() {
   const SUPABASE_URL = window.CGD_SUPABASE_URL || "";
   const SUPABASE_KEY = window.CGD_SUPABASE_ANON_KEY || "";
@@ -40,6 +58,28 @@ function escapeHtml(str) {
 
     requestCache.set(key, request);
     return request;
+  };
+
+  const fetchCoverflexIrsExpenses = async () => {
+    const baseColumns = "rubrica_id,despesa_id,despesa_desc,mes,valor,totalizador,zerado";
+    try {
+      return await fetchRowsOnce(
+        `coverflex_despesa:irs:${year}:valor_estimado`,
+        () => sb.from("coverflex_despesa")
+          .select(`${baseColumns},valor_estimado`)
+          .eq("ano", year)
+      );
+    } catch (error) {
+      if (!isMissingColumnError(error)) {
+        throw error;
+      }
+      return fetchRowsOnce(
+        `coverflex_despesa:irs:${year}:valor_Estimado`,
+        () => sb.from("coverflex_despesa")
+          .select(`${baseColumns},valor_Estimado`)
+          .eq("ano", year)
+      );
+    }
   };
 
   const fetchCgdSavingsRows = () => Promise.all([
@@ -663,6 +703,18 @@ function escapeHtml(str) {
     `;
   }
 
+  function renderUnavailableDispTile(id, label) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = "";
+    el.innerHTML = `
+      <div class="home-tile-header">
+        <h4>${label}</h4>
+        <p>Indisponivel</p>
+      </div>
+    `;
+  }
+
   // CGD Disponivel tiles
   renderDispTile("home-cgd-disp-jan", `Janeiro ${year}`, cgdDisponivelJan, { past: true });
   renderDispTile("home-cgd-disp-prev", `${MONTHS_PT[prevMonthIdx]} ${prevMonthYear}`, cgdDisponivelPrev, { past: true, vsJan: cgdDisponivelJan });
@@ -698,32 +750,32 @@ function escapeHtml(str) {
   renderDispTile("home-irs-disp-current", `${MONTHS_PT[currentMonth]} ${year}`, irsAccumulated, { highlight: true, vsJan: irsAccumulatedJan });
   renderDispTile("home-irs-disp-jan-next", `Janeiro ${year + 1}`, irsJanNext, { whiteGlow: true, vsJan: irsAccumulatedJan });
 
-  // IRS Coverflex tile (replicate cgd.js computeEstimatedIrsMonthlyTotals logic)
-  const coverflexIrsNextYear = await (async () => {
-    try {
-      const [rubRes, despRes] = await Promise.all([
-        sb.from("coverflex_rubrica").select("rubrica_id,rubrica_desc,rubrica_tipo").eq("ano", year).eq("rubrica_tipo", "Despesa"),
-        sb.from("coverflex_despesa").select("rubrica_id,mes,valor,valor_estimado,zerado").eq("ano", year)
-      ]);
-      const rubrics = Array.isArray(rubRes.data) ? rubRes.data : [];
-      const expenses = Array.isArray(despRes.data) ? despRes.data : [];
-      const excludedTerms = ["chica beni"];
-      const outcomeIds = new Set();
-      for (const r of rubrics) {
-        const name = (r.rubrica_desc || "").toLowerCase();
-        if (!excludedTerms.some(t => name.includes(t))) outcomeIds.add(r.rubrica_id);
-      }
-      let total = 0;
-      for (const exp of expenses) {
-        if (!outcomeIds.has(exp.rubrica_id)) continue;
-        if (exp.zerado === true || exp.zerado === "true") continue;
-        const val = Number(exp.valor_estimado) || 0;
-        total += val;
-      }
-      return total * 0.45;
-    } catch { return 0; }
-  })();
-  renderDispTile("home-irs-disp-coverflex", `IRS Coverflex ${year + 1}`, coverflexIrsNextYear, { highlight: true });
+  let coverflexIrsResult = null;
+  try {
+    const [rubrics, expenses] = await Promise.all([
+      fetchRowsOnce(
+        `coverflex_rubrica:irs:${year}`,
+        () => sb.from("coverflex_rubrica")
+          .select("rubrica_id,rubrica_desc,rubrica_tipo")
+          .eq("ano", year)
+          .eq("rubrica_tipo", "Despesa")
+      ),
+      fetchCoverflexIrsExpenses()
+    ]);
+    coverflexIrsResult = calculateHomeCoverflexIrs(rubrics, expenses);
+  } catch (error) {
+    console.error("Unable to calculate Coverflex IRS for Home.", error);
+  }
+  if (coverflexIrsResult) {
+    renderDispTile(
+      "home-irs-disp-coverflex",
+      `IRS Coverflex ${year + 1}`,
+      coverflexIrsResult.annualAmount,
+      { highlight: true }
+    );
+  } else {
+    renderUnavailableDispTile("home-irs-disp-coverflex", `IRS Coverflex ${year + 1}`);
+  }
 
   // Audi Poupanca tiles
   const audiNext = cgdSavingsData.audiAccumulatedNext;

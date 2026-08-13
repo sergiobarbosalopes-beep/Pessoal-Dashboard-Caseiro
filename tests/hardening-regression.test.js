@@ -9,6 +9,7 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 const cgd = read("assets/js/cgd.js");
 const main = read("assets/js/main.js");
 const home = read("assets/js/home.js");
+const financialCalculations = read("assets/js/dashboard-financial-calculations.js");
 const admin = read("assets/js/admin.js");
 const bootstrapMigration = read("database/migrations/20260803_fix_bootstrap_real_estimation.sql");
 const bootstrapIntegrationSql = read("tests/bootstrap-year-integration.sql");
@@ -496,6 +497,28 @@ for (const column of [
 }
 assert.match(cgd, /const EXPENSE_ESTIMATED_COLUMNS = \["valor_estimado", "valor_Estimado"\]/);
 assert.match(cgd, /const EXPENSE_NOTE_COLUMNS = \["nota", "notas", null\]/);
+
+const homeCoverflexIrsFetch = home.match(
+  /const fetchCoverflexIrsExpenses = async \(\) => \{[\s\S]+?(?=\n  const fetchCgdSavingsRows)/
+)?.[0] || "";
+const homeCoverflexIrsRender = home.match(
+  /let coverflexIrsResult = null;[\s\S]+?(?=\n  \/\/ Audi Poupanca tiles)/
+)?.[0] || "";
+const cgdCoverflexIrsConsumer = cgd.match(
+  /function computeEstimatedIrsMonthlyTotals\([\s\S]+?(?=\nfunction parseRealDatabaseValue)/
+)?.[0] || "";
+assert.match(homeCoverflexIrsFetch, /rubrica_id,despesa_id,despesa_desc,mes,valor,totalizador,zerado/);
+assert.match(homeCoverflexIrsFetch, /valor_estimado/);
+assert.match(homeCoverflexIrsFetch, /valor_Estimado/);
+assert.match(homeCoverflexIrsRender, /calculateHomeCoverflexIrs\(rubrics, expenses\)/);
+assert.match(homeCoverflexIrsRender, /coverflexIrsResult\.annualAmount/);
+assert.doesNotMatch(homeCoverflexIrsRender, /valor_estimado|valor_Estimado|0\.45|\.reduce\(|\bfor\s*\(/);
+assert.doesNotMatch(home, /0\.45/);
+assert.doesNotMatch(cgd, /0\.45/);
+assert.match(cgdCoverflexIrsConsumer, /calculateCoverflexIrsFromModel\(outcomeRubrics\)/);
+assert.doesNotMatch(cgdCoverflexIrsConsumer, /supabaseClient|\bfetch\(|\.reduce\(|\bfor\s*\(/);
+assert.equal((financialCalculations.match(/0\.45/g) || []).length, 1);
+assert.doesNotMatch(financialCalculations, /supabase|fetch\(|\.insert\(|\.update\(|\.delete\(|\.upsert\(/i);
 
 const createExpenseFetchHarness = (prefix, responseForProjection) => {
   const projections = [];
@@ -1192,10 +1215,15 @@ for (const relativePath of htmlFiles) {
 for (const source of html.filter((value) => value.includes("assets/js/main.js"))) {
   assert.match(source, /assets\/js\/main\.js\?v=20260806-1/);
 }
-for (const relativePath of ["caixa-geral-depositos.html", "novobanco.html"]) {
-  assert.match(read(relativePath), /assets\/js\/cgd\.js\?v=20260813-3/);
+for (const relativePath of ["caixa-geral-depositos.html", "novobanco.html", "coverflex.html"]) {
+  const source = read(relativePath);
+  assert.match(source, /assets\/js\/dashboard-financial-calculations\.js\?v=20260813-1/);
+  assert.match(source, /assets\/js\/cgd\.js\?v=20260813-4/);
+  assert.ok(
+    source.indexOf("assets/js/dashboard-financial-calculations.js") < source.indexOf("assets/js/cgd.js"),
+    `Shared financial calculations must load before cgd.js in ${relativePath}`
+  );
 }
-assert.match(read("coverflex.html"), /assets\/js\/cgd\.js\?v=20260812-8/);
 assert.match(read("novobanco.html"), /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "outcome"\]/);
 assert.match(read("caixa-geral-depositos.html"), /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "savings", "outcome"\]/);
 assert.match(read("coverflex.html"), /DASHBOARD_EXPLICIT_CHART_DETAIL_KINDS = \["income", "outcome"\]/);
@@ -1262,7 +1290,13 @@ for (const href of expectedMenuHrefs) {
 assert.match(main, /const menu = topbar\?\.querySelector\("nav\.menu"\)/);
 assert.match(main, /topbar\.classList\.add\("nav-enhanced"\)/);
 assert.match(read("admin.html"), /assets\/js\/admin\.js\?v=20260802-1/);
-assert.match(read("index.html"), /assets\/js\/home\.js\?v=20260801-1/);
+assert.match(read("index.html"), /assets\/js\/dashboard-financial-calculations\.js\?v=20260813-1/);
+assert.match(read("index.html"), /assets\/js\/home\.js\?v=20260813-1/);
+assert.ok(
+  read("index.html").indexOf("assets/js/dashboard-financial-calculations.js")
+    < read("index.html").indexOf("assets/js/home.js"),
+  "Shared financial calculations must load before home.js"
+);
 
 for (const relativePath of [
   "caixa-geral-depositos.html",
