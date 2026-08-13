@@ -320,6 +320,90 @@ const snapshotExpression = `(() => {
   };
 })()`;
 
+async function inspectComposition(client) {
+  return evaluate(client, `(() => {
+    const main = document.querySelector("main.page-grid");
+    const hero = document.querySelector(".hero");
+    const nav = document.querySelector(".temporal-nav-card");
+    const summary = document.querySelector("#cgd-temporal-summary-chart")?.closest("section");
+    const flow = document.querySelector("#cgd-monthly-flow-chart")?.closest("section");
+    const totalizer = document.querySelector("#cgd-totalizer")?.closest("section");
+    const alerts = document.querySelector("#cgd-alerts-section");
+    const children = [...main.children];
+    const rect = (element) => {
+      if (!element) return null;
+      const value = element.getBoundingClientRect();
+      return {
+        top: value.top,
+        right: value.right,
+        bottom: value.bottom,
+        left: value.left,
+        width: value.width,
+        height: value.height
+      };
+    };
+    const activeMonth = nav.querySelector(".month-tile.active");
+    const navRect = rect(nav);
+    const activeMonthRect = rect(activeMonth);
+    return {
+      navCount: document.querySelectorAll(".temporal-nav-card").length,
+      timelineCount: document.querySelectorAll("#month-timeline").length,
+      navIndex: children.indexOf(nav),
+      summaryIndex: children.indexOf(summary),
+      flowIndex: children.indexOf(flow),
+      totalizerIndex: children.indexOf(totalizer),
+      alertsIndex: children.indexOf(alerts),
+      hero: rect(hero),
+      nav: navRect,
+      summary: rect(summary),
+      flow: rect(flow),
+      activeMonth: activeMonth?.getAttribute("data-month") || null,
+      activeMonthAriaCurrent: activeMonth?.getAttribute("aria-current") || null,
+      activeMonthHorizontallyVisible: Boolean(
+        activeMonthRect
+        && activeMonthRect.left >= navRect.left - 1
+        && activeMonthRect.right <= navRect.right + 1
+      ),
+      nestedHorizontalScrollers: [...nav.querySelectorAll("*")].filter((element) => {
+        const style = getComputedStyle(element);
+        return /auto|scroll/.test(style.overflowX) && element.scrollWidth > element.clientWidth + 1;
+      }).length
+    };
+  })()`);
+}
+
+function assertComposition(composition, page, viewport, { scriptsEnabled }) {
+  const label = `${page} ${viewport.name}${scriptsEnabled ? "" : " no-JS"}`;
+  const hasFlow = page !== "coverflex.html";
+  assert.equal(composition.navCount, 1, `${label}: temporal navigation is duplicated`);
+  assert.equal(composition.timelineCount, 1, `${label}: month timeline ID is duplicated`);
+  assert.equal(composition.navIndex, 0, `${label}: temporal navigation is not the first financial section`);
+  assert.equal(composition.summaryIndex, 1, `${label}: Saldo does not immediately follow temporal navigation`);
+  assert.ok(composition.nav.top > composition.hero.bottom, `${label}: temporal navigation overlaps the hero`);
+  assert.ok(composition.summary.top > composition.nav.bottom, `${label}: Saldo overlaps temporal navigation`);
+  assert.ok(composition.nav.top - composition.hero.bottom <= 30, `${label}: hero/navigation gap is excessive`);
+  assert.ok(composition.summary.top - composition.nav.bottom <= 30, `${label}: navigation/Saldo gap is excessive`);
+  assert.equal(composition.nestedHorizontalScrollers, 0, `${label}: nested horizontal scrollers were introduced`);
+
+  if (hasFlow) {
+    assert.equal(composition.flowIndex, 2, `${label}: Fluxo mensal does not immediately follow Saldo`);
+    assert.ok(composition.flow.top > composition.summary.bottom, `${label}: temporal charts overlap`);
+    assert.ok(composition.totalizerIndex > composition.flowIndex, `${label}: totalizer precedes Fluxo mensal`);
+  } else {
+    assert.equal(composition.flowIndex, -1, `${label}: Coverflex unexpectedly contains Fluxo mensal`);
+    assert.equal(composition.totalizerIndex, 2, `${label}: Coverflex totalizer does not follow Saldo`);
+  }
+
+  if (page === "caixa-geral-depositos.html") {
+    assert.ok(composition.alertsIndex > composition.flowIndex, `${label}: alerts remain before the temporal charts`);
+  }
+
+  if (scriptsEnabled) {
+    assert.equal(composition.activeMonthAriaCurrent, "date", `${label}: active month lacks aria-current`);
+    assert.equal(composition.activeMonthHorizontallyVisible, true, `${label}: active month is outside the viewport`);
+  }
+}
+
 async function prepareTarget(debugPort, baseUrl, page, viewport, scriptEnabled) {
   const target = await requestJson(debugPort, `/json/new?${encodeURIComponent("about:blank")}`, "PUT");
   const client = await CdpClient.connect(target.webSocketDebuggerUrl);
@@ -333,6 +417,7 @@ async function prepareTarget(debugPort, baseUrl, page, viewport, scriptEnabled) 
   });
 
   await client.send("Page.enable");
+  await client.send("Page.bringToFront");
   await client.send("Runtime.enable");
   await client.send("Network.enable");
   await client.send("Network.setBlockedURLs", { urls: ["https://*"] });
@@ -427,7 +512,9 @@ async function inspectControls(client) {
       return {
         label: control.getAttribute("aria-label"),
         visible: rect.width > 0 && rect.height > 0,
-        horizontallyReachable: rect.left >= cardRect.left - 1 && rect.right <= cardRect.right + 1
+        horizontallyReachable: rect.left >= cardRect.left - 1 && rect.right <= cardRect.right + 1,
+        width: rect.width,
+        height: rect.height
       };
     });
     card.scrollLeft = 0;
@@ -442,12 +529,102 @@ async function inspectControls(client) {
   })()`);
 }
 
-function assertStickyGeometry(result, page, viewport, prefix = "") {
+async function inspectTemporalControlInteraction(client) {
+  const before = await evaluate(client, `(() => {
+    const nav = document.querySelector(".temporal-nav-card");
+    window.__stickyAuditTemporalNav = nav;
+    const december = nav.querySelector(".month-tile[data-month='11']");
+    december.focus({ preventScroll: true });
+    return {
+      scrollY,
+      scrollLeft: nav.scrollLeft,
+      focusedMonth: document.activeElement?.getAttribute("data-month"),
+      year: document.querySelector("[data-year-label]")?.textContent.trim()
+    };
+  })()`);
+  await evaluate(client, "document.activeElement.click()");
+  await delay(80);
+  const afterMonth = await evaluate(client, `(() => {
+    const nav = document.querySelector(".temporal-nav-card");
+    const current = nav.querySelector(".month-tile[aria-current='date']");
+    return {
+      scrollY,
+      scrollLeft: nav.scrollLeft,
+      activeMonth: current?.getAttribute("data-month") || null,
+      ariaCurrentCount: nav.querySelectorAll(".month-tile[aria-current='date']").length,
+      focusedMonth: document.activeElement?.getAttribute("data-month") || null
+    };
+  })()`);
+
+  await evaluate(client, `document.querySelector("[data-year-next]").focus({ preventScroll: true })`);
+  await evaluate(client, "document.activeElement.click()");
+  const nextYear = String(Number(before.year) + 1);
+  await waitFor(
+    client,
+    `document.querySelector("[data-year-label]")?.textContent.trim() === ${JSON.stringify(nextYear)}`,
+    "next year"
+  );
+  const afterYear = await evaluate(client, `(() => ({
+    year: document.querySelector("[data-year-label]")?.textContent.trim(),
+    navSame: window.__stickyAuditTemporalNav === document.querySelector(".temporal-nav-card"),
+    navCount: document.querySelectorAll(".temporal-nav-card").length,
+    monthCount: document.querySelectorAll(".month-tile").length,
+    focusedYearAction: document.activeElement?.hasAttribute("data-year-next") ? "next" : ""
+  }))()`);
+  await evaluate(client, `document.querySelector("[data-year-prev]").focus({ preventScroll: true })`);
+  await evaluate(client, "document.activeElement.click()");
+  await waitFor(
+    client,
+    `document.querySelector("[data-year-label]")?.textContent.trim() === ${JSON.stringify(before.year)}`,
+    "restored year"
+  );
+
+  return {
+    before,
+    afterMonth,
+    afterYear,
+    restoredYear: await evaluate(
+      client,
+      `document.querySelector("[data-year-label]")?.textContent.trim()`
+    )
+  };
+}
+
+async function inspectTemporalChartScrollSync(client) {
+  return evaluate(client, `(async () => {
+    const wrappers = [...document.querySelectorAll("[data-cgd-temporal-scroll]")];
+    const summary = document.querySelector("[data-cgd-temporal-chart='summary']");
+    const flow = document.querySelector("[data-cgd-temporal-chart='flow']");
+    const geometryAligned = !flow || (
+      summary?.getAttribute("data-chart-width") === flow.getAttribute("data-chart-width")
+      && summary?.getAttribute("data-plot-left") === flow.getAttribute("data-plot-left")
+      && summary?.getAttribute("data-plot-right") === flow.getAttribute("data-plot-right")
+      && summary?.getAttribute("data-month-x") === flow.getAttribute("data-month-x")
+    );
+    let targetScrollLeft = 0;
+    if (wrappers.length > 1) {
+      const maximum = Math.max(0, wrappers[0].scrollWidth - wrappers[0].clientWidth);
+      targetScrollLeft = Math.min(120, maximum);
+      wrappers[0].scrollLeft = targetScrollLeft;
+      wrappers[0].dispatchEvent(new Event("scroll"));
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    }
+    return {
+      wrapperCount: wrappers.length,
+      geometryAligned,
+      targetScrollLeft,
+      scrollLeftValues: wrappers.map((wrapper) => wrapper.scrollLeft)
+    };
+  })()`);
+}
+
+function assertStickyGeometry(result, page, viewport, prefix = "", maxGap = Number.POSITIVE_INFINITY) {
   const label = `${page} ${viewport.name}${prefix}`;
   assert.equal(result.position, "sticky", `${label}: temporal navigation is not sticky`);
   assert.ok(Number.isFinite(result.computedTop), `${label}: sticky top is not numeric`);
-  assert.ok(Math.abs(result.card.top - result.computedTop) <= 2, `${label}: card did not reach its sticky offset`);
+  assert.ok(Math.abs(result.card.top - result.computedTop) <= 1, `${label}: card did not reach its sticky offset`);
   assert.ok(result.card.top >= result.topbar.bottom + 6, `${label}: temporal navigation overlaps the topbar`);
+  assert.ok(result.card.top - result.topbar.bottom <= maxGap, `${label}: topbar/navigation gap is excessive`);
   assert.ok(result.card.bottom <= result.viewportHeight + 1, `${label}: temporal navigation is outside the viewport`);
   assert.ok(result.topbarZIndex > result.cardZIndex, `${label}: topbar must stack above temporal navigation`);
   assert.equal(result.documentOverflow, false, `${label}: horizontal overflow escaped to the document`);
@@ -473,6 +650,23 @@ async function inspectModalLayer(client) {
       cardZIndex: Number(getComputedStyle(document.querySelector(".temporal-nav-card")).zIndex),
       topbarZIndex: Number(getComputedStyle(document.querySelector(".topbar")).zIndex)
     };
+  })()`);
+}
+
+async function inspectTooltipLayer(client) {
+  return evaluate(client, `(() => {
+    const tooltip = document.querySelector("#cgd-temporal-summary-chart .outcome-evolution-tooltip");
+    const card = tooltip?.closest(".card");
+    const point = document.querySelector("#cgd-temporal-summary-chart .outcome-evolution-point");
+    point.dispatchEvent(new FocusEvent("focus"));
+    const result = {
+      visible: tooltip.classList.contains("is-visible"),
+      cardZIndex: Number(getComputedStyle(card).zIndex),
+      navZIndex: Number(getComputedStyle(document.querySelector(".temporal-nav-card")).zIndex),
+      topbarZIndex: Number(getComputedStyle(document.querySelector(".topbar")).zIndex)
+    };
+    point.dispatchEvent(new FocusEvent("blur"));
+    return result;
   })()`);
 }
 
@@ -519,6 +713,9 @@ async function runEnabledCase(debugPort, baseUrl, page, viewport) {
       "dashboard rendering"
     );
     await delay(850);
+    const composition = await inspectComposition(client);
+    assertComposition(composition, page, viewport, { scriptsEnabled: true });
+    await captureScreenshot(client, `${path.basename(page, ".html")}-${viewport.name}-top.png`);
     await addAuditSpacer(client);
     const { initial, after, later } = await scrollPastCard(client);
     const label = `${page} ${viewport.name}`;
@@ -526,8 +723,8 @@ async function runEnabledCase(debugPort, baseUrl, page, viewport) {
     assert.equal(initial.position, "sticky", `${label}: base rule is not sticky`);
     assert.ok(later.scrollY - after.scrollY >= 300, `${label}: audit did not perform a second real scroll`);
     assert.ok(Math.abs(after.card.top - later.card.top) <= 2, `${label}: sticky position changed while scrolling`);
-    assertStickyGeometry(after, page, viewport, " after first scroll");
-    assertStickyGeometry(later, page, viewport, " after second scroll");
+    assertStickyGeometry(after, page, viewport, " after first scroll", 18);
+    assertStickyGeometry(later, page, viewport, " after second scroll", 18);
 
     const controls = await inspectControls(client);
     assert.equal(controls.buttonCount, 14, `${label}: expected two year and twelve month buttons`);
@@ -535,14 +732,61 @@ async function runEnabledCase(debugPort, baseUrl, page, viewport) {
     assert.equal(controls.overflowX, "auto", `${label}: horizontal scrolling is not contained by the card`);
     assert.ok(controls.accessibility.every((control) => control.visible), `${label}: a temporal control is hidden`);
     assert.ok(controls.accessibility.every((control) => control.horizontallyReachable), `${label}: a temporal control cannot be reached horizontally`);
+    if (viewport.mobile) {
+      assert.ok(
+        controls.accessibility.every((control) => control.width >= 44 && control.height >= 44),
+        `${label}: a temporal touch target is smaller than 44px`
+      );
+    }
     if (viewport.width <= 768) {
       assert.ok(controls.scrollWidth > controls.clientWidth, `${label}: narrow layout should expose contained horizontal scrolling`);
+    }
+
+    const interaction = await inspectTemporalControlInteraction(client);
+    assert.equal(interaction.before.focusedMonth, "11", `${label}: keyboard could not focus December`);
+    assert.equal(interaction.afterMonth.activeMonth, "11", `${label}: activating December did not select it`);
+    assert.equal(interaction.afterMonth.ariaCurrentCount, 1, `${label}: month aria-current is not unique`);
+    assert.equal(interaction.afterMonth.focusedMonth, "11", `${label}: month focus was lost`);
+    assert.equal(interaction.afterMonth.scrollY, interaction.before.scrollY, `${label}: month reveal moved page scroll`);
+    assert.ok(interaction.afterMonth.scrollLeft >= interaction.before.scrollLeft, `${label}: December was not revealed`);
+    assert.deepEqual(
+      interaction.afterYear,
+      {
+        year: String(Number(interaction.before.year) + 1),
+        navSame: true,
+        navCount: 1,
+        monthCount: 12,
+        focusedYearAction: "next"
+      },
+      `${label}: year navigation recreated or displaced the temporal navigation`
+    );
+    assert.equal(interaction.restoredYear, interaction.before.year, `${label}: year navigation did not restore the initial year`);
+
+    const chartScroll = await inspectTemporalChartScrollSync(client);
+    if (page === "coverflex.html") {
+      assert.equal(chartScroll.wrapperCount, 0, `${label}: Coverflex gained temporal chart sync wrappers`);
+    } else {
+      assert.equal(chartScroll.wrapperCount, 2, `${label}: Saldo/Fluxo sync wrappers are missing`);
+      assert.equal(chartScroll.geometryAligned, true, `${label}: Saldo/Fluxo month geometry diverged`);
+      if (chartScroll.targetScrollLeft > 0) {
+        assert.ok(
+          chartScroll.scrollLeftValues.every((value) => Math.abs(value - chartScroll.targetScrollLeft) <= 1),
+          `${label}: Saldo/Fluxo horizontal scroll is not synchronized`
+        );
+      }
     }
 
     const modal = await inspectModalLayer(client);
     assert.equal(modal.hiddenVisibility, "hidden", `${label}: a closed modal is visible`);
     assert.equal(modal.shown.visibility, "visible", `${label}: modal cannot be shown`);
     assert.ok(modal.shown.zIndex > modal.topbarZIndex && modal.shown.zIndex > modal.cardZIndex, `${label}: modal is not topmost`);
+    const tooltipLayer = await inspectTooltipLayer(client);
+    assert.equal(tooltipLayer.visible, true, `${label}: summary tooltip listener was lost after year rerender`);
+    assert.ok(
+      tooltipLayer.topbarZIndex > tooltipLayer.cardZIndex
+      && tooltipLayer.cardZIndex > tooltipLayer.navZIndex,
+      `${label}: visible chart tooltip is not layered between topbar and temporal navigation`
+    );
 
     let menuOpen = null;
     if (viewport.width <= 1024) {
@@ -550,7 +794,7 @@ async function runEnabledCase(debugPort, baseUrl, page, viewport) {
       await delay(150);
       menuOpen = await evaluate(client, snapshotExpression);
       assert.equal(menuOpen.menuOpen, true, `${label}: mobile menu did not open`);
-      assertStickyGeometry(menuOpen, page, viewport, " with menu open");
+      assertStickyGeometry(menuOpen, page, viewport, " with menu open", 10);
       const menuControls = await inspectOpenMenuControls(client);
       assert.ok(menuControls.count >= 5, `${label}: mobile menu controls are missing`);
       assert.ok(menuControls.reachable.every(Boolean), `${label}: a mobile menu control cannot be reached inside its scroll area`);
@@ -558,7 +802,7 @@ async function runEnabledCase(debugPort, baseUrl, page, viewport) {
       await delay(150);
       const menuClosed = await evaluate(client, snapshotExpression);
       assert.equal(menuClosed.menuOpen, false, `${label}: mobile menu did not close`);
-      assertStickyGeometry(menuClosed, page, viewport, " after menu close");
+      assertStickyGeometry(menuClosed, page, viewport, " after menu close", 10);
     }
 
     const screenshotName = `${path.basename(page, ".html")}-${viewport.name}.png`;
@@ -604,6 +848,8 @@ async function runNoScriptCase(debugPort, baseUrl, page, viewport) {
       };
     })()`);
     const label = `${page} ${viewport.name} no-JS`;
+    const composition = await inspectComposition(client);
+    assertComposition(composition, page, viewport, { scriptsEnabled: false });
     assert.equal(staticState.enhanced, false, `${label}: enhancement ran while scripts were disabled`);
     assert.equal(staticState.hasToggle, false, `${label}: generated menu toggle exists without JavaScript`);
     assert.equal(staticState.linkCount, 5, `${label}: static primary navigation changed`);

@@ -57,6 +57,8 @@ const temporalSummarySource = sliceBetween(
   "function renderCgdTemporalSummaryChart(",
   "\nfunction createCgdMonthlyFlowChartMarkup"
 );
+assert.doesNotMatch(temporalSummarySource, /summaryHoverBound/);
+assert.match(temporalSummarySource, /bindOutcomeChartHover\(host\);/);
 const monthlyFlowMarkupSource = sliceBetween(
   cgd,
   "function createCgdMonthlyFlowChartMarkup(",
@@ -1063,14 +1065,15 @@ assert.deepEqual(
 );
 
 assert.match(cgdHtml, /window\.DASHBOARD_ENABLE_MONTHLY_FLOW_CHART = true/);
-assert.match(cgdHtml, /id="cgd-temporal-summary-chart"[\s\S]*id="cgd-monthly-flow-chart"[\s\S]*id="month-timeline"/);
-assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260813-4/);
-assert.match(cgdHtml, /assets\/css\/styles\.css\?v=20260813-2/);
+assert.match(cgdHtml, /id="month-timeline"[\s\S]*id="cgd-temporal-summary-chart"[\s\S]*id="cgd-monthly-flow-chart"/);
+assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260813-5/);
+assert.match(cgdHtml, /assets\/css\/styles\.css\?v=20260813-3/);
 assert.match(novoBancoHtml, /window\.DASHBOARD_ENABLE_MONTHLY_FLOW_CHART = true/);
-assert.match(novoBancoHtml, /id="cgd-temporal-summary-chart"[\s\S]*id="cgd-monthly-flow-chart"[\s\S]*id="month-timeline"/);
-assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260813-4/);
-assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260813-2/);
+assert.match(novoBancoHtml, /id="month-timeline"[\s\S]*id="cgd-temporal-summary-chart"[\s\S]*id="cgd-monthly-flow-chart"/);
+assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260813-5/);
+assert.match(novoBancoHtml, /assets\/css\/styles\.css\?v=20260813-3/);
 assert.doesNotMatch(coverflexHtml, /DASHBOARD_ENABLE_MONTHLY_FLOW_CHART|cgd-monthly-flow-chart/);
+assert.match(coverflexHtml, /id="month-timeline"[\s\S]*id="cgd-temporal-summary-chart"/);
 assert.match(cgd, /cgd:\s*Object\.freeze\(\{[\s\S]*?componentKeys:\s*Object\.freeze\(\["income", "savings", "outcome"\]\)/);
 assert.match(cgd, /nb:\s*Object\.freeze\(\{[\s\S]*?componentKeys:\s*Object\.freeze\(\["income", "outcome"\]\)/);
 assert.match(cgd, /const ENABLE_MONTHLY_FLOW_CHART = Boolean\(MONTHLY_FLOW_CHART_CONFIG\)/);

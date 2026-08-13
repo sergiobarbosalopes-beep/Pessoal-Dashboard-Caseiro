@@ -2144,10 +2144,7 @@ function renderCgdTemporalSummaryChart() {
 
   }
 
-  if (ENABLE_MONTHLY_FLOW_CHART || host.dataset.summaryHoverBound !== "1") {
-    host.dataset.summaryHoverBound = "1";
-    bindOutcomeChartHover(host);
-  }
+  bindOutcomeChartHover(host);
   bindCgdTemporalMonthSelectionSync();
   syncCgdTemporalChartSelectedMonth(getSelectedTimelineMonthIndex());
   bindCgdTemporalChartScrollSync();

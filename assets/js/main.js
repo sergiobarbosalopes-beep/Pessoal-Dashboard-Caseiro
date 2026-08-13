@@ -126,16 +126,16 @@ function initStickyTemporalNavigation() {
   }
 
   let offsetFrame = 0;
+  const responsiveQuery = window.matchMedia("(max-width: 1024px)");
   const updateOffset = () => {
     offsetFrame = 0;
     const topbarStyle = window.getComputedStyle(topbar);
     const parsedTop = Number.parseFloat(topbarStyle.top);
     const topbarTop = Number.isFinite(parsedTop) ? Math.max(0, parsedTop) : 0;
     const topbarHeight = topbar.getBoundingClientRect().height;
-    const isResponsive = window.matchMedia("(max-width: 1024px)").matches;
-    const minimumOffset = isResponsive ? 0 : 92;
+    const isResponsive = responsiveQuery.matches;
     const gap = isResponsive ? 8 : 16;
-    const offset = Math.max(minimumOffset, Math.ceil(topbarTop + topbarHeight + gap));
+    const offset = Math.ceil(topbarTop + topbarHeight + gap);
     siteShell.style.setProperty("--temporal-nav-sticky-top", `${offset}px`);
   };
   const scheduleOffsetUpdate = () => {
@@ -151,6 +151,7 @@ function initStickyTemporalNavigation() {
   }
   window.addEventListener("resize", scheduleOffsetUpdate, { passive: true });
   window.addEventListener("orientationchange", scheduleOffsetUpdate, { passive: true });
+  responsiveQuery.addEventListener("change", scheduleOffsetUpdate);
   document.fonts?.ready.then(scheduleOffsetUpdate);
 }
 
@@ -855,10 +856,43 @@ function initExpenseModal() {
   });
 }
 
-function highlightMonth(monthIndex) {
+function revealMonthTileHorizontally(tile) {
+  const scroller = tile?.closest(".temporal-nav-card");
+  if (!scroller) {
+    return;
+  }
+
+  const scrollerRect = scroller.getBoundingClientRect();
+  const tileRect = tile.getBoundingClientRect();
+  const edgePadding = 8;
+  let nextScrollLeft = Number(scroller.scrollLeft) || 0;
+
+  if (tileRect.left < scrollerRect.left + edgePadding) {
+    nextScrollLeft += tileRect.left - scrollerRect.left - edgePadding;
+  } else if (tileRect.right > scrollerRect.right - edgePadding) {
+    nextScrollLeft += tileRect.right - scrollerRect.right + edgePadding;
+  } else {
+    return;
+  }
+
+  scroller.scrollLeft = Math.max(0, nextScrollLeft);
+}
+
+function highlightMonth(monthIndex, { reveal = true } = {}) {
+  let activeMonthTile = null;
   document.querySelectorAll(".month-tile").forEach((tile) => {
-    tile.classList.toggle("active", Number(tile.dataset.month) === monthIndex);
+    const isActive = Number(tile.dataset.month) === monthIndex;
+    tile.classList.toggle("active", isActive);
+    if (isActive) {
+      tile.setAttribute("aria-current", "date");
+      activeMonthTile = tile;
+    } else {
+      tile.removeAttribute("aria-current");
+    }
   });
+  if (reveal) {
+    revealMonthTileHorizontally(activeMonthTile);
+  }
 
   document.querySelectorAll(".money-pill").forEach((pill) => pill.classList.remove("active"));
   document.querySelectorAll(`.data-row.expense [data-month-col='${monthIndex}']`).forEach((pill) => {
@@ -1220,7 +1254,7 @@ function initDelegatedActions() {
 
       const activeMonth = Number(document.querySelector(".month-tile.active")?.getAttribute("data-month"));
       if (Number.isInteger(activeMonth) && activeMonth >= 0 && activeMonth <= 11) {
-        highlightMonth(activeMonth);
+        highlightMonth(activeMonth, { reveal: false });
       }
       return;
     }

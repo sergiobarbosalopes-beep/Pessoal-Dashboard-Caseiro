@@ -1127,6 +1127,7 @@ assert.match(main, /function initStickyTemporalNavigation\(\)/);
 assert.match(main, /topbar\.getBoundingClientRect\(\)\.height/);
 assert.match(main, /siteShell\.style\.setProperty\("--temporal-nav-sticky-top"/);
 assert.match(main, /new ResizeObserver\(scheduleOffsetUpdate\)/);
+assert.match(main, /responsiveQuery\.addEventListener\("change", scheduleOffsetUpdate\)/);
 assert.match(main, /initMobileNavigation\(\);\s*initStickyTemporalNavigation\(\);/);
 assert.match(main, /toggle\.setAttribute\("aria-controls", menu\.id\)/);
 assert.match(main, /toggle\.setAttribute\("aria-expanded", String\(open\)\)/);
@@ -1167,6 +1168,7 @@ assert.doesNotMatch(stylesText, /body \{\s*overflow-x: hidden/);
 assert.match(stylesText, /@keyframes fade-up \{[\s\S]*?transform: none/);
 assert.match(stylesText, /\.page-grid\.fade-up \{\s*transform: none;\s*animation-name: fade-in/);
 assert.match(stylesText, /\.topbar \{[\s\S]*?z-index: 20010/);
+assert.match(stylesText, /\.card:has\(\.outcome-evolution-tooltip\.is-visible\),[\s\S]*?z-index: 20001/);
 assert.match(stylesText, /max-height: calc\(100dvh - 24px\)/);
 assert.match(stylesText, /\.modal,\s*\.admin-modal \{[\s\S]*?z-index: 30000/);
 assert.match(stylesText, /\.modal:not\(\.show\) \{\s*visibility: hidden/);
@@ -1204,17 +1206,17 @@ const htmlFiles = [...authenticatedHtmlFiles, "login.html"];
 const html = htmlFiles.map(read);
 for (const relativePath of htmlFiles) {
   const source = read(relativePath);
-  const stylesVersion = relativePath === "login.html" ? "20260806-1" : "20260813-2";
+  const stylesVersion = relativePath === "login.html" ? "20260806-1" : "20260813-3";
   assert.match(source, /viewport-fit=cover/);
   assert.match(source, new RegExp(`assets/css/styles\\.css\\?v=${stylesVersion}`));
 }
 for (const source of html.filter((value) => value.includes("assets/js/main.js"))) {
-  assert.match(source, /assets\/js\/main\.js\?v=20260813-2/);
+  assert.match(source, /assets\/js\/main\.js\?v=20260813-3/);
 }
 for (const relativePath of ["caixa-geral-depositos.html", "novobanco.html", "coverflex.html"]) {
   const source = read(relativePath);
   assert.match(source, /assets\/js\/dashboard-financial-calculations\.js\?v=20260813-1/);
-  assert.match(source, /assets\/js\/cgd\.js\?v=20260813-4/);
+  assert.match(source, /assets\/js\/cgd\.js\?v=20260813-5/);
   assert.ok(
     source.indexOf("assets/js/dashboard-financial-calculations.js") < source.indexOf("assets/js/cgd.js"),
     `Shared financial calculations must load before cgd.js in ${relativePath}`

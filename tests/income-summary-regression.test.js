@@ -325,9 +325,9 @@ assert.match(coverflexRendered.averages, /Media de receitas[\s\S]*183\.33 EUR/);
 assert.doesNotMatch(coverflexRendered.averages, /Inclui movimentos|Exclui movimentos/);
 assert.match(coverflexRendered.receiptsPie, /nb-pie-center-value'>2200\.00/);
 
-assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260813-4/);
-assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260813-4/);
-assert.match(coverflexHtml, /assets\/js\/cgd\.js\?v=20260813-4/);
+assert.match(cgdHtml, /assets\/js\/cgd\.js\?v=20260813-5/);
+assert.match(novoBancoHtml, /assets\/js\/cgd\.js\?v=20260813-5/);
+assert.match(coverflexHtml, /assets\/js\/cgd\.js\?v=20260813-5/);
 assert.match(cgd, /function buildIncomeSummaryMetrics\(/);
 assert.doesNotMatch(cgd, /const incomeFilteredRubrics/);
 assert.match(cgd, /Inclui movimentos/);

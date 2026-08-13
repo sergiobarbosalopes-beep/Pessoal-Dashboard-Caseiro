@@ -459,7 +459,7 @@ for (const relativePath of [
   assertScriptOrder(
     relativePath,
     /dashboard-financial-calculations\.js\?v=20260813-1/,
-    /cgd\.js\?v=20260813-4/
+    /cgd\.js\?v=20260813-5/
   );
 }
 assert.doesNotMatch(read("admin.html"), /dashboard-financial-calculations/);
