@@ -62,8 +62,14 @@ const supabaseClient = window.supabase?.createClient && SUPABASE_ANON_KEY ? wind
 const TABLE_PREFIX = String(window.DASHBOARD_TABLE_PREFIX || "cgd").trim().toLowerCase();
 const PAGE_PATHNAME = String(window.location?.pathname || "").toLowerCase();
 const IS_COVERFLEX = TABLE_PREFIX === "coverflex" || PAGE_PATHNAME.includes("coverflex");
-const ENABLE_NB_MONTH_SCROLL_SYNC = TABLE_PREFIX === "nb";
-const NB_MONTH_SCROLL_SYNC_SELECTOR = "[data-month-scroll-sync]";
+const MONTH_SCROLL_SYNC_CAPABILITIES = Object.freeze({
+  cgd: Object.freeze(["timeline", "totalizer", "balance", "income", "savings", "outcome"]),
+  nb: Object.freeze(["timeline", "totalizer", "balance", "income", "outcome"]),
+  coverflex: Object.freeze(["timeline", "totalizer", "income", "outcome", "estimated-irs"])
+});
+const MONTH_SCROLL_SYNC_KINDS = new Set(MONTH_SCROLL_SYNC_CAPABILITIES[TABLE_PREFIX] || []);
+const ENABLE_MONTH_SCROLL_SYNC = MONTH_SCROLL_SYNC_KINDS.size > 0;
+const MONTH_SCROLL_SYNC_SELECTOR = "[data-month-scroll-sync]";
 const tableName = (suffix) => `${TABLE_PREFIX}_${suffix}`;
 const HIDE_SAVINGS = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_SAVINGS);
 const HIDE_BALANCE = IS_COVERFLEX || Boolean(window.DASHBOARD_HIDE_BALANCE);
@@ -117,9 +123,10 @@ const EXPLICIT_CHART_DETAIL_KINDS = new Set(
     .filter((kind) => SUPPORTED_CHART_DETAIL_KINDS.has(kind))
 );
 
-function nbMonthScrollSyncAttribute(name) {
-  return ENABLE_NB_MONTH_SCROLL_SYNC
-    ? ` data-month-scroll-sync='${String(name || "").trim()}'`
+function monthScrollSyncAttribute(name) {
+  const kind = String(name || "").trim();
+  return MONTH_SCROLL_SYNC_KINDS.has(kind)
+    ? ` data-month-scroll-sync='${kind}'`
     : "";
 }
 if (window.DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL) {
@@ -1277,7 +1284,7 @@ function renderSoberTotalizer() {
       <header class='totalizer-head'>
         <h3>Totalizador mensal</h3>
       </header>
-      <div class='totalizer-grid-wrap'${nbMonthScrollSyncAttribute("totalizer")}>
+      <div class='totalizer-grid-wrap'${monthScrollSyncAttribute("totalizer")}>
         <div class='totalizer-grid'>
           <div class='data-row totalizer-row totalizer-row-real'>
             <div class='desc-cell totalizer-desc-cell'>
@@ -1307,7 +1314,7 @@ function renderSoberTotalizer() {
       </div>
     </section>
   `;
-  scheduleNbMonthScrollSyncRefresh();
+  scheduleMonthScrollSyncRefresh();
 }
 
 function monthPills(values, editable, labelPrefix, estimatedFlags = [], historyByMonth = [], detailMeta = null) {
@@ -1640,58 +1647,58 @@ function bindCgdTemporalChartScrollSync() {
   });
 }
 
-const nbMonthScrollBindings = new Map();
-const nbMonthProgrammaticScrolls = new WeakMap();
-let nbMonthScrollLogicalOffset = null;
-let nbMonthScrollPendingSource = null;
-let nbMonthScrollSyncFrame = 0;
-let nbMonthScrollRefreshFrame = 0;
-let nbMonthScrollLayoutReleaseFrame = 0;
-let nbMonthScrollLayoutChanging = false;
-let nbMonthScrollResizeObserver = null;
-let nbMonthScrollControllerInitialized = false;
-let nbMonthScrollPageshowBound = false;
+const monthScrollBindings = new Map();
+const monthProgrammaticScrolls = new WeakMap();
+let monthScrollLogicalOffset = null;
+let monthScrollPendingSource = null;
+let monthScrollSyncFrame = 0;
+let monthScrollRefreshFrame = 0;
+let monthScrollLayoutReleaseFrame = 0;
+let monthScrollLayoutChanging = false;
+let monthScrollResizeObserver = null;
+let monthScrollControllerInitialized = false;
+let monthScrollPageshowBound = false;
 
-function clampNbMonthScroll(value, min, max) {
+function clampMonthScroll(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function getNbMonthScrollMax(scroller) {
+function getMonthScrollMax(scroller) {
   return Math.max(0, (Number(scroller?.scrollWidth) || 0) - (Number(scroller?.clientWidth) || 0));
 }
 
-function getNbMonthScrollLeft(scroller) {
+function getMonthScrollLeft(scroller) {
   if (!scroller) {
     return 0;
   }
 
-  const maxScroll = getNbMonthScrollMax(scroller);
+  const maxScroll = getMonthScrollMax(scroller);
   const rawScroll = Number(scroller.scrollLeft) || 0;
   if (getComputedStyle(scroller).direction === "rtl") {
-    return clampNbMonthScroll(-rawScroll, 0, maxScroll);
+    return clampMonthScroll(-rawScroll, 0, maxScroll);
   }
-  return clampNbMonthScroll(rawScroll, 0, maxScroll);
+  return clampMonthScroll(rawScroll, 0, maxScroll);
 }
 
-function setNbMonthScrollLeft(scroller, logicalScrollLeft) {
-  const maxScroll = getNbMonthScrollMax(scroller);
+function setMonthScrollLeft(scroller, logicalScrollLeft) {
+  const maxScroll = getMonthScrollMax(scroller);
   if (maxScroll <= 0) {
     return false;
   }
 
-  const nextScrollLeft = clampNbMonthScroll(Number(logicalScrollLeft) || 0, 0, maxScroll);
-  if (Math.abs(getNbMonthScrollLeft(scroller) - nextScrollLeft) <= 0.5) {
+  const nextScrollLeft = clampMonthScroll(Number(logicalScrollLeft) || 0, 0, maxScroll);
+  if (Math.abs(getMonthScrollLeft(scroller) - nextScrollLeft) <= 0.5) {
     return false;
   }
 
-  nbMonthProgrammaticScrolls.set(scroller, nextScrollLeft);
+  monthProgrammaticScrolls.set(scroller, nextScrollLeft);
   scroller.scrollLeft = getComputedStyle(scroller).direction === "rtl"
     ? -nextScrollLeft
     : nextScrollLeft;
   return true;
 }
 
-function isNbMonthScrollCellVisible(cell) {
+function isMonthScrollCellVisible(cell) {
   if (!cell || typeof cell.getClientRects !== "function" || cell.getClientRects().length === 0) {
     return false;
   }
@@ -1699,26 +1706,26 @@ function isNbMonthScrollCellVisible(cell) {
   return style.display !== "none" && style.visibility !== "hidden";
 }
 
-function findNbMonthScrollCell(scroller, monthIndex) {
+function findMonthScrollCell(scroller, monthIndex) {
   const selector = scroller?.dataset?.monthScrollSync === "timeline"
     ? `.month-tile[data-month='${monthIndex}']`
     : `[data-month-col='${monthIndex}']`;
-  return Array.from(scroller?.querySelectorAll?.(selector) || []).find(isNbMonthScrollCellVisible) || null;
+  return Array.from(scroller?.querySelectorAll?.(selector) || []).find(isMonthScrollCellVisible) || null;
 }
 
-function measureNbMonthScrollGeometry(scroller) {
+function measureMonthScrollGeometry(scroller) {
   if (!scroller || scroller.getClientRects().length === 0) {
     return null;
   }
 
-  const firstMonth = findNbMonthScrollCell(scroller, 0);
-  const lastMonth = findNbMonthScrollCell(scroller, 11);
+  const firstMonth = findMonthScrollCell(scroller, 0);
+  const lastMonth = findMonthScrollCell(scroller, 11);
   if (!firstMonth || !lastMonth) {
     return null;
   }
 
   const scrollerRect = scroller.getBoundingClientRect();
-  const scrollLeft = getNbMonthScrollLeft(scroller);
+  const scrollLeft = getMonthScrollLeft(scroller);
   const isRtl = getComputedStyle(scroller).direction === "rtl";
   const centerFor = (cell) => {
     const rect = cell.getBoundingClientRect();
@@ -1737,27 +1744,27 @@ function measureNbMonthScrollGeometry(scroller) {
     firstCenter,
     monthPitch,
     scrollLeft,
-    maxScroll: getNbMonthScrollMax(scroller)
+    maxScroll: getMonthScrollMax(scroller)
   };
 }
 
-function readNbMonthLogicalOffset(scroller) {
-  const geometry = measureNbMonthScrollGeometry(scroller);
+function readMonthLogicalOffset(scroller) {
+  const geometry = measureMonthScrollGeometry(scroller);
   return geometry
     ? (geometry.scrollLeft - geometry.firstCenter) / geometry.monthPitch
     : null;
 }
 
-function getNbMonthLogicalBounds() {
+function getMonthLogicalBounds() {
   let minimum = -Infinity;
   let maximum = Infinity;
   let hasScrollableGeometry = false;
 
-  nbMonthScrollBindings.forEach((_, scroller) => {
+  monthScrollBindings.forEach((_, scroller) => {
     if (!scroller.isConnected) {
       return;
     }
-    const geometry = measureNbMonthScrollGeometry(scroller);
+    const geometry = measureMonthScrollGeometry(scroller);
     if (!geometry || geometry.maxScroll <= 0) {
       return;
     }
@@ -1775,215 +1782,215 @@ function getNbMonthLogicalBounds() {
     : null;
 }
 
-function clampNbMonthLogicalOffset(logicalOffset) {
-  const bounds = getNbMonthLogicalBounds();
+function clampMonthLogicalOffset(logicalOffset) {
+  const bounds = getMonthLogicalBounds();
   return bounds
-    ? clampNbMonthScroll(logicalOffset, bounds.minimum, bounds.maximum)
+    ? clampMonthScroll(logicalOffset, bounds.minimum, bounds.maximum)
     : logicalOffset;
 }
 
-function applyNbMonthLogicalOffset(scroller, logicalOffset) {
-  const geometry = measureNbMonthScrollGeometry(scroller);
+function applyMonthLogicalOffset(scroller, logicalOffset) {
+  const geometry = measureMonthScrollGeometry(scroller);
   if (!geometry || geometry.maxScroll <= 0 || !Number.isFinite(logicalOffset)) {
     return false;
   }
-  return setNbMonthScrollLeft(
+  return setMonthScrollLeft(
     scroller,
     geometry.firstCenter + logicalOffset * geometry.monthPitch
   );
 }
 
-function syncNbMonthScrollersFrom(source) {
-  const sourceLogicalOffset = readNbMonthLogicalOffset(source);
+function syncMonthScrollersFrom(source) {
+  const sourceLogicalOffset = readMonthLogicalOffset(source);
   const nextLogicalOffset = Number.isFinite(sourceLogicalOffset)
-    ? clampNbMonthLogicalOffset(sourceLogicalOffset)
+    ? clampMonthLogicalOffset(sourceLogicalOffset)
     : null;
   if (!Number.isFinite(nextLogicalOffset)) {
     return;
   }
 
-  nbMonthScrollLogicalOffset = nextLogicalOffset;
-  nbMonthScrollBindings.forEach((_, scroller) => {
+  monthScrollLogicalOffset = nextLogicalOffset;
+  monthScrollBindings.forEach((_, scroller) => {
     if (scroller.isConnected) {
-      applyNbMonthLogicalOffset(scroller, nextLogicalOffset);
+      applyMonthLogicalOffset(scroller, nextLogicalOffset);
     }
   });
 }
 
-function scheduleNbMonthScrollSync(source) {
-  nbMonthScrollPendingSource = source;
-  if (nbMonthScrollSyncFrame) {
+function scheduleMonthScrollSync(source) {
+  monthScrollPendingSource = source;
+  if (monthScrollSyncFrame) {
     return;
   }
 
-  nbMonthScrollSyncFrame = requestAnimationFrame(() => {
-    nbMonthScrollSyncFrame = 0;
-    const pendingSource = nbMonthScrollPendingSource;
-    nbMonthScrollPendingSource = null;
+  monthScrollSyncFrame = requestAnimationFrame(() => {
+    monthScrollSyncFrame = 0;
+    const pendingSource = monthScrollPendingSource;
+    monthScrollPendingSource = null;
     if (pendingSource?.isConnected) {
-      syncNbMonthScrollersFrom(pendingSource);
+      syncMonthScrollersFrom(pendingSource);
     }
   });
 }
 
-function handleNbMonthScrollerScroll(scroller) {
-  if (nbMonthScrollLayoutChanging) {
-    nbMonthProgrammaticScrolls.delete(scroller);
+function handleMonthScrollerScroll(scroller) {
+  if (monthScrollLayoutChanging) {
+    monthProgrammaticScrolls.delete(scroller);
     return;
   }
 
-  const currentScrollLeft = getNbMonthScrollLeft(scroller);
-  const expectedScrollLeft = nbMonthProgrammaticScrolls.get(scroller);
+  const currentScrollLeft = getMonthScrollLeft(scroller);
+  const expectedScrollLeft = monthProgrammaticScrolls.get(scroller);
   if (Number.isFinite(expectedScrollLeft) && Math.abs(currentScrollLeft - expectedScrollLeft) <= 1) {
-    nbMonthProgrammaticScrolls.delete(scroller);
+    monthProgrammaticScrolls.delete(scroller);
     return;
   }
 
-  nbMonthProgrammaticScrolls.delete(scroller);
-  scheduleNbMonthScrollSync(scroller);
+  monthProgrammaticScrolls.delete(scroller);
+  scheduleMonthScrollSync(scroller);
 }
 
-function refreshNbMonthScrollSync() {
-  nbMonthScrollRefreshFrame = 0;
-  if (!ENABLE_NB_MONTH_SCROLL_SYNC) {
+function refreshMonthScrollSync() {
+  monthScrollRefreshFrame = 0;
+  if (!ENABLE_MONTH_SCROLL_SYNC) {
     return;
   }
 
-  const currentScrollers = new Set(document.querySelectorAll(NB_MONTH_SCROLL_SYNC_SELECTOR));
-  nbMonthScrollBindings.forEach((handler, scroller) => {
+  const currentScrollers = new Set(document.querySelectorAll(MONTH_SCROLL_SYNC_SELECTOR));
+  monthScrollBindings.forEach((handler, scroller) => {
     if (!currentScrollers.has(scroller) || !scroller.isConnected) {
-      nbMonthScrollResizeObserver?.unobserve(scroller);
+      monthScrollResizeObserver?.unobserve(scroller);
       scroller.removeEventListener("scroll", handler);
-      nbMonthScrollBindings.delete(scroller);
-      nbMonthProgrammaticScrolls.delete(scroller);
+      monthScrollBindings.delete(scroller);
+      monthProgrammaticScrolls.delete(scroller);
     }
   });
 
   currentScrollers.forEach((scroller) => {
-    if (!nbMonthScrollBindings.has(scroller)) {
-      const handler = () => handleNbMonthScrollerScroll(scroller);
+    if (!monthScrollBindings.has(scroller)) {
+      const handler = () => handleMonthScrollerScroll(scroller);
       scroller.addEventListener("scroll", handler, { passive: true });
-      nbMonthScrollBindings.set(scroller, handler);
-      nbMonthScrollResizeObserver?.observe(scroller);
+      monthScrollBindings.set(scroller, handler);
+      monthScrollResizeObserver?.observe(scroller);
     }
   });
 
-  if (!Number.isFinite(nbMonthScrollLogicalOffset)) {
+  if (!Number.isFinite(monthScrollLogicalOffset)) {
     const initialSource = Array.from(currentScrollers).find(
       (scroller) => scroller.dataset.monthScrollSync === "timeline"
-        && measureNbMonthScrollGeometry(scroller)
-    ) || Array.from(currentScrollers).find(measureNbMonthScrollGeometry);
-    nbMonthScrollLogicalOffset = initialSource
-      ? readNbMonthLogicalOffset(initialSource)
+        && measureMonthScrollGeometry(scroller)
+    ) || Array.from(currentScrollers).find(measureMonthScrollGeometry);
+    monthScrollLogicalOffset = initialSource
+      ? readMonthLogicalOffset(initialSource)
       : null;
   }
 
-  if (Number.isFinite(nbMonthScrollLogicalOffset)) {
-    const appliedLogicalOffset = clampNbMonthLogicalOffset(nbMonthScrollLogicalOffset);
+  if (Number.isFinite(monthScrollLogicalOffset)) {
+    const appliedLogicalOffset = clampMonthLogicalOffset(monthScrollLogicalOffset);
     currentScrollers.forEach((scroller) => {
-      applyNbMonthLogicalOffset(scroller, appliedLogicalOffset);
+      applyMonthLogicalOffset(scroller, appliedLogicalOffset);
     });
   }
 
-  if (nbMonthScrollLayoutChanging && !nbMonthScrollLayoutReleaseFrame) {
+  if (monthScrollLayoutChanging && !monthScrollLayoutReleaseFrame) {
     let remainingFrames = 4;
     const releaseAfterStableLayout = () => {
       remainingFrames -= 1;
       if (remainingFrames > 0) {
-        nbMonthScrollLayoutReleaseFrame = requestAnimationFrame(releaseAfterStableLayout);
+        monthScrollLayoutReleaseFrame = requestAnimationFrame(releaseAfterStableLayout);
         return;
       }
 
-      nbMonthScrollLayoutReleaseFrame = 0;
-      if (Number.isFinite(nbMonthScrollLogicalOffset)) {
-        const appliedLogicalOffset = clampNbMonthLogicalOffset(nbMonthScrollLogicalOffset);
-        nbMonthScrollBindings.forEach((_, scroller) => {
+      monthScrollLayoutReleaseFrame = 0;
+      if (Number.isFinite(monthScrollLogicalOffset)) {
+        const appliedLogicalOffset = clampMonthLogicalOffset(monthScrollLogicalOffset);
+        monthScrollBindings.forEach((_, scroller) => {
           if (scroller.isConnected) {
-            applyNbMonthLogicalOffset(scroller, appliedLogicalOffset);
+            applyMonthLogicalOffset(scroller, appliedLogicalOffset);
           }
         });
       }
-      nbMonthScrollLayoutChanging = false;
+      monthScrollLayoutChanging = false;
     };
-    nbMonthScrollLayoutReleaseFrame = requestAnimationFrame(releaseAfterStableLayout);
+    monthScrollLayoutReleaseFrame = requestAnimationFrame(releaseAfterStableLayout);
   }
 }
 
-function scheduleNbMonthScrollSyncRefresh() {
-  if (!ENABLE_NB_MONTH_SCROLL_SYNC || nbMonthScrollRefreshFrame) {
+function scheduleMonthScrollSyncRefresh() {
+  if (!ENABLE_MONTH_SCROLL_SYNC || monthScrollRefreshFrame) {
     return;
   }
-  nbMonthScrollRefreshFrame = requestAnimationFrame(refreshNbMonthScrollSync);
+  monthScrollRefreshFrame = requestAnimationFrame(refreshMonthScrollSync);
 }
 
-function handleNbMonthScrollLayoutChange(event) {
+function handleMonthScrollLayoutChange(event) {
   if (!event || event.target?.closest?.("[data-toggle-target]")) {
-    scheduleNbMonthScrollSyncRefresh();
+    scheduleMonthScrollSyncRefresh();
   }
 }
 
-function handleNbMonthScrollViewportChange() {
-  nbMonthScrollLayoutChanging = true;
-  if (nbMonthScrollLayoutReleaseFrame) {
-    cancelAnimationFrame(nbMonthScrollLayoutReleaseFrame);
-    nbMonthScrollLayoutReleaseFrame = 0;
+function handleMonthScrollViewportChange() {
+  monthScrollLayoutChanging = true;
+  if (monthScrollLayoutReleaseFrame) {
+    cancelAnimationFrame(monthScrollLayoutReleaseFrame);
+    monthScrollLayoutReleaseFrame = 0;
   }
-  scheduleNbMonthScrollSyncRefresh();
+  scheduleMonthScrollSyncRefresh();
 }
 
-function destroyNbMonthScrollSync() {
-  nbMonthScrollBindings.forEach((handler, scroller) => {
+function destroyMonthScrollSync() {
+  monthScrollBindings.forEach((handler, scroller) => {
     scroller.removeEventListener("scroll", handler);
   });
-  nbMonthScrollBindings.clear();
-  nbMonthScrollResizeObserver?.disconnect();
-  nbMonthScrollResizeObserver = null;
-  if (nbMonthScrollSyncFrame) {
-    cancelAnimationFrame(nbMonthScrollSyncFrame);
-    nbMonthScrollSyncFrame = 0;
+  monthScrollBindings.clear();
+  monthScrollResizeObserver?.disconnect();
+  monthScrollResizeObserver = null;
+  if (monthScrollSyncFrame) {
+    cancelAnimationFrame(monthScrollSyncFrame);
+    monthScrollSyncFrame = 0;
   }
-  if (nbMonthScrollRefreshFrame) {
-    cancelAnimationFrame(nbMonthScrollRefreshFrame);
-    nbMonthScrollRefreshFrame = 0;
+  if (monthScrollRefreshFrame) {
+    cancelAnimationFrame(monthScrollRefreshFrame);
+    monthScrollRefreshFrame = 0;
   }
-  if (nbMonthScrollLayoutReleaseFrame) {
-    cancelAnimationFrame(nbMonthScrollLayoutReleaseFrame);
-    nbMonthScrollLayoutReleaseFrame = 0;
+  if (monthScrollLayoutReleaseFrame) {
+    cancelAnimationFrame(monthScrollLayoutReleaseFrame);
+    monthScrollLayoutReleaseFrame = 0;
   }
-  nbMonthScrollLayoutChanging = false;
-  window.removeEventListener("resize", handleNbMonthScrollViewportChange);
-  window.removeEventListener("orientationchange", handleNbMonthScrollViewportChange);
-  document.removeEventListener("cgd:rendered", scheduleNbMonthScrollSyncRefresh);
-  document.removeEventListener("click", handleNbMonthScrollLayoutChange);
-  nbMonthScrollControllerInitialized = false;
+  monthScrollLayoutChanging = false;
+  window.removeEventListener("resize", handleMonthScrollViewportChange);
+  window.removeEventListener("orientationchange", handleMonthScrollViewportChange);
+  document.removeEventListener("cgd:rendered", scheduleMonthScrollSyncRefresh);
+  document.removeEventListener("click", handleMonthScrollLayoutChange);
+  monthScrollControllerInitialized = false;
 }
 
-function initNbMonthScrollSync() {
-  if (!ENABLE_NB_MONTH_SCROLL_SYNC) {
+function initMonthScrollSync() {
+  if (!ENABLE_MONTH_SCROLL_SYNC) {
     return;
   }
 
-  if (!nbMonthScrollPageshowBound) {
-    nbMonthScrollPageshowBound = true;
+  if (!monthScrollPageshowBound) {
+    monthScrollPageshowBound = true;
     window.addEventListener("pageshow", () => {
-      initNbMonthScrollSync();
+      initMonthScrollSync();
     });
   }
 
-  if (nbMonthScrollControllerInitialized) {
+  if (monthScrollControllerInitialized) {
     return;
   }
 
-  nbMonthScrollControllerInitialized = true;
+  monthScrollControllerInitialized = true;
   if (typeof ResizeObserver === "function") {
-    nbMonthScrollResizeObserver = new ResizeObserver(handleNbMonthScrollViewportChange);
+    monthScrollResizeObserver = new ResizeObserver(handleMonthScrollViewportChange);
   }
-  window.addEventListener("resize", handleNbMonthScrollViewportChange, { passive: true });
-  window.addEventListener("orientationchange", handleNbMonthScrollViewportChange, { passive: true });
-  window.addEventListener("pagehide", destroyNbMonthScrollSync, { once: true });
-  document.addEventListener("cgd:rendered", scheduleNbMonthScrollSyncRefresh);
-  document.addEventListener("click", handleNbMonthScrollLayoutChange);
-  scheduleNbMonthScrollSyncRefresh();
+  window.addEventListener("resize", handleMonthScrollViewportChange, { passive: true });
+  window.addEventListener("orientationchange", handleMonthScrollViewportChange, { passive: true });
+  window.addEventListener("pagehide", destroyMonthScrollSync, { once: true });
+  document.addEventListener("cgd:rendered", scheduleMonthScrollSyncRefresh);
+  document.addEventListener("click", handleMonthScrollLayoutChange);
+  scheduleMonthScrollSyncRefresh();
 }
 
 function buildCgdMonthlyFlowEstimatedFlags(rubrics) {
@@ -3637,7 +3644,7 @@ function buildBalancePanel() {
   });
 
   return `
-  <section class='panel balance'${nbMonthScrollSyncAttribute("balance")}>
+  <section class='panel balance'${monthScrollSyncAttribute("balance")}>
     <header class='panel-head'>
       <div class='panel-title'>
         <span class='chev-spacer' aria-hidden='true'></span>
@@ -3661,7 +3668,7 @@ function buildEstimatedIrsPanel() {
   const estimatedTotals = computeEstimatedIrsMonthlyTotals(outcomeRubrics);
 
   return `
-  <section class='panel balance panel-estimated-irs'>
+  <section class='panel balance panel-estimated-irs'${monthScrollSyncAttribute("estimated-irs")}>
     <header class='panel-head'>
       <div class='panel-title'>
         <span class='chev-spacer' aria-hidden='true'></span>
@@ -3687,7 +3694,7 @@ function renderTimeline(year) {
   }
   const timelineScroller = timeline.closest(".temporal-nav-card");
   if (timelineScroller) {
-    if (ENABLE_NB_MONTH_SCROLL_SYNC) {
+    if (MONTH_SCROLL_SYNC_KINDS.has("timeline")) {
       timelineScroller.dataset.monthScrollSync = "timeline";
     } else {
       timelineScroller.removeAttribute("data-month-scroll-sync");
@@ -3715,7 +3722,7 @@ function renderTimeline(year) {
     </div>
     ${monthsHtml}
   `;
-  scheduleNbMonthScrollSyncRefresh();
+  scheduleMonthScrollSyncRefresh();
 }
 
 function renderExpenseRows(expenses, rubricName, kind) {
@@ -3868,7 +3875,7 @@ function buildPanel(title, kind, rubrics) {
       </div>`
     : "";
   return `
-  <section class='panel ${kind}' data-panel-block data-panel-kind='${kind}'${nbMonthScrollSyncAttribute(kind)}>
+  <section class='panel ${kind}' data-panel-block data-panel-kind='${kind}'${monthScrollSyncAttribute(kind)}>
     <header class='panel-head'>
       <div class='panel-title'>
         <button class='chev' type='button' data-toggle-target='${bodyId}' aria-expanded='false' aria-label='Expandir ${title}'>&#9660;</button>
@@ -5922,7 +5929,7 @@ function renderPanels() {
   }
   renderOutcomeEvolutionChart();
   renderOutcomeComparisonChart();
-  scheduleNbMonthScrollSyncRefresh();
+  scheduleMonthScrollSyncRefresh();
 }
 
 function parseMoneyInputValue(value) {
@@ -8519,7 +8526,7 @@ window.cgdHandleExpenseReorder = async (row, action) => {
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
-  initNbMonthScrollSync();
+  initMonthScrollSync();
   renderNbPieCharts();
   bindSoberTotalizerInputs();
   renderTimeline(cgdState.selectedYear);

@@ -22,63 +22,82 @@ const sliceBetween = (source, startMarker, endMarker) => {
 
 const controllerSource = sliceBetween(
   cgdSource,
-  "const nbMonthScrollBindings = new Map();",
+  "const monthScrollBindings = new Map();",
   "\nfunction buildCgdMonthlyFlowEstimatedFlags"
 );
 const attributeHelperSource = sliceBetween(
   cgdSource,
-  "function nbMonthScrollSyncAttribute(",
+  "function monthScrollSyncAttribute(",
   "\nif (window.DASHBOARD_EXPLICIT_INCOME_REVENUE_DETAIL)"
 );
 
-assert.match(cgdSource, /const ENABLE_NB_MONTH_SCROLL_SYNC = TABLE_PREFIX === "nb";/);
-assert.match(cgdSource, /const NB_MONTH_SCROLL_SYNC_SELECTOR = "\[data-month-scroll-sync\]";/);
-assert.match(cgdSource, /nbMonthScrollSyncAttribute\("totalizer"\)/);
-assert.match(cgdSource, /nbMonthScrollSyncAttribute\("balance"\)/);
-assert.match(cgdSource, /nbMonthScrollSyncAttribute\(kind\)/);
+const expectedCapabilities = {
+  cgd: ["timeline", "totalizer", "balance", "income", "savings", "outcome"],
+  nb: ["timeline", "totalizer", "balance", "income", "outcome"],
+  coverflex: ["timeline", "totalizer", "income", "outcome", "estimated-irs"]
+};
+assert.match(cgdSource, /cgd:\s*Object\.freeze\(\["timeline", "totalizer", "balance", "income", "savings", "outcome"\]\)/);
+assert.match(cgdSource, /nb:\s*Object\.freeze\(\["timeline", "totalizer", "balance", "income", "outcome"\]\)/);
+assert.match(cgdSource, /coverflex:\s*Object\.freeze\(\["timeline", "totalizer", "income", "outcome", "estimated-irs"\]\)/);
+assert.match(cgdSource, /const ENABLE_MONTH_SCROLL_SYNC = MONTH_SCROLL_SYNC_KINDS\.size > 0;/);
+assert.match(cgdSource, /const MONTH_SCROLL_SYNC_SELECTOR = "\[data-month-scroll-sync\]";/);
+assert.match(cgdSource, /monthScrollSyncAttribute\("totalizer"\)/);
+assert.match(cgdSource, /monthScrollSyncAttribute\("balance"\)/);
+assert.match(cgdSource, /monthScrollSyncAttribute\("estimated-irs"\)/);
+assert.match(cgdSource, /monthScrollSyncAttribute\(kind\)/);
 assert.match(cgdSource, /timelineScroller\.dataset\.monthScrollSync = "timeline"/);
-assert.match(cgdSource, /scheduleNbMonthScrollSyncRefresh\(\);/);
+assert.match(cgdSource, /scheduleMonthScrollSyncRefresh\(\);/);
 assert.match(cgdSource, /addEventListener\("scroll", handler, \{ passive: true \}\)/);
 assert.match(cgdSource, /requestAnimationFrame\(\(\) =>/);
-assert.match(cgdSource, /nbMonthProgrammaticScrolls/);
+assert.match(cgdSource, /monthProgrammaticScrolls/);
 assert.match(cgdSource, /removeEventListener\("scroll", handler\)/);
-assert.match(controllerSource, /new ResizeObserver\(handleNbMonthScrollViewportChange\)/);
-assert.match(controllerSource, /if \(!nbMonthScrollPageshowBound\)[\s\S]*?window\.addEventListener\("pageshow", \(\) =>/);
+assert.match(controllerSource, /new ResizeObserver\(handleMonthScrollViewportChange\)/);
+assert.match(controllerSource, /if \(!monthScrollPageshowBound\)[\s\S]*?window\.addEventListener\("pageshow", \(\) =>/);
 assert.doesNotMatch(controllerSource, /data-cgd-temporal-scroll|outcome-evolution-svg-wrap|preventDefault/);
 
 assert.match(
   styles,
-  /@media \(max-width: 1024px\)[\s\S]*?\.nb-theme \[data-month-scroll-sync\][\s\S]*?--nb-month-track-width:\s*51px;[\s\S]*?--nb-month-track-gap:\s*4px;/
+  /@media \(max-width: 1024px\)[\s\S]*?\[data-month-scroll-sync\][\s\S]*?--month-scroll-track-width:\s*51px;[\s\S]*?--month-scroll-track-gap:\s*4px;/
 );
 assert.match(
   styles,
-  /\.nb-theme \[data-month-scroll-sync="totalizer"\]\s*\{\s*--nb-month-leading-track:\s*107px;/
+  /\[data-month-scroll-sync="totalizer"\]\s*\{\s*--month-scroll-leading-track:\s*107px;/
 );
 assert.match(
   styles,
-  /\.nb-theme \[data-month-scroll-sync\] \.timeline-grid,[\s\S]*?grid-template-columns:\s*var\(--nb-month-leading-track\) repeat\(12, var\(--nb-month-track-width\)\)/
+  /\[data-month-scroll-sync\] \.timeline-grid,[\s\S]*?grid-template-columns:\s*var\(--month-scroll-leading-track\) repeat\(12, var\(--month-scroll-track-width\)\)/
 );
 assert.match(novoBancoHtml, /window\.DASHBOARD_TABLE_PREFIX = "nb"/);
 assert.match(cgdHtml, /window\.DASHBOARD_TABLE_PREFIX = "cgd"/);
 assert.match(coverflexHtml, /window\.DASHBOARD_TABLE_PREFIX = "coverflex"/);
 [novoBancoHtml, cgdHtml, coverflexHtml].forEach((html) => {
-  assert.match(html, /assets\/css\/styles\.css\?v=20260814-1/);
-  assert.match(html, /assets\/js\/cgd\.js\?v=20260814-1/);
+  assert.match(html, /assets\/css\/styles\.css\?v=20260814-2/);
+  assert.match(html, /assets\/js\/cgd\.js\?v=20260814-2/);
 });
-const renderSyncAttribute = (enabled, name) => {
+const renderSyncAttribute = (kinds, name) => {
   const attributeContext = vm.createContext({
-    ENABLE_NB_MONTH_SCROLL_SYNC: enabled,
+    MONTH_SCROLL_SYNC_KINDS: new Set(kinds),
     String
   });
   return vm.runInContext(
-    `${attributeHelperSource}\nnbMonthScrollSyncAttribute(${JSON.stringify(name)});`,
+    `${attributeHelperSource}\nmonthScrollSyncAttribute(${JSON.stringify(name)});`,
     attributeContext
   );
 };
-assert.equal(renderSyncAttribute(false, "timeline"), "");
-assert.equal(renderSyncAttribute(false, "income"), "");
-assert.equal(renderSyncAttribute(false, "outcome"), "");
-assert.equal(renderSyncAttribute(true, "income"), " data-month-scroll-sync='income'");
+Object.entries(expectedCapabilities).forEach(([prefix, kinds]) => {
+  kinds.forEach((kind) => {
+    assert.equal(
+      renderSyncAttribute(kinds, kind),
+      ` data-month-scroll-sync='${kind}'`,
+      `${prefix} should emit ${kind}`
+    );
+  });
+  ["balance", "savings", "estimated-irs"].filter((kind) => !kinds.includes(kind)).forEach((kind) => {
+    assert.equal(renderSyncAttribute(kinds, kind), "", `${prefix} must exclude ${kind}`);
+  });
+});
+assert.equal(renderSyncAttribute([], "timeline"), "");
+assert.equal(renderSyncAttribute(expectedCapabilities.cgd, "modal"), "");
 
 class FakeEventTarget {
   constructor() {
@@ -227,13 +246,19 @@ const income = new FakeScroller({
   clientWidth: 376,
   maxScroll: 400
 });
+const savings = new FakeScroller({
+  name: "savings",
+  firstCenter: 143.5,
+  clientWidth: 376,
+  maxScroll: 400
+});
 const outcome = new FakeScroller({
   name: "outcome",
   firstCenter: 143.5,
   clientWidth: 376,
   maxScroll: 400
 });
-let currentScrollers = [timeline, totalizer, balance, income, outcome];
+let currentScrollers = [timeline, totalizer, balance, income, savings, outcome];
 
 const documentTarget = new FakeEventTarget();
 documentTarget.querySelectorAll = (selector) => (
@@ -248,8 +273,8 @@ const context = vm.createContext({
   Math,
   Array,
   String,
-  ENABLE_NB_MONTH_SCROLL_SYNC: true,
-  NB_MONTH_SCROLL_SYNC_SELECTOR: "[data-month-scroll-sync]",
+  ENABLE_MONTH_SCROLL_SYNC: true,
+  MONTH_SCROLL_SYNC_SELECTOR: "[data-month-scroll-sync]",
   document: documentTarget,
   window: windowTarget,
   requestAnimationFrame,
@@ -264,18 +289,18 @@ const context = vm.createContext({
 });
 
 vm.runInContext(`${controllerSource}
-globalThis.nbMonthSyncTestApi = {
-  initNbMonthScrollSync,
-  refreshNbMonthScrollSync,
-  scheduleNbMonthScrollSyncRefresh,
-  destroyNbMonthScrollSync,
-  readNbMonthLogicalOffset,
-  getNbMonthLogicalBounds,
-  getBindingCount: () => nbMonthScrollBindings.size,
-  getLogicalOffset: () => nbMonthScrollLogicalOffset,
-  isLayoutChanging: () => nbMonthScrollLayoutChanging
+globalThis.monthSyncTestApi = {
+  initMonthScrollSync,
+  refreshMonthScrollSync,
+  scheduleMonthScrollSyncRefresh,
+  destroyMonthScrollSync,
+  readMonthLogicalOffset,
+  getMonthLogicalBounds,
+  getBindingCount: () => monthScrollBindings.size,
+  getLogicalOffset: () => monthScrollLogicalOffset,
+  isLayoutChanging: () => monthScrollLayoutChanging
 };`, context);
-const api = context.nbMonthSyncTestApi;
+const api = context.monthSyncTestApi;
 
 const assertAligned = (scrollers, label) => {
   for (let monthIndex = 0; monthIndex < 12; monthIndex += 1) {
@@ -290,9 +315,9 @@ const settleProgrammaticScrollEvents = () => {
   flushAnimationFrames();
 };
 
-api.initNbMonthScrollSync();
+api.initMonthScrollSync();
 flushAnimationFrames();
-assert.equal(api.getBindingCount(), 5);
+assert.equal(api.getBindingCount(), 6);
 assert.equal(windowTarget.listenerCount("pageshow"), 1);
 currentScrollers.forEach((scroller) => assert.equal(scroller.listenerCount("scroll"), 1));
 assertAligned(currentScrollers, "initial January position");
@@ -310,6 +335,7 @@ driveScroller(timeline, 110, "timeline to all");
 driveScroller(totalizer, 220, "totalizer to all");
 driveScroller(balance, 165, "balance to all");
 driveScroller(income, 275, "income to all");
+driveScroller(savings, 195, "savings to all");
 driveScroller(outcome, 85, "outcome to all");
 
 const writesBeforeRapidScroll = currentScrollers.map((scroller) => scroller.writeCount);
@@ -390,13 +416,17 @@ const noOverflow = new FakeScroller({
   clientWidth: 800,
   maxScroll: 0
 });
+noOverflow.visible = false;
 currentScrollers = [...currentScrollers, noOverflow];
-api.refreshNbMonthScrollSync();
-assert.equal(noOverflow.logicalScrollLeft, 0, "no-overflow panel must not block or move");
+api.refreshMonthScrollSync();
+assert.equal(noOverflow.logicalScrollLeft, 0, "hidden panel must not block or move");
 assert.equal(noOverflow.listenerCount("scroll"), 1);
+noOverflow.visible = true;
+api.refreshMonthScrollSync();
+assert.equal(noOverflow.logicalScrollLeft, 0, "visible no-overflow panel must not block or move");
 noOverflow.clientWidth = 354;
 noOverflow.scrollWidth = 777;
-api.refreshNbMonthScrollSync();
+api.refreshMonthScrollSync();
 assert.ok(noOverflow.logicalScrollLeft > 0, "late-overflow panel should adopt the stored position");
 assertAligned(currentScrollers, "late-visible panel");
 settleProgrammaticScrollEvents();
@@ -411,18 +441,19 @@ outcome.isConnected = false;
 currentScrollers = currentScrollers.map((scroller) => (
   scroller === outcome ? replacementOutcome : scroller
 ));
-api.refreshNbMonthScrollSync();
+api.refreshMonthScrollSync();
 assert.equal(outcome.listenerCount("scroll"), 0, "detached scroller listener should be removed");
 assert.equal(replacementOutcome.listenerCount("scroll"), 1);
 assertAligned(currentScrollers, "rerender replacement");
-api.refreshNbMonthScrollSync();
+api.refreshMonthScrollSync();
 assert.equal(replacementOutcome.listenerCount("scroll"), 1, "refresh must not duplicate listeners");
 
-const verticalScrollBeforeMonthReveal = 640;
+windowTarget.scrollY = 640;
+const verticalScrollBeforeMonthReveal = windowTarget.scrollY;
 driveScroller(timeline, 250, "selected month reveal");
-assert.equal(verticalScrollBeforeMonthReveal, 640, "month synchronization must not mutate vertical scroll");
+assert.equal(windowTarget.scrollY, verticalScrollBeforeMonthReveal, "month synchronization must not mutate vertical scroll");
 
-api.destroyNbMonthScrollSync();
+api.destroyMonthScrollSync();
 currentScrollers.forEach((scroller) => assert.equal(scroller.listenerCount("scroll"), 0));
 assert.equal(api.getBindingCount(), 0);
 windowTarget.dispatch("pageshow");
@@ -430,7 +461,7 @@ flushAnimationFrames();
 assert.equal(windowTarget.listenerCount("pageshow"), 1, "BFCache restore must not accumulate pageshow listeners");
 assert.equal(api.getBindingCount(), currentScrollers.length);
 currentScrollers.forEach((scroller) => assert.equal(scroller.listenerCount("scroll"), 1));
-api.destroyNbMonthScrollSync();
+api.destroyMonthScrollSync();
 
 const rtlTimeline = new FakeScroller({
   name: "timeline",
@@ -457,8 +488,8 @@ const rtlContext = vm.createContext({
   Math,
   Array,
   String,
-  ENABLE_NB_MONTH_SCROLL_SYNC: true,
-  NB_MONTH_SCROLL_SYNC_SELECTOR: "[data-month-scroll-sync]",
+  ENABLE_MONTH_SCROLL_SYNC: true,
+  MONTH_SCROLL_SYNC_SELECTOR: "[data-month-scroll-sync]",
   document: rtlDocument,
   window: rtlWindow,
   requestAnimationFrame(callback) {
@@ -480,14 +511,96 @@ const flushRtlFrames = () => {
   }
 };
 vm.runInContext(`${controllerSource}
-globalThis.rtlApi = { initNbMonthScrollSync, destroyNbMonthScrollSync };`, rtlContext);
-rtlContext.rtlApi.initNbMonthScrollSync();
+globalThis.rtlApi = { initMonthScrollSync, destroyMonthScrollSync };`, rtlContext);
+rtlContext.rtlApi.initMonthScrollSync();
 flushRtlFrames();
 rtlTimeline.setUserScroll(180);
 rtlTimeline.dispatch("scroll");
 flushRtlFrames();
 assertAligned([rtlTimeline, rtlOutcome], "RTL inline-axis synchronization");
-rtlContext.rtlApi.destroyNbMonthScrollSync();
+rtlContext.rtlApi.destroyMonthScrollSync();
+
+const runBrandDirectionalMatrix = (prefix, kinds) => {
+  const brandScrollers = kinds.map((name) => new FakeScroller({
+    name,
+    firstCenter: name === "timeline" || name === "totalizer" ? 141.5 : 143.5,
+    clientWidth: name === "totalizer" ? 354 : 376,
+    maxScroll: name === "timeline" ? 406 : name === "totalizer" ? 423 : 400
+  }));
+  const brandDocument = new FakeEventTarget();
+  brandDocument.querySelectorAll = (selector) => (
+    selector === "[data-month-scroll-sync]" ? brandScrollers : []
+  );
+  const brandWindow = new FakeEventTarget();
+  const brandFrames = [];
+  const brandCancelledFrames = new Set();
+  let brandNextFrameId = 1;
+  const brandContext = vm.createContext({
+    Map,
+    WeakMap,
+    Number,
+    Math,
+    Array,
+    String,
+    ENABLE_MONTH_SCROLL_SYNC: true,
+    MONTH_SCROLL_SYNC_SELECTOR: "[data-month-scroll-sync]",
+    document: brandDocument,
+    window: brandWindow,
+    requestAnimationFrame(callback) {
+      const id = brandNextFrameId;
+      brandNextFrameId += 1;
+      brandFrames.push({ id, callback });
+      return id;
+    },
+    cancelAnimationFrame(id) {
+      brandCancelledFrames.add(id);
+    },
+    getComputedStyle(element) {
+      return {
+        direction: element.direction || "ltr",
+        display: "block",
+        visibility: "visible"
+      };
+    }
+  });
+  const flushBrandFrames = () => {
+    while (brandFrames.length) {
+      brandFrames.splice(0).forEach(({ id, callback }) => {
+        if (!brandCancelledFrames.has(id)) callback();
+      });
+    }
+  };
+  vm.runInContext(`${controllerSource}
+  globalThis.brandApi = {
+    initMonthScrollSync,
+    destroyMonthScrollSync,
+    getBindingCount: () => monthScrollBindings.size
+  };`, brandContext);
+  brandContext.brandApi.initMonthScrollSync();
+  flushBrandFrames();
+  assert.equal(brandContext.brandApi.getBindingCount(), kinds.length, `${prefix} binding count`);
+  assert.deepEqual(
+    brandScrollers.map((scroller) => scroller.dataset.monthScrollSync),
+    kinds,
+    `${prefix} exact host kinds`
+  );
+
+  brandScrollers.forEach((source, sourceIndex) => {
+    source.setUserScroll(Math.min(90 + sourceIndex * 35, source.scrollWidth - source.clientWidth));
+    source.dispatch("scroll");
+    flushBrandFrames();
+    assertAligned(brandScrollers, `${prefix} origin ${source.dataset.monthScrollSync}`);
+    brandScrollers.forEach((scroller) => scroller.dispatch("scroll"));
+    flushBrandFrames();
+  });
+
+  brandContext.brandApi.destroyMonthScrollSync();
+  brandScrollers.forEach((scroller) => assert.equal(scroller.listenerCount("scroll"), 0));
+};
+
+Object.entries(expectedCapabilities).forEach(([prefix, kinds]) => {
+  runBrandDirectionalMatrix(prefix, kinds);
+});
 
 const offFrames = [];
 const offScroller = new FakeScroller({
@@ -503,8 +616,8 @@ const offContext = vm.createContext({
   Math,
   Array,
   String,
-  ENABLE_NB_MONTH_SCROLL_SYNC: false,
-  NB_MONTH_SCROLL_SYNC_SELECTOR: "[data-month-scroll-sync]",
+  ENABLE_MONTH_SCROLL_SYNC: false,
+  MONTH_SCROLL_SYNC_SELECTOR: "[data-month-scroll-sync]",
   document: {
     querySelectorAll: () => [offScroller],
     addEventListener() {},
@@ -522,9 +635,9 @@ const offContext = vm.createContext({
   getComputedStyle: () => ({ direction: "ltr", display: "block", visibility: "visible" })
 });
 vm.runInContext(`${controllerSource}
-initNbMonthScrollSync();
-scheduleNbMonthScrollSyncRefresh();`, offContext);
-assert.equal(offScroller.listenerCount("scroll"), 0, "CGD/Coverflex gate must stay off");
+initMonthScrollSync();
+scheduleMonthScrollSyncRefresh();`, offContext);
+assert.equal(offScroller.listenerCount("scroll"), 0, "unsupported prefixes must stay off");
 assert.equal(offFrames.length, 0, "disabled brands must not schedule sync work");
 
-console.log("Novo Banco monthly scroll synchronization regression checks passed.");
+console.log("Multi-brand monthly scroll synchronization regression checks passed.");
