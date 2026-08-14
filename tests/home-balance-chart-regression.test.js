@@ -350,7 +350,7 @@ assert.match(activeMenuSource, /setAttribute\("aria-current", "page"\)/);
 assert.match(activeMenuSource, /removeAttribute\("aria-current"\)/);
 
 for (const html of Object.values(htmlByPage)) {
-  assert.match(html, /assets\/css\/styles\.css\?v=20260813-3/);
+  assert.match(html, /assets\/css\/styles\.css\?v=20260814-1/);
   assert.match(html, /assets\/js\/main\.js\?v=20260813-3/);
 }
 assert.match(htmlByPage["index.html"], /assets\/js\/home\.js\?v=20260813-2/);

@@ -1206,7 +1206,7 @@ const htmlFiles = [...authenticatedHtmlFiles, "login.html"];
 const html = htmlFiles.map(read);
 for (const relativePath of htmlFiles) {
   const source = read(relativePath);
-  const stylesVersion = relativePath === "login.html" ? "20260806-1" : "20260813-3";
+  const stylesVersion = relativePath === "login.html" ? "20260806-1" : "20260814-1";
   assert.match(source, /viewport-fit=cover/);
   assert.match(source, new RegExp(`assets/css/styles\\.css\\?v=${stylesVersion}`));
 }
@@ -1216,7 +1216,7 @@ for (const source of html.filter((value) => value.includes("assets/js/main.js"))
 for (const relativePath of ["caixa-geral-depositos.html", "novobanco.html", "coverflex.html"]) {
   const source = read(relativePath);
   assert.match(source, /assets\/js\/dashboard-financial-calculations\.js\?v=20260813-1/);
-  assert.match(source, /assets\/js\/cgd\.js\?v=20260813-5/);
+  assert.match(source, /assets\/js\/cgd\.js\?v=20260814-1/);
   assert.ok(
     source.indexOf("assets/js/dashboard-financial-calculations.js") < source.indexOf("assets/js/cgd.js"),
     `Shared financial calculations must load before cgd.js in ${relativePath}`

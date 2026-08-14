@@ -632,6 +632,25 @@ function assertStickyGeometry(result, page, viewport, prefix = "", maxGap = Numb
   assert.deepEqual(result.scrollingAncestors, [], `${label}: an overflow ancestor can invalidate sticky positioning`);
 }
 
+async function waitForMobileMenuStickyGeometry(client, expectedOpen) {
+  await waitFor(
+    client,
+    `(() => {
+      const topbar = document.querySelector(".topbar");
+      const card = document.querySelector(".temporal-nav-card");
+      if (!topbar || !card || topbar.classList.contains("menu-open") !== ${expectedOpen}) {
+        return false;
+      }
+      const topbarRect = topbar.getBoundingClientRect();
+      const cardRect = card.getBoundingClientRect();
+      const computedTop = Number.parseFloat(getComputedStyle(card).top);
+      const gap = cardRect.top - topbarRect.bottom;
+      return Math.abs(cardRect.top - computedTop) <= 1 && gap >= 6 && gap <= 10;
+    })()`,
+    `mobile menu ${expectedOpen ? "open" : "closed"} sticky offset`
+  );
+}
+
 async function inspectModalLayer(client) {
   return evaluate(client, `(() => {
     const modal = document.querySelector("#confirm-modal");
@@ -791,7 +810,7 @@ async function runEnabledCase(debugPort, baseUrl, page, viewport) {
     let menuOpen = null;
     if (viewport.width <= 1024) {
       await evaluate(client, `document.querySelector(".menu-toggle").click()`);
-      await delay(150);
+      await waitForMobileMenuStickyGeometry(client, true);
       menuOpen = await evaluate(client, snapshotExpression);
       assert.equal(menuOpen.menuOpen, true, `${label}: mobile menu did not open`);
       assertStickyGeometry(menuOpen, page, viewport, " with menu open", 10);
@@ -799,7 +818,7 @@ async function runEnabledCase(debugPort, baseUrl, page, viewport) {
       assert.ok(menuControls.count >= 5, `${label}: mobile menu controls are missing`);
       assert.ok(menuControls.reachable.every(Boolean), `${label}: a mobile menu control cannot be reached inside its scroll area`);
       await evaluate(client, `document.querySelector(".menu-toggle").click()`);
-      await delay(150);
+      await waitForMobileMenuStickyGeometry(client, false);
       const menuClosed = await evaluate(client, snapshotExpression);
       assert.equal(menuClosed.menuOpen, false, `${label}: mobile menu did not close`);
       assertStickyGeometry(menuClosed, page, viewport, " after menu close", 10);

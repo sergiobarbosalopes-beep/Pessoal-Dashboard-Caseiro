@@ -89,9 +89,9 @@ for (const config of pageConfigs) {
   const ids = Array.from(html.matchAll(/\sid="([^"]+)"/g), (match) => match[1]);
   assert.equal(new Set(ids).size, ids.length, `${config.file}: duplicate static IDs`);
 
-  assert.match(html, /assets\/css\/styles\.css\?v=20260813-3/);
+  assert.match(html, /assets\/css\/styles\.css\?v=20260814-1/);
   assert.match(html, /assets\/js\/main\.js\?v=20260813-3/);
-  assert.match(html, /assets\/js\/cgd\.js\?v=20260813-5/);
+  assert.match(html, /assets\/js\/cgd\.js\?v=20260814-1/);
 }
 
 const temporalNavigationBlocks = Array.from(
@@ -219,8 +219,17 @@ const renderTimelineSource = sliceBetween(
   "function renderTimeline(",
   "\nfunction renderExpenseRows("
 );
-const timeline = { innerHTML: "" };
+const timelineScroller = {
+  dataset: {},
+  removeAttribute() {}
+};
+const timeline = {
+  innerHTML: "",
+  closest: () => timelineScroller
+};
 const timelineContext = vm.createContext({
+  ENABLE_NB_MONTH_SCROLL_SYNC: false,
+  scheduleNbMonthScrollSyncRefresh() {},
   document: {
     getElementById(id) {
       return id === "month-timeline" ? timeline : null;
